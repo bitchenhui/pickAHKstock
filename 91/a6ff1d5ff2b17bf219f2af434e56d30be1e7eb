@@ -1,0 +1,14 @@
+README.md
+  h_69a2bad0f475d9 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "91a6ff1d5ff2b17bf219f2af434e56d30be1e7eb",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
