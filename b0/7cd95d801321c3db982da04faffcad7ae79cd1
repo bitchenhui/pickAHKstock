@@ -1,0 +1,36 @@
+.gitignore
+  h_69a2bad0f475d9 1-6
+README.md
+  h_69a2bad0f475d9 1-45
+app.py
+  h_69a2bad0f475d9 1-204
+docs/strategy-v1.md
+  h_69a2bad0f475d9 1-61
+requirements.txt
+  h_69a2bad0f475d9 1-4
+retail_agent/__init__.py
+  h_69a2bad0f475d9 1
+retail_agent/core.py
+  h_69a2bad0f475d9 1-164
+retail_agent/data.py
+  h_69a2bad0f475d9 1-106
+retail_agent/llm.py
+  h_69a2bad0f475d9 1-39
+tests/test_core.py
+  h_69a2bad0f475d9 1-68
+tests/test_data.py
+  h_69a2bad0f475d9 1-42
+tests/test_llm.py
+  h_69a2bad0f475d9 1-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b07cd95d801321c3db982da04faffcad7ae79cd1",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
