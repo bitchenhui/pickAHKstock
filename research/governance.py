@@ -42,13 +42,27 @@ def _ak():
     return ak
 
 
+def _latest_disclosed_quarter(today: date) -> tuple[int, int]:
+    """最近一个**已披露**的报告期（季度末）。
+
+    披露有滞后：年报在次年 3–4 月才出，所以 1–3 月时最新已披露的是上一年的
+    年报（1231），而不是当年的一季报。
+    """
+    month = today.month
+    if month >= 10:
+        return today.year, 3
+    if month >= 7:
+        return today.year, 2
+    if month >= 4:
+        return today.year, 1
+    return today.year - 1, 4
+
+
 def latest_holder_period(today: date | None = None) -> str:
     """股东户数按季度报告期披露：0331 / 0630 / 0930 / 1231。取最近一个已披露的。"""
     today = today or date.today()
-    candidates = []
-    for year in (today.year, today.year - 1):
-        candidates += [f"{year}0930", f"{year}0630", f"{year}0331", f"{year}1231"]
-    return candidates[0]
+    year, quarter = _latest_disclosed_quarter(today)
+    return f"{year}{['0331', '0630', '0930', '1231'][quarter - 1]}"
 
 
 def fetch_holder_numbers(period: str | None = None) -> dict[str, dict]:
@@ -86,10 +100,10 @@ def fetch_pledges(start: str = "20250101") -> list[dict]:
 
 
 def recent_periods(today: date | None = None, count: int = 4) -> list[str]:
-    """最近几个季度报告期（按巨潮归集的季末口径）。"""
+    """最近几个季度报告期（按巨潮归集的季末口径，从最新已披露的往回排）。"""
     today = today or date.today()
+    year, quarter = _latest_disclosed_quarter(today)
     periods: list[str] = []
-    year, quarter = today.year, (today.month - 1) // 3 + 1
     while len(periods) < count:
         periods.append(f"{year}{['0331', '0630', '0930', '1231'][quarter - 1]}")
         quarter -= 1
@@ -143,8 +157,7 @@ def scan(code: str, name: str = "", market: str = "",
         # 股东户数按季度披露，最近一期常常还没归集完（本机实测 20260930 只有
         # 3279 只，而 20260630 有 5248 只），所以从新到旧回退直到命中该代码。
         holder_period_used = None
-        for period in (holder_period,) if holder_period else [
-                "20260930", "20260630", "20260331"]:
+        for period in (holder_period,) if holder_period else recent_periods(count=3):
             holders = fetch_holder_numbers(period)
             row = holders.get(code)
             if row:

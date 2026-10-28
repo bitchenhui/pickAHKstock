@@ -15,11 +15,14 @@ class GovernanceTests(unittest.TestCase):
 
     def test_recent_periods_are_quarters_in_desc_order(self):
         periods = recent_periods(date(2026, 10, 29), count=4)
+        # 10 月时最新已披露的是三季度（年报要到次年 3–4 月）
         self.assertEqual(periods, ["20260930", "20260630", "20260331", "20251231"])
+        self.assertEqual(recent_periods(date(2026, 2, 10), count=1), ["20251231"])
+        self.assertEqual(recent_periods(date(2026, 5, 10), count=1), ["20260331"])
 
     def test_latest_holder_period_is_quarter_end(self):
         period = latest_holder_period(date(2026, 10, 29))
-        self.assertIn(period, ("20260930", "20260630", "20260331", "20251231"))
+        self.assertEqual(period, "20260930")
         self.assertEqual(len(period), 8)
 
 
