@@ -146,26 +146,26 @@ def cmd_risks(args: argparse.Namespace) -> int:
 
 
 def cmd_hk_discover(args: argparse.Namespace) -> int:
-    """港股候选发现：按已披露财务数据的同比与单季度变化。"""
-    from .hk import discover, latest_report_date
+    """港股候选发现：以盈警/盈喜公告为事件源。"""
+    from .hk import discover
 
-    report_date = args.date or latest_report_date()
-    candidates = discover(report_date, limit=args.limit)
+    candidates = discover(since_days=args.days, limit=args.limit)
     if not candidates:
-        print("没有符合筛选条件的港股候选。缺失不等于没有机会——先核对报告期与筛选口径。")
+        print("没有符合条件的港股候选。缺失不等于没有机会——先核对时间窗口与公告类别。")
         return 0
-    print(f"港股候选 {len(candidates)} 只（报告期 {report_date}，按变化幅度排序，仅为研究顺序）\n")
+    print(f"港股候选 {len(candidates)} 只（近 {args.days} 天盈利警告/正面盈利预告公告，"
+          f"按公告时间倒序，仅为研究顺序）\n")
     for c in candidates:
         cap = f"{c.market_cap / 1e8:.0f}亿" if c.market_cap else "—"
-        print(f"{c.code} {c.name:10s} {c.headline:34s} 市值{cap:>8s} 价{c.price:>8.2f} "
+        print(f"{c.code} {c.name:10s} {c.event[:30]:32s} 市值{cap:>8s} 价{c.price:>8.2f} "
               f"成交{c.turnover / 1e8:>6.2f}亿 每手{c.lot_size or '—'}")
-        print(f"    ROE {c.roe if c.roe is not None else '—'}%｜PE(TTM) {c.pe_ttm}｜PB {c.pb_ttm}"
-              f"｜报告期 {c.report_date}")
+        print(f"    {c.category}｜{c.published}｜换手 {c.turnover_rate}%")
+        print(f"    详情 {c.detail_url}")
         for note in c.notes:
             print(f"    ⚠ {note}")
         print()
-    print("港股没有业绩预告制度，本轮候选来自已披露财务数据的变化；"
-          "事件类证据（公告原文）需人工补，每手股数请按交易所资料复核。")
+    print("港股盈警与盈喜共用「盈利警告」类别，方向要看公告标题；"
+          "每手股数已从行情取到，但下单前仍需按交易所资料复核。")
     return 0
 
 
@@ -334,8 +334,8 @@ def main(argv: list[str] | None = None) -> int:
     p_risk.add_argument("--days", type=int, default=240)
     p_risk.set_defaults(func=cmd_risks)
 
-    p_hk = sub.add_parser("hk-discover", help="港股候选发现")
-    p_hk.add_argument("--date", default="", help="报告期 YYYY-MM-DD，留空取最新中期")
+    p_hk = sub.add_parser("hk-discover", help="港股候选发现（盈警/盈喜公告驱动）")
+    p_hk.add_argument("--days", type=int, default=60, help="回看天数")
     p_hk.add_argument("--limit", type=int, default=15)
     p_hk.set_defaults(func=cmd_hk_discover)
 

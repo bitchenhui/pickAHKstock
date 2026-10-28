@@ -26,6 +26,9 @@ class Snapshot:
     pb: float | None
     change_pct: float | None
     as_of: str               # 交易所时间戳，原始文本
+    turnover_rate: float | None = None   # 换手率 %
+    lot_size: int | None = None          # 每手股数（港股）
+    shares: float | None = None          # 总股本（港股）
 
 
 def _f(fields: list[str], index: int) -> str:
@@ -63,24 +66,43 @@ def _parse_a(code: str, payload: str) -> Snapshot | None:
 
 
 def _parse_hk(code: str, payload: str) -> Snapshot | None:
+    """港股字段（腾讯行情，实测 78 段）：
+
+    [3] 最新价 · [6] 成交量 · [37] 成交额(元) · [44] 流通市值(亿) ·
+    [45] 总市值(亿) · [59] 换手率% · [60] 每手股数 · [69] 总股本
+
+    总市值取 [45]：00939 的流通市值与总市值不同，用「总股本 × 最新价」可验证。
+    """
     fields = payload.split("~")
-    if len(fields) < 38:
+    if len(fields) < 61:
         return None
     price = _num(_f(fields, 3))
     if price is None or price <= 0:
         return None
     turnover = _num(_f(fields, 37))
+    total_cap_yi = _num(_f(fields, 45))
+    shares = _num(_f(fields, 69))
+    lot = _num(_f(fields, 60))
+    # 用总股本 × 最新价交叉验证总市值口径，验不过就不填，避免挂错数
+    market_cap = None
+    if total_cap_yi:
+        market_cap = total_cap_yi * 1e8
+        if shares and abs(shares * price - market_cap) / market_cap > 0.02:
+            market_cap = None
     return Snapshot(
         market="HK",
         code=code,
         name=_f(fields, 1).replace(" ", ""),
         price=price,
         turnover=turnover or 0.0,
-        market_cap=None,
-        pe=_num(_f(fields, 39)),
-        pb=_num(_f(fields, 46)),
+        market_cap=market_cap,
+        pe=_num(_f(fields, 52)),
+        pb=_num(_f(fields, 53)),
         change_pct=_num(_f(fields, 32)),
         as_of=_f(fields, 30),
+        turnover_rate=_num(_f(fields, 59)),
+        lot_size=int(lot) if lot and lot > 0 else None,
+        shares=shares,
     )
 
 

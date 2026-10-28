@@ -1,41 +1,46 @@
-"""港股发现层（L1）。
+"""港股发现层（L1）：以「盈利警告 / 正面盈利预告」为事件源。
 
-港股没有 A 股式的业绩预告制度，也没有季报——只有中期报告与年报，
-所以「经营变化」信号只能来自：
-1. 已披露半年度/年度财务数据的同比变化（东方财富数据中心 RPT_HKF10_FN_MAININDICATOR）
-2. 分析师一致预期的变化（etnet 口径，akshare stock_hk_profit_forecast_et）
-3. 分红与公司概况（用于可投资性检查）
+港股的经营变化预告是**强制披露**的：盈警与盈喜都挂在同一个机器字段
+`column_name == "盈利警告"` 下，标题才是自由文本（正面盈利预告 / 盈利预警 /
+盈利警告 / 内幕消息盈利警告）。所以判定要靠类别字段，不要靠标题猜。
 
-**每手股数从 RPT_HKF10_INFO_SECURITYINFO.TRADE_UNIT 程序化取得**，不必手填；
-但仍需使用者按交易所/券商资料复核。
+数据来源（均为公开、免账号）：
+- 东方财富公告接口 np-anotice-stock/np-anotice-pc，ann_type=H,H_Fund
+  原文详情页 data.eastmoney.com/notices/detail/{code}/{art_code}.html
+  原文 PDF   pdf.dfcfw.com/pdf/H2_{art_code}_1.pdf
+- 腾讯行情 qt.gtimg.cn（港股 78 段字段，含每手股数与总市值）
 
-口径提醒：报表中 OPERATE_INCOME_SQ / HOLDER_PROFIT_SQ 的 REPORT_DATE_SQ 是
-**上年同期报告期**，即「上年同期值」，不是单季度值。A 股那套「累计相减得
-单季」的手法在港股不可用（没有季报），卡片的周期性判断要按半年度做。
-
-HKEXnews 与东方财富的港股公告接口实测均取不到数据（见 docs 备注），
-因此港股卡片里的「原始出处」目前只能引用财务数据接口与公司公告 PDF，
-事件类证据需要人工补。
+已知坑：
+- 该接口并发请求会触发 WAF（HTTP 567 + HTML），必须串行 + 间隔
+- begin_time/end_time 才是日期过滤；start_time 无效
+- HKEXnews 的 titleSearchServlet 实测取不到数据，不作为依赖
 """
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 
 import requests
 
 from .quotes import Snapshot, fetch_snapshots
 
-DC = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+ANN_URL = "https://np-anotice-stock.eastmoney.com/api/security/ann"
+DETAIL_URL = "https://data.eastmoney.com/notices/detail/{code}/{art_code}.html"
+PDF_URL = "https://pdf.dfcfw.com/pdf/H2_{art_code}_1.pdf"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
 
 MIN_PRICE_HKD = 1.0
 MIN_TURNOVER_HKD = 5e6
-MIN_CAP_HKD = 1e9          # 低于 10 亿港元的多为流动性陷阱
-MAX_CAP_HKD = 5e10         # 高于 500 亿港元的不是小资金可研究的体量
-MIN_REVENUE_YOY = 30.0     # 收入同比变化门槛（%）
-MIN_PROFIT_YOY = 50.0      # 归母净利同比变化门槛（%），含扭亏
+MIN_CAP_HKD = 1e9
+MAX_CAP_HKD = 5e10
+
+# 机器可判的公告类别（column_name），标题不可靠
+CATEGORY_ALERT = "盈利警告"      # 盈警与盈喜共用
+CATEGORY_RESULTS = ("季度業績", "中期業績", "年度業績", "半年度報告", "中期報告")
+# 基金与噪音：不是研究对象
+NOISE = ("基金", "ETF", "3456", "債券", "债", "票据", "可换股", "貨幣市場基金")
 
 
 class HkError(RuntimeError):
@@ -43,184 +48,154 @@ class HkError(RuntimeError):
 
 
 @dataclass
+class HkEvent:
+    code: str
+    name: str
+    title: str
+    published: date
+    category: str
+    art_code: str
+    detail_url: str = ""
+    pdf_url: str = ""
+
+    def to_dict(self) -> dict:
+        return {"code": self.code, "name": self.name, "title": self.title,
+                "published": self.published.isoformat(), "category": self.category,
+                "art_code": self.art_code, "detail_url": self.detail_url,
+                "pdf_url": self.pdf_url}
+
+
+@dataclass
 class HkCandidate:
     code: str
     name: str
     market: str = "HK"
-    headline: str = ""
-    revenue_yoy: float | None = None
-    profit_yoy: float | None = None
-    revenue_prior: float | None = None   # 上年同期营业收入（不是单季度）
-    profit_prior: float | None = None    # 上年同期归母净利润
-    roe: float | None = None
-    report_date: str = ""
-    market_cap: float | None = None
-    pe_ttm: float | None = None
-    pb_ttm: float | None = None
+    event: str = ""
+    category: str = ""
+    published: date | None = None
+    detail_url: str = ""
+    pdf_url: str = ""
     price: float = 0.0
     turnover: float = 0.0
+    market_cap: float | None = None
+    turnover_rate: float | None = None
     lot_size: int | None = None
-    board: str = ""
     as_of: str = ""
-    source: str = ""
     notes: list[str] = field(default_factory=list)
+
+    @property
+    def headline(self) -> str:
+        return self.event[:40]
 
     def to_dict(self) -> dict:
         return {"code": self.code, "name": self.name, "market": self.market,
-                "headline": self.headline, "revenue_yoy": self.revenue_yoy,
-                "profit_yoy": self.profit_yoy, "revenue_prior": self.revenue_prior,
-                "profit_prior": self.profit_prior, "roe": self.roe,
-                "report_date": self.report_date, "market_cap": self.market_cap,
-                "pe_ttm": self.pe_ttm, "pb_ttm": self.pb_ttm, "price": self.price,
-                "turnover": self.turnover, "lot_size": self.lot_size,
-                "board": self.board, "as_of": self.as_of, "source": self.source,
-                "notes": self.notes}
+                "headline": self.headline, "category": self.category,
+                "published": self.published.isoformat() if self.published else None,
+                "detail_url": self.detail_url, "pdf_url": self.pdf_url,
+                "price": self.price, "turnover": self.turnover,
+                "market_cap": self.market_cap, "turnover_rate": self.turnover_rate,
+                "lot_size": self.lot_size, "as_of": self.as_of, "notes": self.notes}
 
 
-def _fetch_report(report_name: str, report_date: str | None = None,
-                  page_size: int = 500, max_pages: int = 12) -> list[dict]:
-    """分页取一个数据中心报表的全市场数据。"""
-    rows: list[dict] = []
+def fetch_events(start: date, end: date, max_pages: int = 60,
+                 categories: tuple[str, ...] = (CATEGORY_ALERT,)) -> list[HkEvent]:
+    """抓取区间内的港股公告，只保留指定机器类别（默认盈利警告）。
+
+    接口按公告日期倒序返回，所以可以按日期提前收手。
+    """
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    events: list[HkEvent] = []
     for page in range(1, max_pages + 1):
-        params = {"reportName": report_name, "columns": "ALL", "pageSize": str(page_size),
-                  "pageIndex": str(page), "client": "WEB"}
-        if report_date:
-            params["filter"] = f"(REPORT_DATE='{report_date}')"
+        params = {"page_size": "50", "page_index": str(page),
+                  "ann_type": "H,H_Fund", "client_source": "web",
+                  "begin_time": start.strftime("%Y-%m-%d"),
+                  "end_time": end.strftime("%Y-%m-%d")}
         try:
-            response = requests.get(DC, headers=HEADERS, params=params, timeout=30)
+            response = session.get(ANN_URL, params=params, timeout=25)
             response.raise_for_status()
             payload = response.json()
         except (requests.RequestException, ValueError) as exc:
-            raise HkError(f"{report_name} 获取失败：{exc}") from exc
-        data = (payload.get("result") or {}).get("data") or []
-        if not data:
+            raise HkError(f"港股公告获取失败：{exc}") from exc
+        data = payload.get("data") or {}
+        items = data.get("list") or []
+        if not items:
             break
-        rows.extend(data)
-        if len(data) < page_size:
-            break
-    return rows
+        for item in items:
+            event = _to_event(item)
+            if event is None:
+                continue
+            if event.published < start:
+                continue
+            events.append(event)
+        time.sleep(0.35)
+    if categories:
+        events = [e for e in events if e.category in categories]
+    return events
 
 
-def fetch_indicators(report_date: str) -> list[dict]:
-    """全市场财务指标（含同比、单季度、ROE、PE、市值）。"""
-    return _fetch_report("RPT_HKF10_FN_MAININDICATOR", report_date)
-
-
-def fetch_securities() -> dict[str, dict]:
-    """全市场证券资料：板块与每手股数（TRADE_UNIT）。"""
-    out: dict[str, dict] = {}
-    for row in _fetch_report("RPT_HKF10_INFO_SECURITYINFO"):
-        code = str(row.get("SECURITY_CODE") or "").strip()
-        if not code:
-            continue
-        unit = row.get("TRADE_UNIT")
-        try:
-            lot = int(str(unit).strip())
-        except (TypeError, ValueError):
-            lot = None
-        out[code] = {"name": str(row.get("SECURITY_NAME_ABBR") or "").strip(),
-                     "board": str(row.get("BOARD") or "").strip(),
-                     "lot_size": lot, "listing_date": str(row.get("LISTING_DATE") or "")[:10]}
-    return out
-
-
-def _f(value) -> float | None:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except (TypeError, ValueError):
+def _to_event(item: dict) -> HkEvent | None:
+    codes = item.get("codes") or []
+    if not codes:
         return None
+    code = str(codes[0].get("stock_code") or "").strip()
+    if not code:
+        return None
+    title = str(item.get("title") or "").strip()
+    if any(noise in title for noise in NOISE):
+        return None
+    column_names = [str(c.get("column_name") or "") for c in (item.get("columns") or [])]
+    category = next((c for c in column_names if c), "")
+    if not category:
+        return None
+    stamp = str(item.get("notice_date") or "")[:10]
+    try:
+        published = date.fromisoformat(stamp)
+    except ValueError:
+        published = date.min
+    art_code = str(item.get("art_code") or "").strip()
+    return HkEvent(code=code, name=str(codes[0].get("short_name") or "").strip(),
+                   title=title, published=published, category=category,
+                   art_code=art_code,
+                   detail_url=DETAIL_URL.format(code=code, art_code=art_code),
+                   pdf_url=PDF_URL.format(art_code=art_code) if art_code else "")
 
 
-def select_by_financials(indicators: list[dict],
-                         securities: dict[str, dict]) -> list[dict]:
-    """第一段：只用财务数据筛掉绝大多数，留下需要取行情的候选。
-
-    全市场两千多家，先用财务变化收敛，再去取行情，避免几百次无谓的快照请求。
-    """
-    picked: list[dict] = []
-    for row in indicators:
-        code = str(row.get("SECURITY_CODE") or "").strip()
-        info = securities.get(code)
-        if not info or info.get("board") not in ("主板", ""):
-            continue
-        revenue_yoy = _f(row.get("OPERATE_INCOME_YOY"))
-        profit_yoy = _f(row.get("HOLDER_PROFIT_YOY"))
-        if revenue_yoy is None and profit_yoy is None:
-            continue
-        if not (abs(revenue_yoy or 0) >= MIN_REVENUE_YOY
-                or abs(profit_yoy or 0) >= MIN_PROFIT_YOY):
-            continue
-        picked.append(row)
-    return picked
-
-
-def build_candidates(indicators: list[dict], securities: dict[str, dict],
-                     quotes: dict[str, Snapshot]) -> list[HkCandidate]:
+def build_candidates(events: list[HkEvent], quotes: dict[str, Snapshot]) -> list[HkCandidate]:
     candidates: list[HkCandidate] = []
-    for row in indicators:
-        code = str(row.get("SECURITY_CODE") or "").strip()
-        info = securities.get(code)
-        if not info:
-            continue
-        snapshot = quotes.get(code)
+    for event in events:
+        snapshot = quotes.get(event.code)
         if not snapshot:
             continue
         notes: list[str] = []
-        revenue_yoy = _f(row.get("OPERATE_INCOME_YOY"))
-        profit_yoy = _f(row.get("HOLDER_PROFIT_YOY"))
-        revenue_prior = _f(row.get("OPERATE_INCOME_SQ"))   # 上年同期值，非单季
-        profit_prior = _f(row.get("HOLDER_PROFIT_SQ"))
-        if revenue_yoy is None and profit_yoy is None:
-            continue
-        moved = (abs(revenue_yoy or 0) >= MIN_REVENUE_YOY
-                 or abs(profit_yoy or 0) >= MIN_PROFIT_YOY)
-        if not moved:
-            continue
         if snapshot.price < MIN_PRICE_HKD:
             notes.append(f"股价 < {MIN_PRICE_HKD} 港元")
         if snapshot.turnover < MIN_TURNOVER_HKD:
             notes.append(f"成交额 < {MIN_TURNOVER_HKD / 1e6:.0f} 百万港元")
-        cap = _f(row.get("TOTAL_MARKET_CAP"))
-        if cap is not None and cap < MIN_CAP_HKD:
-            notes.append("总市值 < 10 亿港元，流动性与治理风险高")
-        if cap is not None and cap > MAX_CAP_HKD:
-            notes.append("总市值 > 500 亿港元，超出小资金研究体量")
-        if not info.get("lot_size"):
+        if snapshot.market_cap is None:
+            notes.append("总市值未能从行情核对（总股本×价格与市值字段不符），暂不判断体量")
+        else:
+            if snapshot.market_cap < MIN_CAP_HKD:
+                notes.append("总市值 < 10 亿港元，流动性与治理风险高")
+            if snapshot.market_cap > MAX_CAP_HKD:
+                notes.append("总市值 > 500 亿港元，超出小资金研究体量")
+        if not snapshot.lot_size:
             notes.append("每手股数缺失，仓位将按 0 处理")
         candidates.append(HkCandidate(
-            code=code, name=info.get("name") or snapshot.name,
-            headline=f"收入同比 {revenue_yoy:.0f}%、归母同比 {profit_yoy:.0f}%"
-            if revenue_yoy is not None and profit_yoy is not None
-            else f"收入同比 {revenue_yoy}%、归母同比 {profit_yoy}",
-            revenue_yoy=revenue_yoy, profit_yoy=profit_yoy,
-            revenue_prior=revenue_prior, profit_prior=profit_prior,
-            roe=_f(row.get("ROE_AVG")),
-            report_date=str(row.get("REPORT_DATE") or "")[:10],
-            market_cap=cap, pe_ttm=_f(row.get("PE_TTM")), pb_ttm=_f(row.get("PB_TTM")),
+            code=event.code, name=event.name or snapshot.name,
+            event=event.title, category=event.category, published=event.published,
+            detail_url=event.detail_url, pdf_url=event.pdf_url,
             price=snapshot.price, turnover=snapshot.turnover,
-            lot_size=info.get("lot_size"), board=info.get("board", ""),
-            as_of=snapshot.as_of,
-            source=f"{DC}?reportName=RPT_HKF10_FN_MAININDICATOR&filter=(REPORT_DATE='{str(row.get('REPORT_DATE'))[:10]}')",
-            notes=notes))
-    candidates.sort(key=lambda c: -max(abs(c.revenue_yoy or 0), abs(c.profit_yoy or 0)))
+            market_cap=snapshot.market_cap, turnover_rate=snapshot.turnover_rate,
+            lot_size=snapshot.lot_size, as_of=snapshot.as_of, notes=notes))
     return candidates
 
 
-def discover(report_date: str, limit: int = 20, quotes: bool = True) -> list[HkCandidate]:
-    indicators = fetch_indicators(report_date)
-    securities = fetch_securities()
-    picked = select_by_financials(indicators, securities)
-    if quotes:
-        codes = [str(r.get("SECURITY_CODE") or "").strip() for r in picked]
-        snapshots = fetch_snapshots([("HK", c) for c in codes])
-    else:
-        snapshots = {}
-    return build_candidates(picked, securities, snapshots)[:limit]
-
-
-def latest_report_date() -> str:
-    """取港股最新的中期报告期（通常为当年 6 月 30 日，次年 12 月 31 日为年报）。"""
-    today = date.today()
-    return f"{today.year}-06-30" if today.month >= 9 else f"{today.year - 1}-12-31"
+def discover(since_days: int = 60, limit: int = 20,
+             categories: tuple[str, ...] = (CATEGORY_ALERT,)) -> list[HkCandidate]:
+    end = date.today()
+    start = end - timedelta(days=since_days)
+    events = fetch_events(start, end, categories=categories)
+    codes = sorted({e.code for e in events})
+    quotes = fetch_snapshots([("HK", code) for code in codes])
+    return build_candidates(events, quotes)[:limit]
