@@ -263,12 +263,18 @@ def cmd_list(args: argparse.Namespace) -> int:
     if not CARD_DIR.exists():
         print("还没有卡片。")
         return 0
+    from .card import quality_grade
+
     for path in sorted(CARD_DIR.glob("*.json")):
         card = Card.from_dict(json.loads(path.read_text(encoding="utf-8")))
         findings = validate(card)
+        grade, thin = quality_grade(card)
         mark = "✗" if blocking(findings) else "✓"
         print(f"{mark} {card.market} {card.code} {card.name:8s} "
-              f"状态={card.status:6s} 等级={card.derived_level():6s} 阻塞={len(blocking(findings))}")
+              f"状态={card.status:6s} 等级={card.derived_level():6s} 质量={grade:6s} "
+              f"阻塞={len(blocking(findings))} 警告={len(findings) - len(blocking(findings))}")
+        for reason in thin[:2]:
+            print(f"      · {reason}")
     return 0
 
 

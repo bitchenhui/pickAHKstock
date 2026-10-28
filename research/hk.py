@@ -1,12 +1,17 @@
 """港股发现层（L1）。
 
-港股没有 A 股式的业绩预告制度，所以「经营变化」信号改由三处取得：
-1. 已披露财务数据的同比与单季度变化（东方财富数据中心 RPT_HKF10_FN_MAININDICATOR）
-2. 分析师一致预期的变化（经 etnet 口径，akshare stock_hk_profit_forecast_et）
+港股没有 A 股式的业绩预告制度，也没有季报——只有中期报告与年报，
+所以「经营变化」信号只能来自：
+1. 已披露半年度/年度财务数据的同比变化（东方财富数据中心 RPT_HKF10_FN_MAININDICATOR）
+2. 分析师一致预期的变化（etnet 口径，akshare stock_hk_profit_forecast_et）
 3. 分红与公司概况（用于可投资性检查）
 
 **每手股数从 RPT_HKF10_INFO_SECURITYINFO.TRADE_UNIT 程序化取得**，不必手填；
 但仍需使用者按交易所/券商资料复核。
+
+口径提醒：报表中 OPERATE_INCOME_SQ / HOLDER_PROFIT_SQ 的 REPORT_DATE_SQ 是
+**上年同期报告期**，即「上年同期值」，不是单季度值。A 股那套「累计相减得
+单季」的手法在港股不可用（没有季报），卡片的周期性判断要按半年度做。
 
 HKEXnews 与东方财富的港股公告接口实测均取不到数据（见 docs 备注），
 因此港股卡片里的「原始出处」目前只能引用财务数据接口与公司公告 PDF，
@@ -45,8 +50,8 @@ class HkCandidate:
     headline: str = ""
     revenue_yoy: float | None = None
     profit_yoy: float | None = None
-    profit_sq: float | None = None
-    revenue_sq: float | None = None
+    revenue_prior: float | None = None   # 上年同期营业收入（不是单季度）
+    profit_prior: float | None = None    # 上年同期归母净利润
     roe: float | None = None
     report_date: str = ""
     market_cap: float | None = None
@@ -63,8 +68,8 @@ class HkCandidate:
     def to_dict(self) -> dict:
         return {"code": self.code, "name": self.name, "market": self.market,
                 "headline": self.headline, "revenue_yoy": self.revenue_yoy,
-                "profit_yoy": self.profit_yoy, "profit_sq": self.profit_sq,
-                "revenue_sq": self.revenue_sq, "roe": self.roe,
+                "profit_yoy": self.profit_yoy, "revenue_prior": self.revenue_prior,
+                "profit_prior": self.profit_prior, "roe": self.roe,
                 "report_date": self.report_date, "market_cap": self.market_cap,
                 "pe_ttm": self.pe_ttm, "pb_ttm": self.pb_ttm, "price": self.price,
                 "turnover": self.turnover, "lot_size": self.lot_size,
@@ -128,6 +133,29 @@ def _f(value) -> float | None:
         return None
 
 
+def select_by_financials(indicators: list[dict],
+                         securities: dict[str, dict]) -> list[dict]:
+    """第一段：只用财务数据筛掉绝大多数，留下需要取行情的候选。
+
+    全市场两千多家，先用财务变化收敛，再去取行情，避免几百次无谓的快照请求。
+    """
+    picked: list[dict] = []
+    for row in indicators:
+        code = str(row.get("SECURITY_CODE") or "").strip()
+        info = securities.get(code)
+        if not info or info.get("board") not in ("主板", ""):
+            continue
+        revenue_yoy = _f(row.get("OPERATE_INCOME_YOY"))
+        profit_yoy = _f(row.get("HOLDER_PROFIT_YOY"))
+        if revenue_yoy is None and profit_yoy is None:
+            continue
+        if not (abs(revenue_yoy or 0) >= MIN_REVENUE_YOY
+                or abs(profit_yoy or 0) >= MIN_PROFIT_YOY):
+            continue
+        picked.append(row)
+    return picked
+
+
 def build_candidates(indicators: list[dict], securities: dict[str, dict],
                      quotes: dict[str, Snapshot]) -> list[HkCandidate]:
     candidates: list[HkCandidate] = []
@@ -136,21 +164,18 @@ def build_candidates(indicators: list[dict], securities: dict[str, dict],
         info = securities.get(code)
         if not info:
             continue
-        if info.get("board") not in ("主板", ""):
-            continue
         snapshot = quotes.get(code)
         if not snapshot:
             continue
         notes: list[str] = []
         revenue_yoy = _f(row.get("OPERATE_INCOME_YOY"))
         profit_yoy = _f(row.get("HOLDER_PROFIT_YOY"))
-        profit_sq = _f(row.get("HOLDER_PROFIT_SQ"))
-        revenue_sq = _f(row.get("OPERATE_INCOME_SQ"))
+        revenue_prior = _f(row.get("OPERATE_INCOME_SQ"))   # 上年同期值，非单季
+        profit_prior = _f(row.get("HOLDER_PROFIT_SQ"))
         if revenue_yoy is None and profit_yoy is None:
             continue
         moved = (abs(revenue_yoy or 0) >= MIN_REVENUE_YOY
-                 or abs(profit_yoy or 0) >= MIN_PROFIT_YOY
-                 or (profit_sq is not None and abs(profit_sq) > 0))
+                 or abs(profit_yoy or 0) >= MIN_PROFIT_YOY)
         if not moved:
             continue
         if snapshot.price < MIN_PRICE_HKD:
@@ -170,7 +195,7 @@ def build_candidates(indicators: list[dict], securities: dict[str, dict],
             if revenue_yoy is not None and profit_yoy is not None
             else f"收入同比 {revenue_yoy}%、归母同比 {profit_yoy}",
             revenue_yoy=revenue_yoy, profit_yoy=profit_yoy,
-            profit_sq=profit_sq, revenue_sq=revenue_sq,
+            revenue_prior=revenue_prior, profit_prior=profit_prior,
             roe=_f(row.get("ROE_AVG")),
             report_date=str(row.get("REPORT_DATE") or "")[:10],
             market_cap=cap, pe_ttm=_f(row.get("PE_TTM")), pb_ttm=_f(row.get("PB_TTM")),
@@ -186,10 +211,13 @@ def build_candidates(indicators: list[dict], securities: dict[str, dict],
 def discover(report_date: str, limit: int = 20, quotes: bool = True) -> list[HkCandidate]:
     indicators = fetch_indicators(report_date)
     securities = fetch_securities()
-    codes = [str(r.get("SECURITY_CODE") or "").strip() for r in indicators]
-    codes = [c for c in codes if c and c in securities]
-    snapshots = fetch_snapshots([("HK", c) for c in codes]) if quotes else {}
-    return build_candidates(indicators, securities, snapshots)[:limit]
+    picked = select_by_financials(indicators, securities)
+    if quotes:
+        codes = [str(r.get("SECURITY_CODE") or "").strip() for r in picked]
+        snapshots = fetch_snapshots([("HK", c) for c in codes])
+    else:
+        snapshots = {}
+    return build_candidates(picked, securities, snapshots)[:limit]
 
 
 def latest_report_date() -> str:

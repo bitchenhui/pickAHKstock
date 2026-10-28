@@ -15,6 +15,7 @@
       "published": "2026-10-21",
       "url": "http://static.cninfo.com.cn/finalpage/2026-10-21/1225611725.PDF",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "上年同期为重组前主体，同比幅度不可比",
       "next_check": "2026 年三季报",
       "status": "已核实",
@@ -29,6 +30,7 @@
       "published": "2026-10-21",
       "url": "http://static.cninfo.com.cn/finalpage/2026-10-21/1225611725.PDF",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "若置入资产本身盈利强，扭亏在重组后首年具备延续性；需独立验证而非采信表述",
       "next_check": "重组后分部报告",
       "status": "已核实",
@@ -43,6 +45,7 @@
       "published": "",
       "url": "",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "无法区分「置入资产本身优良」与「合并范围数学变化」",
       "next_check": "重组报告书与三季报分部数据",
       "status": "待核实",
@@ -57,6 +60,7 @@
       "published": "",
       "url": "",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "若下游景气回落，商誉减值会直接吞噬利润",
       "next_check": "2026 年报附注",
       "status": "待核实",
@@ -71,6 +75,7 @@
       "published": "2026-10-28",
       "url": "https://basic.10jqka.com.cn/api/stock/finance/603991_main.json",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "重组前后不可比，只能与重组后各单季横向比较",
       "next_check": "2026 年三季报分部数据",
       "status": "已核实",
@@ -85,6 +90,7 @@
       "published": "2026-10-26",
       "url": "http://static.cninfo.com.cn/finalpage/2026-10-27/1225625468.PDF",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "上年同期不含 AAMI，同比幅度本身不具可比性",
       "next_check": "2026 年报分部与 AAMI 经营数据",
       "status": "已核实",
@@ -99,6 +105,7 @@
       "published": "2026-10-26",
       "url": "http://static.cninfo.com.cn/finalpage/2026-10-27/1225625468.PDF",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "商誉不减值依赖 AAMI 未来现金流预测，减值测试假设未取得",
       "next_check": "2026 年报商誉减值测试关键假设",
       "status": "已核实",
@@ -113,6 +120,7 @@
       "published": "2026-10-26",
       "url": "http://static.cninfo.com.cn/finalpage/2026-10-27/1225625468.PDF",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "现金下降主因是主动偿债而非经营失血，与之伴随负债率下降与财务费用下降",
       "next_check": "Q4 现金余额与偿债后流动性",
       "status": "已核实",
@@ -127,6 +135,7 @@
       "published": "2026-10-23",
       "url": "http://static.cninfo.com.cn/finalpage/2026-10-24/1225620901.PDF",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "公司主张债务已因提存消灭，异议若获支持则冻结被纠正；反之将形成实际现金支出",
       "next_check": "执行异议裁定结果",
       "status": "已核实",
@@ -141,6 +150,7 @@
       "published": "2026-10-26",
       "url": "http://static.cninfo.com.cn/finalpage/2026-10-27/1225625468.PDF",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "质押比例高不等于必然平仓，但股价下行时可能放大波动",
       "next_check": "质押解除/补充质押公告",
       "status": "已核实",
@@ -155,6 +165,7 @@
       "published": "2026-07-08",
       "url": "http://static.cninfo.com.cn/finalpage/2026-07-08/1225413355.PDF",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "问询函本身不等于处罚，公司回复与会计师核查意见仍需逐项核对",
       "next_check": "上交所是否发出二次问询或监管措施",
       "status": "已核实",
@@ -169,6 +180,7 @@
       "published": "2026-07-25",
       "url": "http://static.cninfo.com.cn/finalpage/2026-07-25/1225440224.PDF",
       "observed": "2026-10-28",
+      "value": "",
       "alternative": "质押比例高不等于必然平仓，但与监管问询叠加会放大股价与治理风险的联动",
       "next_check": "质押余额与预警线",
       "status": "已核实",
@@ -205,7 +217,8 @@
   ],
   "counter": {
     "strongest_failure": "AAMI 的经营数据只能证明「并表后的新主体赚钱」，不能证明这家公司的资本运作能力可靠：苏州桔云是一份已经失败的样本——高溢价收购（评估增值率 1210%）、承诺期业绩不达标（2023 年仅完成 60%）、承诺期后业务几乎归零（2025 年营收 78.44 万元、净利 -5013 万元）、商誉两年计提殆尽仍留下一笔 1.44 亿元仲裁，公司至今未就该仲裁计提预计负债。上交所问询函第(5)问直接质疑收购后能否对标的有效管控整合，说明这不是我们的怀疑而是监管已经提出的问题。叠加本期未减值的 6.07 亿元商誉、控股股东高比例质押与母公司账户被冻结，若 AAMI 后续景气回落，商誉减值与治理事件会同时冲击盈利与估值两端——基本面与账户准入两条关目前都过不了。",
-    "exit_trigger": "重组后首个完整年度扣非净利润为负，或年报披露商誉减值、或重组业绩承诺未达成"
+    "exit_trigger": "重组后首个完整年度扣非净利润为负，或年报披露商誉减值、或重组业绩承诺未达成",
+    "where_wrong": "最脆弱的一环：把 AAMI 的高毛利当成结构性能力。引线框架 22%–23% 的毛利率若主要来自行业价格而非工艺与份额优势，AAMI 盈利会在下一个下行周期回到微利水平——而商誉 6.07 亿元的减值测试正是建立在这套毛利率假设上。"
   },
   "invalidation": [
     "2026 年报计提商誉减值超过 1 亿元（当前商誉 6.07 亿元）",
@@ -561,6 +574,61 @@
       "财务序列已于 2026-10-28 取自同花顺 F10 财务主表；单季度数据与巨潮定期报告需互相核对",
       "数据已于 2026-10-28 取自同花顺 F10 财务主表"
     ]
+  },
+  "catalysts": [
+    {
+      "event": "执行异议裁定结果与冻结解除进展",
+      "date": "2026-12-31",
+      "direction": "双向",
+      "magnitude": "1.44 亿元或有负债的最终结果",
+      "status": "待验证"
+    },
+    {
+      "event": "2026 年报（含商誉减值测试与 AAMI 分部数据）",
+      "date": "2027-04-30",
+      "direction": "双向",
+      "magnitude": "商誉是否减值、AAMI 分部毛利率",
+      "status": "待验证"
+    }
+  ],
+  "risks": [
+    {
+      "category": "商誉",
+      "severity": "高",
+      "mechanism": "AAMI 盈利不达预期触发 6.07 亿元商誉减值（占归母净资产 16.2%，本期未减）",
+      "trigger": "2026 年报减值测试假设下修，或减值计提超过 1 亿元",
+      "status": "开放"
+    },
+    {
+      "category": "法律",
+      "severity": "高",
+      "mechanism": "SF 公司 1.444 亿元仲裁已进入强制执行，公司主张提存已履行但尚未获法院支持",
+      "trigger": "执行异议被驳回，或冻结金额由 586 万元扩大",
+      "status": "开放"
+    },
+    {
+      "category": "治理",
+      "severity": "高",
+      "mechanism": "控股股东及一致行动人合计 24.34% 持股且质押比例高，叠加上交所年报问询函",
+      "trigger": "出现平仓公告或二次问询/监管措施",
+      "status": "开放"
+    },
+    {
+      "category": "整合",
+      "severity": "中",
+      "mechanism": "上一笔并购（苏州桔云）已商誉全额减值并演变为仲裁，整合能力未经检验",
+      "trigger": "新增并购标的的业绩承诺未达成",
+      "status": "开放"
+    }
+  ],
+  "provenance": {
+    "providers": [
+      "巨潮资讯（公告原文 PDF）",
+      "同花顺 F10 财务主表",
+      "腾讯行情快照"
+    ],
+    "snapshot": "2026-10-28",
+    "note": "财务序列为二手加工数据，原始依据仍以巨潮定期报告为准"
   },
   "account_checks": [
     {

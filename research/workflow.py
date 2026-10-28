@@ -70,8 +70,19 @@ def render_markdown(card: Card) -> str:
             lines.append(f"  - 驱动：{driver}")
     lines += ["", "## 反证", f"- 最强失败路径：{card.counter.strongest_failure or '（未填写）'}",
               f"- 退出触发：{card.counter.exit_trigger or '（未填写）'}",
-              "", "## 失效条件"]
+              f"- 我可能错在哪：{card.counter.where_wrong or '（未填写）'}"]
+    lines += ["", "## 失效条件"]
     lines += [f"- {t}" for t in card.invalidation] or ["- （未填写）"]
+    if card.catalysts:
+        lines += ["", "## 催化剂与复核事件"]
+        for catalyst in card.catalysts:
+            lines.append(f"- {catalyst.event}｜{catalyst.date or '无日期'}｜"
+                         f"{catalyst.direction}｜{catalyst.magnitude}｜{catalyst.status}")
+    if card.risks:
+        lines += ["", "## 风险"]
+        for risk in card.risks:
+            lines.append(f"- [{risk.severity}] {risk.category}：{risk.mechanism}"
+                         f"　监测触发：{risk.trigger or '（未填）'}")
     lines += ["", "## 账户检查"]
     lines += [f"- {c.name}：{c.result} {c.note} {c.source}".rstrip()
               for c in card.account_checks] or ["- （未填写）"]

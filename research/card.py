@@ -35,12 +35,13 @@ class CardError(ValueError):
 class Evidence:
     id: str
     claim: str                       # 可证伪的一句话
-    kind: str = "披露"              # 披露 / 财务 / 行情 / 第三方
+    kind: str = "披露"              # 披露 / 财务 / 行情 / 第三方 / 研报
     publisher: str = ""
     title: str = ""
     published: str = ""             # YYYY-MM-DD，原始出处日期
     url: str = ""
     observed: str = ""              # 我最早注意到它的日期
+    value: str = ""                 # 关键数值，便于日后核对口径
     alternative: str = ""           # 可替代解释
     next_check: str = ""            # 下一验证节点
     status: str = "待核实"
@@ -48,6 +49,38 @@ class Evidence:
 
     def is_verified(self) -> bool:
         return self.status == "已核实" and bool(self.published and self.url)
+
+    def age_days(self, today: date | None = None) -> int | None:
+        try:
+            published = date.fromisoformat(self.published)
+        except (TypeError, ValueError):
+            return None
+        return ((today or date.today()) - published).days
+
+
+@dataclass
+class Catalyst:
+    """催化剂：事件、预计日期、方向与量级。没有日期的催化剂不算数。"""
+
+    event: str
+    date: str = ""
+    direction: str = ""             # 正向 / 负向 / 双向
+    magnitude: str = ""             # 量级或影响口径
+    status: str = "待验证"          # 待验证 / 已发生 / 已证伪
+
+
+@dataclass
+class Risk:
+    """风险：类型、严重度、作用机制、监测触发条件。
+
+    「作用机制」是必填——只有类型和严重度而没有机制的，等于没写。
+    """
+
+    category: str
+    severity: str = "中"            # 高 / 中 / 低
+    mechanism: str = ""
+    trigger: str = ""               # 什么现象出现说明风险在实现
+    status: str = "开放"
 
 
 @dataclass
@@ -64,6 +97,7 @@ class Scenario:
 class CounterCase:
     strongest_failure: str = ""
     exit_trigger: str = ""
+    where_wrong: str = ""           # 「我可能错在哪」：最脆弱的一环
 
 
 @dataclass
@@ -116,6 +150,9 @@ class Card:
     invalidation: list[str] = field(default_factory=list)
     market_context: dict = field(default_factory=dict)
     financials: FinancialTrack = field(default_factory=FinancialTrack)
+    catalysts: list[Catalyst] = field(default_factory=list)
+    risks: list[Risk] = field(default_factory=list)
+    provenance: dict = field(default_factory=dict)   # 数据来源与快照哈希
     account_checks: list[AccountCheck] = field(default_factory=list)
     gaps: list[str] = field(default_factory=list)
     log: list[LogEntry] = field(default_factory=list)
@@ -164,6 +201,8 @@ class Card:
         data["scenarios"] = [Scenario(**s) for s in data.get("scenarios", [])]
         data["counter"] = CounterCase(**data.get("counter", {}))
         data["financials"] = FinancialTrack(**data.get("financials", {}))
+        data["catalysts"] = [Catalyst(**c) for c in data.get("catalysts", [])]
+        data["risks"] = [Risk(**r) for r in data.get("risks", [])]
         data["account_checks"] = [AccountCheck(**c) for c in data.get("account_checks", [])]
         data["log"] = [LogEntry(**l) for l in data.get("log", [])]
         return cls(**data)
@@ -269,6 +308,37 @@ def validate(card: Card) -> list[Finding]:
     if track.path == "未盈利" and not track.path_evidence:
         block("financials", "未盈利路径必须记录现金续航、里程碑与融资情景")
 
+    # 催化剂与风险
+    for catalyst in card.catalysts:
+        if not catalyst.event.strip():
+            block("catalysts", "催化剂缺少事件描述")
+        elif not catalyst.date.strip():
+            warn("catalysts", f"催化剂「{catalyst.event[:20]}」没有日期：没有日期的催化剂没法复核")
+    for risk in card.risks:
+        if not risk.category.strip():
+            block("risks", "风险缺少类别")
+        if not risk.mechanism.strip():
+            block(f"risks[{risk.category}]", "风险缺少作用机制：只有类别和严重度等于没写")
+        if risk.severity not in ("高", "中", "低"):
+            block(f"risks[{risk.category}]", f"严重度 '{risk.severity}' 非法")
+    if card.status == "持仓研究":
+        if not card.catalysts:
+            block("catalysts", "进入持仓研究必须至少有一个带日期的催化剂或复核事件")
+        if not card.risks:
+            block("risks", "进入持仓研究必须列出风险及其作用机制")
+        if not card.counter.where_wrong.strip():
+            block("counter", "必须写明「我可能错在哪」：最脆弱的那一环")
+
+    # 数据出处
+    if not card.provenance:
+        warn("provenance", "未记录数据来源清单：日后无法判断结论依赖哪些接口与快照")
+
+    # 证据新鲜度：太旧的「已核实」证据需要重新核对
+    for evidence in card.evidence:
+        age = evidence.age_days()
+        if age is not None and age > 365 and evidence.status == "已核实":
+            warn(f"evidence[{evidence.id}]", f"证据已过去 {age} 天，结论前需重新核对")
+
     # 账户准入
     for check in card.account_checks:
         if check.result not in CHECK_RESULTS:
@@ -296,3 +366,34 @@ def validate(card: Card) -> list[Finding]:
 
 def blocking(findings: list[Finding]) -> list[Finding]:
     return [f for f in findings if f.severity == "阻塞"]
+
+
+def quality_grade(card: Card) -> tuple[str, list[str]]:
+    """质量门：给卡片一个整体等级，避免「每项都填了但都填得很浅」。
+
+    借鉴同类项目「必采清单 + 质量门」的做法：
+    - 完整：零阻塞，且证据新、情景与反证都站得住
+    - 可用：零阻塞，但有陈旧或单薄之处
+    - 不完整：还有阻塞项
+    - 不可用：连「观察」都不成立
+    """
+    findings = validate(card)
+    blockers = blocking(findings)
+    reasons = [f"{f.field}：{f.message}" for f in findings]
+    if not [e for e in card.evidence if e.is_verified()]:
+        return "不可用", ["没有任何已核实的证据"]
+    if blockers:
+        return "不完整", reasons
+    fresh = [e for e in card.evidence if e.is_verified() and (e.age_days() or 0) <= 180]
+    thin = []
+    if len(fresh) < 2:
+        thin.append("近半年内可核实的证据少于 2 条")
+    if len(card.evidence) < 3:
+        thin.append("证据少于 3 条")
+    if not card.counter.where_wrong.strip():
+        thin.append("未写明「我可能错在哪」")
+    if not card.risks:
+        thin.append("未列出风险机制")
+    if thin:
+        return "可用", thin
+    return "完整", []
