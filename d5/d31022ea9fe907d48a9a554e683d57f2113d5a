@@ -1,0 +1,21 @@
+research/hk.py
+  s_2be9ca1f77025c::t_37d349af8aa505 45-62,69-90,120-121,140,255,259
+tests/test_hk.py
+  s_2be9ca1f77025c::t_6bee013c9c6e04 3-4,33-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d5d31022ea9fe907d48a9a554e683d57f2113d5a",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
