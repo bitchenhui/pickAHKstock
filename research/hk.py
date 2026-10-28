@@ -102,38 +102,59 @@ class HkCandidate:
                 "lot_size": self.lot_size, "as_of": self.as_of, "notes": self.notes}
 
 
-def fetch_events(start: date, end: date, max_pages: int = 60,
+def fetch_events(start: date, end: date, max_pages: int = 400,
                  categories: tuple[str, ...] = (CATEGORY_ALERT,)) -> list[HkEvent]:
     """抓取区间内的港股公告，只保留指定机器类别（默认盈利警告）。
 
-    接口按公告日期倒序返回，所以可以按日期提前收手。
+    分页机制（实测，踩过坑）：
+    - `page_size` 硬上限 100，传 200/500 都只回 100 条
+    - `end_time` 是**排他**的：end_time=最后一天 会漏掉当天的，要传 +1 天
+    - 没有服务端类别过滤，只能按 columns[].column_name 在客户端筛
+    - 返回按公告日期倒序，所以翻到早于 start 的记录就可以停
+
+    60 天窗口约 2.5 万条 ≈ 254 页；串行请求约 3–5 秒/页，务必串行加间隔，
+    并发会被服务端限流到 150 秒/次。
     """
     session = requests.Session()
     session.headers.update(HEADERS)
     events: list[HkEvent] = []
-    for page in range(1, max_pages + 1):
-        params = {"page_size": "50", "page_index": str(page),
-                  "ann_type": "H,H_Fund", "client_source": "web",
-                  "begin_time": start.strftime("%Y-%m-%d"),
-                  "end_time": end.strftime("%Y-%m-%d")}
+    exclusive_end = end + timedelta(days=1)
+    cache_file = CACHE_DIR / f"ann_{start}_{end}.json"
+    cached = None
+    if cache_file.exists():
         try:
-            response = session.get(ANN_URL, params=params, timeout=25)
-            response.raise_for_status()
-            payload = response.json()
-        except (requests.RequestException, ValueError) as exc:
-            raise HkError(f"港股公告获取失败：{exc}") from exc
-        data = payload.get("data") or {}
-        items = data.get("list") or []
-        if not items:
-            break
-        for item in items:
-            event = _to_event(item)
-            if event is None:
-                continue
-            if event.published < start:
-                continue
-            events.append(event)
-        time.sleep(0.35)
+            cached = json.loads(cache_file.read_text(encoding="utf-8"))
+        except ValueError:
+            cached = None
+    raw: list[dict] = cached if cached is not None else []
+    if cached is None:
+        for page in range(1, max_pages + 1):
+            params = {"page_size": "100", "page_index": str(page),
+                      "ann_type": "H,H_Fund", "client_source": "web",
+                      "begin_time": start.strftime("%Y-%m-%d"),
+                      "end_time": exclusive_end.strftime("%Y-%m-%d")}
+            try:
+                response = session.get(ANN_URL, params=params, timeout=60)
+                response.raise_for_status()
+                payload = response.json()
+            except (requests.RequestException, ValueError) as exc:
+                raise HkError(f"港股公告获取失败：{exc}") from exc
+            data = payload.get("data") or {}
+            items = data.get("list") or []
+            if not items:
+                break
+            raw.extend(items)
+            oldest = min(str(item.get("notice_date") or "")[:10] for item in items)
+            if oldest and oldest < start.strftime("%Y-%m-%d"):
+                break
+            time.sleep(0.3)
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+    for item in raw:
+        event = _to_event(item)
+        if event is None or event.published < start:
+            continue
+        events.append(event)
     if categories:
         events = [e for e in events if e.category in categories]
     return events
@@ -211,10 +232,9 @@ def discover(since_days: int = 60, limit: int = 20,
 def discover_by_results(since_days: int = 60, limit: int = 20) -> list[HkCandidate]:
     """以**业绩公告**为事件源。
 
-    盈警/盈喜只是结果公布前的预告，且港股的预告多来自微盘；业绩公告
-    （季度/中期/年度）是强制披露，覆盖全市场，能覆盖到流动性好的标的。
-    代价是它本身不是「变化」信号，变化要靠业绩数字比对——所以候选的
-    排序按公告类型与流动性，具体数字需回公告原文或财务接口核对。
+    盈警/盈喜是预告，业绩公告是强制披露、覆盖全市场。
+    但业绩公告本身不是「变化」信号，它是一张披露日历——所以这里的排序用
+    **流动性**而不是公告时间：先看谁同时满足可投资性与披露时点。
     """
     end = date.today()
     start = end - timedelta(days=since_days)
@@ -230,7 +250,9 @@ def discover_by_results(since_days: int = 60, limit: int = 20) -> list[HkCandida
         unique.append(event)
     codes = sorted({e.code for e in unique})
     quotes = fetch_snapshots([("HK", code) for code in codes])
-    return build_candidates(unique, quotes)[:limit]
+    candidates = build_candidates(unique, quotes)
+    candidates.sort(key=lambda c: (len(blockers_of(c)) > 0, -c.turnover))
+    return candidates[:limit]
 
 
 # ---------- 财务变化信号（结构化，比 PDF 抽文可靠） ----------
