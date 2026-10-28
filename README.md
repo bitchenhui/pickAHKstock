@@ -55,7 +55,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - `research/ths.py` 同花顺 F10 财务主表（报告期/年度/单季度三套序列与同比）、分年日线、ATR 与参考失效线、分析师预测、管理层变动，均免账号
 - `research/risk.py` 风险公告扫描：按公司名取全部公告再按标题分类，覆盖仲裁诉讼、账户偿债、股权质押、监管问询、审计意见、重组变更、资产质量、治理变动、停复牌九类
 - `research/governance.py` 治理与筹码结构：巨潮的股东户数、股权质押、诉讼、担保结构化数据——比标题扫描多出「几次、多少钱、谁在质押、筹码在集中还是分散」
-- `research/hk.py` 港股发现层：以**盈利警告 / 正面盈利预告**公告为事件源（港股的盈警与盈喜共用「盈利警告」机器类别，方向看标题）；**每手股数从腾讯行情取到，不必手填**
+- `research/hk.py` 港股发现层，三条事件源：`alerts` 盈警/盈喜（最像 A 股业绩预告，但港股多来自微盘）、`results` 业绩公告（强制披露、覆盖全市场）、`financials` 财务同比变化（结构化接口，覆盖全市场且给出变化量级）。**每手股数从腾讯行情取到，不必手填**
 - `research/account.py` L3 账户层：账户配置、回撤状态、按整手与风险预算的仓位估算、账户级动作（加仓/不加仓/减仓/清仓）
 - `research/card.py` 研究卡片 schema 与校验器：**结论等级由证据推导**，证据不足只能停在「观察」；财务路径（§30 已盈利 / §34 未盈利）没写完也不算数
 - `research/workflow.py` 卡片草稿生成与 Markdown 渲染
@@ -69,7 +69,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli reference A 002132                         # 用日线算 ATR 与 2ATR 参考失效线
 .venv/bin/python -m research.cli risks A 002132                             # 风险公告扫描
 .venv/bin/python -m research.cli governance A 002132                       # 治理与筹码（户数/质押/诉讼/担保）
-.venv/bin/python -m research.cli hk-discover --days 60                    # 港股候选（盈警/盈喜公告驱动）
+.venv/bin/python -m research.cli hk-discover --source results --days 30               # 港股：业绩公告
+.venv/bin/python -m research.cli hk-discover --source financials --date 2026-06-30  # 港股：财务同比变化
 .venv/bin/python -m research.cli show A 002132                              # 渲染卡片
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
 .venv/bin/python -m research.cli list                                       # 所有卡片状态、等级与质量门
@@ -83,7 +84,11 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 
 **账户层只给账户动作，不给股票名单。** 已持仓的卡片一旦被降级或淘汰，账户层会给出减仓/清仓动作；卡片还在「观察」时不出手是纪律，不是没找到机会。回撤状态只影响是否新增仓位，不改写研究判断。
 
+**港股公告 PDF 不能用 A 股那套抽文。** 港股公告的中文是 CID 字体，pypdf 抽出的中文字符数为 0（数字完整但对应不到科目），所以港股的数字必须走结构化财务接口，PDF 只用于人工复核。
+
 **风险公告要单独扫。** 业绩预告挑出来的候选，身上可能还挂着仲裁、账户冻结、监管问询、商誉减值、重组终止。`risks` 命令按标题关键词扫九类风险；关键词会误报（例：立昂微「终止信用评级」实为可转债摘牌而非信用恶化），所以每条都要回原文确认。
+
+**治理数据比标题扫描有用。** `governance` 命令给出的是硬数字：股东户数与增减（筹码集中还是分散）、对外担保笔数与**占归母净资产比例**、诉讼次数与金额、质押占股本比例。首轮就发现五只候选的对外担保占净资产从 30.88% 到 885.49% 不等——这类数字比「有担保公告」重要得多。
 
 **卡片字段的设计参照了同类项目**（TradingAgents-CN / astock / aiagents-stock / WyckoffTradingAgent / ai-hedge-fund / easy-stock 等的源码）：催化剂必带日期、风险必带作用机制、必须有「我可能错在哪」、每条证据带出处与新鲜度、整卡有质量门。不同点是我们不输出买卖建议、目标价与上涨概率——评分与概率在这套框架里没有位置。
 

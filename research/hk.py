@@ -250,7 +250,7 @@ def fetch_financial_snapshot(report_date: str, page_size: int = 500,
     带日期过滤的查询每次要 60–150 秒（服务端全表扫描），所以结果按报告期
     落盘缓存：第一次跑几分钟，之后是秒开。
     """
-    cache_file = CACHE_DIR / f"MAININDICATOR_{report_date}.json"
+    cache_file = CACHE_DIR / f"RPT_HKF10_FN_MAININDICATOR_{report_date}.json"
     if cache_file.exists():
         try:
             return json.loads(cache_file.read_text(encoding="utf-8"))
@@ -336,18 +336,34 @@ def discover_by_financials(report_date: str, limit: int = 20) -> list[HkCandidat
             continue
         revenue_yoy = _num(row.get("OPERATE_INCOME_YOY"))
         profit_yoy = _num(row.get("HOLDER_PROFIT_YOY"))
+        revenue_abs = _num(row.get("OPERATE_INCOME"))
+        profit_abs = _num(row.get("HOLDER_PROFIT"))
         notes: list[str] = []
+        # 可投资性硬约束：这些决定能不能买，排序时优先把它们排掉
+        blockers: list[str] = []
+        # 同比幅度大但绝对额小 = 低基数或扭亏，不是经营改善
+        small_base = profit_abs is not None and abs(profit_abs) < 5e8
+        if abs(profit_yoy or 0) >= 1000 and small_base:
+            notes.append(f"归母同比 {profit_yoy:.0f}% 但归母绝对额仅 "
+                         f"{abs(profit_abs) / 1e8:.2f} 亿港元：低基数或扭亏，不是经营改善")
+        elif abs(profit_yoy or 0) >= 1000:
+            notes.append(f"归母同比 {profit_yoy:.0f}% 由上年低基数造成（绝对额 "
+                         f"{abs(profit_abs or 0) / 1e8:.2f} 亿港元），看绝对额不看倍数")
+        prior = _num(row.get("HOLDER_PROFIT_SQ"))
+        if profit_abs is not None and profit_abs > 0 and prior is not None and prior < 0:
+            notes.append("上年同期为亏损，本次为扭亏：性质与持续增长不同")
         if snapshot.price < MIN_PRICE_HKD:
-            notes.append(f"股价 < {MIN_PRICE_HKD} 港元")
+            blockers.append(f"股价 < {MIN_PRICE_HKD} 港元")
         if snapshot.turnover < MIN_TURNOVER_HKD:
-            notes.append(f"成交额 < {MIN_TURNOVER_HKD / 1e6:.0f} 百万港元")
+            blockers.append(f"成交额 < {MIN_TURNOVER_HKD / 1e6:.0f} 百万港元")
         cap = snapshot.market_cap
         if cap is not None and cap > MAX_CAP_HKD:
-            notes.append("总市值 > 500 亿港元，超出小资金研究体量")
+            blockers.append("总市值 > 500 亿港元，超出小资金研究体量")
         if cap is not None and cap < MIN_CAP_HKD:
-            notes.append("总市值 < 10 亿港元，流动性与治理风险高")
+            blockers.append("总市值 < 10 亿港元，流动性与治理风险高")
         if not snapshot.lot_size:
-            notes.append("每手股数缺失，仓位将按 0 处理")
+            blockers.append("每手股数缺失，仓位将按 0 处理")
+        notes = blockers + notes
         candidates.append(HkCandidate(
             code=code, name=snippet_name(row) or snapshot.name,
             event=f"收入同比 {revenue_yoy:.0f}%、归母同比 {profit_yoy:.0f}%"
@@ -359,7 +375,21 @@ def discover_by_financials(report_date: str, limit: int = 20) -> list[HkCandidat
             price=snapshot.price, turnover=snapshot.turnover, market_cap=cap,
             turnover_rate=snapshot.turnover_rate, lot_size=snapshot.lot_size,
             as_of=snapshot.as_of, notes=notes))
+    # 排序：先按可投资性硬约束（有条目的排后面），再按变化幅度。
+    # 大幅变化常常来自小基数，所以不能只看倍数排序。
+    magnitude = {}
+    for row in picked:
+        code = str(row.get("SECURITY_CODE")).strip()
+        magnitude[code] = max(abs(_num(row.get("OPERATE_INCOME_YOY")) or 0),
+                              abs(_num(row.get("HOLDER_PROFIT_YOY")) or 0))
+    candidates.sort(key=lambda c: (len(blockers_of(c)) > 0, -magnitude.get(c.code, 0.0)))
     return candidates[:limit]
+
+
+def blockers_of(candidate: HkCandidate) -> list[str]:
+    """从候选的标记里挑出可投资性硬约束（其余是解读性提示）。"""
+    keys = ("股价 <", "成交额 <", "总市值 >", "总市值 <", "每手股数缺失")
+    return [n for n in candidate.notes if any(k in n for k in keys)]
 
 
 def snippet_name(row: dict) -> str:
