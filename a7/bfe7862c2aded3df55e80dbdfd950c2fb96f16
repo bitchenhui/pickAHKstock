@@ -1,0 +1,21 @@
+research/cli.py
+  s_2be9ca1f77025c::t_4441ea3936e337 172-191,357-361
+research/governance.py
+  s_2be9ca1f77025c::t_b81cca6de28e7e 1-208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a7bfe7862c2aded3df55e80dbdfd950c2fb96f16",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
