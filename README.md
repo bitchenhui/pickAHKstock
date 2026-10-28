@@ -54,6 +54,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - `research/pdftext.py` 公告 PDF 下载缓存与取文
 - `research/ths.py` 同花顺 F10 财务主表（报告期/年度/单季度三套序列与同比）、分年日线、ATR 与参考失效线、分析师预测、管理层变动，均免账号
 - `research/risk.py` 风险公告扫描：按公司名取全部公告再按标题分类，覆盖仲裁诉讼、账户偿债、股权质押、监管问询、审计意见、重组变更、资产质量、治理变动、停复牌九类
+- `research/governance.py` 治理与筹码结构：巨潮的股东户数、股权质押、诉讼、担保结构化数据——比标题扫描多出「几次、多少钱、谁在质押、筹码在集中还是分散」
 - `research/hk.py` 港股发现层：以**盈利警告 / 正面盈利预告**公告为事件源（港股的盈警与盈喜共用「盈利警告」机器类别，方向看标题）；**每手股数从腾讯行情取到，不必手填**
 - `research/account.py` L3 账户层：账户配置、回撤状态、按整手与风险预算的仓位估算、账户级动作（加仓/不加仓/减仓/清仓）
 - `research/card.py` 研究卡片 schema 与校验器：**结论等级由证据推导**，证据不足只能停在「观察」；财务路径（§30 已盈利 / §34 未盈利）没写完也不算数
@@ -67,6 +68,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli financials A 002132                        # 取同花顺财务序列（只取数，不下判断）
 .venv/bin/python -m research.cli reference A 002132                         # 用日线算 ATR 与 2ATR 参考失效线
 .venv/bin/python -m research.cli risks A 002132                             # 风险公告扫描
+.venv/bin/python -m research.cli governance A 002132                       # 治理与筹码（户数/质押/诉讼/担保）
 .venv/bin/python -m research.cli hk-discover --days 60                    # 港股候选（盈警/盈喜公告驱动）
 .venv/bin/python -m research.cli show A 002132                              # 渲染卡片
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）

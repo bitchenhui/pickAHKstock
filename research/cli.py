@@ -169,6 +169,26 @@ def cmd_hk_discover(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_governance(args: argparse.Namespace) -> int:
+    """治理与筹码结构扫描：股东户数、股权质押、诉讼、担保。"""
+    from .governance import scan
+
+    card = Card.load(args.market, args.code)
+    items = scan(card.code, card.name)
+    if not items:
+        print(f"{card.name}（{card.market} {card.code}）：未取到治理数据。"
+              "缺口不等于没有风险——巨潮这几个接口只覆盖已归集的披露，"
+              "仲裁、质押存量等要靠公告扫描补。")
+        return 0
+    print(f"{card.name}（{card.market} {card.code}）治理与筹码：\n")
+    for item in items:
+        print(f"  [{item.severity}] {item.category}：{item.detail}")
+        print(f"      来源 {item.source}")
+    print("\n口径提醒：巨潮接口为二手归集数据，结论前需回原始公告核对；"
+          "诉讼统计不含仲裁，质押只覆盖已归集的新增记录。")
+    return 0
+
+
 def cmd_reference(args: argparse.Namespace) -> int:
     """用同花顺日线算 ATR 与 2ATR 参考失效线，写入卡片的市场数据段。
 
@@ -333,6 +353,11 @@ def main(argv: list[str] | None = None) -> int:
     p_risk.add_argument("code")
     p_risk.add_argument("--days", type=int, default=240)
     p_risk.set_defaults(func=cmd_risks)
+
+    p_gov = sub.add_parser("governance", help="治理与筹码扫描（股东户数/质押/诉讼/担保）")
+    p_gov.add_argument("market")
+    p_gov.add_argument("code")
+    p_gov.set_defaults(func=cmd_governance)
 
     p_hk = sub.add_parser("hk-discover", help="港股候选发现（盈警/盈喜公告驱动）")
     p_hk.add_argument("--days", type=int, default=60, help="回看天数")
