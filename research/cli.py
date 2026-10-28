@@ -129,6 +129,46 @@ def cmd_financials(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_risks(args: argparse.Namespace) -> int:
+    """扫描某只标的的风险公告（法律、监管、治理、资产质量）。"""
+    from .risk import scan_risks
+
+    card = Card.load(args.market, args.code)
+    events = scan_risks(card.code, card.name, since_days=args.days, market=card.market)
+    if not events:
+        print(f"{card.name}（{card.market} {card.code}）：近 {args.days} 天未发现风险类公告标题"
+              "（不等于没有风险：关键词扫描会漏，也读不出公告正文里的问题）")
+        return 0
+    print(f"{card.name}（{card.market} {card.code}）风险类公告 {len(events)} 条：\n")
+    for event in events:
+        print(f"  {event}")
+    return 0
+
+
+def cmd_hk_discover(args: argparse.Namespace) -> int:
+    """港股候选发现：按已披露财务数据的同比与单季度变化。"""
+    from .hk import discover, latest_report_date
+
+    report_date = args.date or latest_report_date()
+    candidates = discover(report_date, limit=args.limit)
+    if not candidates:
+        print("没有符合筛选条件的港股候选。缺失不等于没有机会——先核对报告期与筛选口径。")
+        return 0
+    print(f"港股候选 {len(candidates)} 只（报告期 {report_date}，按变化幅度排序，仅为研究顺序）\n")
+    for c in candidates:
+        cap = f"{c.market_cap / 1e8:.0f}亿" if c.market_cap else "—"
+        print(f"{c.code} {c.name:10s} {c.headline:34s} 市值{cap:>8s} 价{c.price:>8.2f} "
+              f"成交{c.turnover / 1e8:>6.2f}亿 每手{c.lot_size or '—'}")
+        print(f"    ROE {c.roe if c.roe is not None else '—'}%｜PE(TTM) {c.pe_ttm}｜PB {c.pb_ttm}"
+              f"｜报告期 {c.report_date}")
+        for note in c.notes:
+            print(f"    ⚠ {note}")
+        print()
+    print("港股没有业绩预告制度，本轮候选来自已披露财务数据的变化；"
+          "事件类证据（公告原文）需人工补，每手股数请按交易所资料复核。")
+    return 0
+
+
 def cmd_reference(args: argparse.Namespace) -> int:
     """用同花顺日线算 ATR 与 2ATR 参考失效线，写入卡片的市场数据段。
 
@@ -281,6 +321,17 @@ def main(argv: list[str] | None = None) -> int:
     a_plan = acc_sub.add_parser("plan", help="对所有卡片给出账户级动作")
     a_plan.set_defaults(func=cmd_account_plan)
     p_acc.set_defaults(func=lambda a: p_acc.print_help())
+
+    p_risk = sub.add_parser("risks", help="扫描某只标的的风险类公告")
+    p_risk.add_argument("market")
+    p_risk.add_argument("code")
+    p_risk.add_argument("--days", type=int, default=240)
+    p_risk.set_defaults(func=cmd_risks)
+
+    p_hk = sub.add_parser("hk-discover", help="港股候选发现")
+    p_hk.add_argument("--date", default="", help="报告期 YYYY-MM-DD，留空取最新中期")
+    p_hk.add_argument("--limit", type=int, default=15)
+    p_hk.set_defaults(func=cmd_hk_discover)
 
     args = parser.parse_args(argv)
     return args.func(args)
