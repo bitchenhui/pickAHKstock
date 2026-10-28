@@ -10,7 +10,8 @@ import argparse
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from .events import Announcement, Forecast, fetch_announcements, fetch_forecasts
+from .events import (Announcement, Forecast, FORECAST_TITLES, fetch_announcements,
+                     fetch_forecasts)
 from .quotes import Snapshot, fetch_snapshots
 
 MAIN_BOARD = ("00", "60")
@@ -105,7 +106,8 @@ def _match_announcement(code: str, notice_date: date | None,
         near = [a for a in pool if abs((a.published - notice_date).days) <= 5]
         if near:
             pool = near
-    return sorted(pool, key=lambda a: (-("业绩预告" in a.title), a.published))[0]
+    # 业绩预告类标题有多种写法，优先取真正含「业绩预」的
+    return sorted(pool, key=lambda a: (-("业绩预" in a.title), a.published))[0]
 
 
 def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
@@ -159,8 +161,9 @@ def discover(report_period: str, since_days: int = 90, limit: int = 15) -> list[
         raise DiscoveryError(f"{report_period} 没有取到业绩预告数据")
     codes = sorted({f.code for f in forecasts})
     snapshots = fetch_snapshots([("A", code) for code in codes])
-    announcements = fetch_announcements("业绩预告", start, today,
-                                        title_must=("业绩预告",))
+    # 巨潮按证券代码倒序返回，页数不够会漏掉后段代码的候选；这里取够页数再匹配原文
+    announcements = fetch_announcements("业绩", start, today,
+                                        max_pages=30, title_must=FORECAST_TITLES)
     candidates = build_candidates(forecasts, snapshots, announcements)
     return candidates[:limit]
 

@@ -19,6 +19,9 @@ EASTMONEY_DC = "https://datacenter-web.eastmoney.com/api/data/v1/get"
 # 巨潮公告的 category 参数在检索接口上不生效（实测返回全市场），因此按标题关键词检索。
 # 常用关键词与必须排除的干扰项（"业绩说明会" 也含"预告"二字）。
 TITLE_NOISE = ("说明会", "取消", "更正后", "补充更正", "取消召开")
+# 业绩预告类公告的标题写法不统一：预告/预盈/预亏/预增/预减/扭亏，漏一种就漏一批候选。
+FORECAST_TITLES = ("业绩预告", "业绩预盈", "业绩预亏", "业绩预增", "业绩预减",
+                   "年度业绩", "中期业绩", "季度业绩", "扭亏为盈")
 
 
 class EventError(RuntimeError):
