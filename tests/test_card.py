@@ -1,8 +1,18 @@
 import unittest
 from datetime import date
 
-from research.card import (AccountCheck, Card, CounterCase, Evidence, LogEntry,
-                           Scenario, blocking, validate)
+from research.card import (AccountCheck, Card, CounterCase, Evidence, FinancialTrack,
+                           LogEntry, Scenario, blocking, validate)
+
+
+def filled_financials() -> FinancialTrack:
+    return FinancialTrack(
+        path="已盈利",
+        source="https://basic.10jqka.com.cn/api/stock/finance/002132_main.json",
+        periods=["2026-09-30", "2026-06-30", "2026-03-31", "2025-12-31"],
+        metrics={"营业总收入": {"2026-09-30": "40.46亿"}},
+        recurring_judgment="收入仅 +5.84%，利润改善来自毛利率，不是放量",
+        cyclical_judgment="强周期行业，价格红利，Q3 毛利率已回落至 3.96%")
 
 
 def filled_card() -> Card:
@@ -27,6 +37,7 @@ def filled_card() -> Card:
                         AccountCheck(name="整手金额", result="通过", note="100 股一手"),
                         AccountCheck(name="流动性", result="通过", note="日成交 1.2 亿")],
         gaps=["分产品毛利率未取得原始拆分", "客户集中度未核实"],
+        financials=filled_financials(),
         log=[LogEntry(at="2026-10-20", event="建立卡片", to_status="观察"),
              LogEntry(at="2026-10-21", event="证据齐备", from_status="观察", to_status="持仓研究")],
         created="2026-10-20", updated="2026-10-21")
@@ -83,6 +94,43 @@ class CardTests(unittest.TestCase):
         card = filled_card()
         card.scenarios = [s for s in card.scenarios if s.name != "失败"]
         self.assertTrue(any("失败" in f.message for f in blocking(validate(card))))
+
+    # ---------- 财务路径（§30 / §34） ----------
+
+    def test_unclassified_path_cannot_reach_full_evidence(self):
+        card = filled_card()
+        card.financials = FinancialTrack()
+        self.assertEqual(card.derived_level(), "部分证据")
+        self.assertTrue(any(f.field == "financials" for f in blocking(validate(card))))
+
+    def test_profitable_path_requires_both_judgements(self):
+        card = filled_card()
+        card.financials.cyclical_judgment = ""
+        messages = [f.message for f in blocking(validate(card))]
+        self.assertTrue(any("景气反弹" in m for m in messages))
+        card = filled_card()
+        card.financials.recurring_judgment = ""
+        messages = [f.message for f in blocking(validate(card))]
+        self.assertTrue(any("可重复的业务" in m for m in messages))
+
+    def test_unprofitable_path_requires_path_evidence(self):
+        card = filled_card()
+        card.financials.path = "未盈利"
+        card.financials.recurring_judgment = ""
+        card.financials.cyclical_judgment = ""
+        card.financials.path_evidence = []
+        messages = [f.message for f in blocking(validate(card))]
+        self.assertTrue(any("现金续航" in m for m in messages))
+
+    def test_fewer_than_four_periods_blocks_position_stage(self):
+        card = filled_card()
+        card.financials.periods = ["2026-09-30", "2026-06-30"]
+        self.assertTrue(any(f.field == "financials" for f in blocking(validate(card))))
+
+    def test_financials_without_source_blocks_position_stage(self):
+        card = filled_card()
+        card.financials.source = ""
+        self.assertTrue(any(f.field == "financials" for f in blocking(validate(card))))
 
 
 if __name__ == "__main__":

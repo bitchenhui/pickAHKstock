@@ -83,6 +83,26 @@ class LogEntry:
 
 
 @dataclass
+class FinancialTrack:
+    """财务轨迹：策略稿 §30（已盈利）与 §34（未盈利）分别要求的证据。
+
+    工具负责把数据取来，判断必须由人写；没有判断就不算完成这一关。
+    """
+
+    path: str = "未分类"            # 已盈利 / 未盈利 / 未分类
+    source: str = ""               # 数据出处（接口地址）
+    periods: list[str] = field(default_factory=list)
+    quarter_periods: list[str] = field(default_factory=list)
+    metrics: dict = field(default_factory=dict)       # {科目: {报告期: 值}} 累计口径
+    quarter_metrics: dict = field(default_factory=dict)  # {科目: {报告期: 值}} 单季口径
+    recurring_judgment: str = ""    # 收入/毛利/现金流的变化是否由可重复的业务带来
+    cyclical_judgment: str = ""     # 周期性行业：景气反弹还是竞争力提升（非周期行业可写"不适用"并说明理由）
+    working_capital_note: str = ""  # 应收、库存、资本开支是否与增长相匹配
+    path_evidence: list[str] = field(default_factory=list)  # 未盈利路径：现金续航、里程碑、融资情景
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Card:
     market: str
     code: str
@@ -95,6 +115,7 @@ class Card:
     counter: CounterCase = field(default_factory=CounterCase)
     invalidation: list[str] = field(default_factory=list)
     market_context: dict = field(default_factory=dict)
+    financials: FinancialTrack = field(default_factory=FinancialTrack)
     account_checks: list[AccountCheck] = field(default_factory=list)
     gaps: list[str] = field(default_factory=list)
     log: list[LogEntry] = field(default_factory=list)
@@ -102,6 +123,17 @@ class Card:
     updated: str = ""
 
     # ---------- 结论等级：由证据推导 ----------
+    def financial_path_complete(self) -> bool:
+        """§30/§34 的路径证据是否写完。工具只负责取数，判断必须由人写。"""
+        track = self.financials
+        if track.path not in ("已盈利", "未盈利") or not track.source:
+            return False
+        if len(track.periods) < 4:
+            return False
+        if track.path == "已盈利":
+            return bool(track.recurring_judgment.strip() and track.cyclical_judgment.strip())
+        return bool(track.path_evidence)
+
     def derived_level(self) -> str:
         verified = [e for e in self.evidence if e.is_verified()]
         if not verified:
@@ -110,7 +142,8 @@ class Card:
                 and len(self.scenarios) >= 3
                 and self.counter.strongest_failure.strip()
                 and any(CONCRETE.search(t) for t in self.invalidation)
-                and self.gaps is not None):
+                and self.gaps is not None
+                and self.financial_path_complete()):
             return "证据充分"
         return "部分证据"
 
@@ -130,6 +163,7 @@ class Card:
         data["evidence"] = [Evidence(**e) for e in data.get("evidence", [])]
         data["scenarios"] = [Scenario(**s) for s in data.get("scenarios", [])]
         data["counter"] = CounterCase(**data.get("counter", {}))
+        data["financials"] = FinancialTrack(**data.get("financials", {}))
         data["account_checks"] = [AccountCheck(**c) for c in data.get("account_checks", [])]
         data["log"] = [LogEntry(**l) for l in data.get("log", [])]
         return cls(**data)
@@ -223,6 +257,18 @@ def validate(card: Card) -> list[Finding]:
     elif not any(CONCRETE.search(t) for t in card.invalidation):
         block("invalidation", "失效条件没有锚定到具体数值或时间")
 
+    # 财务路径（§30 已盈利 / §34 未盈利）
+    track = card.financials
+    if track.path == "未分类":
+        warn("financials", "尚未把该公司归入「已盈利」或「未盈利」路径，两条路径要求的证据不同")
+    if track.path == "已盈利":
+        if not track.recurring_judgment.strip():
+            block("financials", "已盈利路径必须判断：收入、毛利或现金流的变化是否由可重复的业务带来")
+        if not track.cyclical_judgment.strip():
+            block("financials", "已盈利路径必须区分：景气反弹还是长期竞争力提升")
+    if track.path == "未盈利" and not track.path_evidence:
+        block("financials", "未盈利路径必须记录现金续航、里程碑与融资情景")
+
     # 账户准入
     for check in card.account_checks:
         if check.result not in CHECK_RESULTS:
@@ -234,6 +280,8 @@ def validate(card: Card) -> list[Finding]:
             block("account_checks", "仍有未通过或未核实的账户检查，不能进入持仓研究")
         if card.derived_level() != "证据充分":
             block("status", f"证据等级为「{card.derived_level()}」，不足以进入持仓研究")
+        if not card.financial_path_complete():
+            block("financials", "财务路径证据未完成：需要归类路径、至少 4 个报告期的数据，并写明路径判断")
     if card.derived_level() == "证据不足" and card.status != "观察":
         block("status", "证据不足时状态只能是「观察」")
     if card.status in ("降级", "淘汰") and not any(

@@ -13,9 +13,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import date
 
 from .card import CARD_DIR, Card, blocking, validate
 from .discover import Candidate, discover
+from .ths import KEY_SUBJECTS
 from .workflow import render_markdown, scaffold
 
 
@@ -82,6 +84,51 @@ def cmd_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_financials(args: argparse.Namespace) -> int:
+    """取同花顺 F10 财务主表写入卡片，并打印供人工判断的摘要。
+
+    只取数，不下判断：path / recurring_judgment / cyclical_judgment 仍要人写。
+    """
+    from .ths import fetch_financials, key_series
+
+    card = Card.load(args.market, args.code)
+    data = fetch_financials(args.code)
+    track = card.financials
+    track.source = data["source"]
+    track.periods = list(data["periods"])[:args.periods]
+    track.quarter_periods = list(data.get("simple_periods", []))[:args.quarter_periods]
+    # 只保留展示区间内的报告期：卡片要能被人读完，不能把 F10 全历史塞进来
+    track.metrics = {name: {p: series[p] for p in track.periods if p in series}
+                     for name, series in key_series(data, subjects=tuple(KEY_SUBJECTS)).items()}
+    track.quarter_metrics = {
+        name: {p: series[p] for p in track.quarter_periods if p in series}
+        for name, series in key_series(data, block="simple", subjects=tuple(KEY_SUBJECTS)).items()}
+    track.notes = [n for n in track.notes if not n.startswith("数据已于")]
+    track.notes.append(f"数据已于 {date.today().isoformat()} 取自同花顺 F10 财务主表")
+    card.updated = date.today().isoformat()
+    card.save()
+    print(f"{card.name}（{card.market} {card.code}）财务轨迹已更新：{track.source}")
+    print(f"报告期：{' | '.join(track.periods)}\n")
+    for name, series in track.metrics.items():
+        cells = [f"{period}={series.get(period, '-')}" for period in track.periods]
+        print(f"{name:18s} " + " | ".join(cells))
+    if track.quarter_metrics:
+        print("\n单季度口径：")
+        for name in ("营业总收入", "净利润", "扣非净利润", "销售毛利率", "每股经营现金流"):
+            series = track.quarter_metrics.get(name)
+            if not series:
+                continue
+            cells = [f"{period}={series.get(period, '-')}" for period in track.quarter_periods]
+            print(f"{name:18s} " + " | ".join(cells))
+    print("\n待人工判断（工具不代填）：")
+    print(f"  路径 path                : {track.path or '（未填）'}  → 已盈利 / 未盈利")
+    print("  recurring_judgment      : 收入/毛利/现金流的变化是否由可重复的业务带来")
+    print("  cyclical_judgment       : 景气反弹还是长期竞争力提升")
+    print("  working_capital_note    : 应收、库存、资本开支是否与增长匹配")
+    print("  path_evidence           : （未盈利路径）现金续航、里程碑、融资情景")
+    return 0
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     if not CARD_DIR.exists():
         print("还没有卡片。")
@@ -124,6 +171,13 @@ def main(argv: list[str] | None = None) -> int:
 
     p_list = sub.add_parser("list", help="列出所有卡片")
     p_list.set_defaults(func=cmd_list)
+
+    p_fin = sub.add_parser("financials", help="取同花顺财务主表写入卡片（只取数，不下判断）")
+    p_fin.add_argument("market")
+    p_fin.add_argument("code")
+    p_fin.add_argument("--periods", type=int, default=8, help="保留最近几个报告期")
+    p_fin.add_argument("--quarter-periods", type=int, default=8, help="保留最近几个单季度")
+    p_fin.set_defaults(func=cmd_financials)
 
     args = parser.parse_args(argv)
     return args.func(args)

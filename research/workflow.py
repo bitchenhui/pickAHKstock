@@ -75,6 +75,22 @@ def render_markdown(card: Card) -> str:
     lines += ["", "## 账户检查"]
     lines += [f"- {c.name}：{c.result} {c.note} {c.source}".rstrip()
               for c in card.account_checks] or ["- （未填写）"]
+    track = card.financials
+    lines += ["", "## 财务轨迹"]
+    lines.append(f"- 路径：**{track.path}**　来源：{track.source or '（未取得）'}")
+    if track.periods:
+        lines.append(f"- 报告期：{' | '.join(track.periods)}")
+    for name in ("营业总收入", "净利润", "扣非净利润", "销售毛利率", "净资产收益率"):
+        series = track.metrics.get(name)
+        if series:
+            cells = [f"{period}:{series.get(period, '-')}" for period in track.periods]
+            lines.append(f"- {name}：" + " | ".join(cells))
+    lines.append(f"- 经常性判断：{track.recurring_judgment or '（未填写）'}")
+    lines.append(f"- 周期性判断：{track.cyclical_judgment or '（未填写）'}")
+    if track.working_capital_note:
+        lines.append(f"- 营运资本：{track.working_capital_note}")
+    for item in track.path_evidence:
+        lines.append(f"- 路径证据：{item}")
     lines += ["", "## 数据缺口"]
     lines += [f"- {g}" for g in card.gaps] or ["- （无）"]
     context = card.market_context or {}
