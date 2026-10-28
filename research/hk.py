@@ -18,9 +18,11 @@
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from datetime import date, timedelta
+from pathlib import Path
 
 import requests
 
@@ -38,9 +40,12 @@ MAX_CAP_HKD = 5e10
 
 # 机器可判的公告类别（column_name），标题不可靠
 CATEGORY_ALERT = "盈利警告"      # 盈警与盈喜共用
-CATEGORY_RESULTS = ("季度業績", "中期業績", "年度業績", "半年度報告", "中期報告")
+CATEGORY_RESULTS = ("季度業績", "中期業績", "年度業績", "半年度報告", "中期報告",
+                    "年度業績公佈", "全年業績公佈")
 # 基金与噪音：不是研究对象
 NOISE = ("基金", "ETF", "3456", "債券", "债", "票据", "可换股", "貨幣市場基金")
+# GEM（创业板）代码以 08 开头：主板研究里排除
+GEM_PREFIX = "08"
 
 
 class HkError(RuntimeError):
@@ -164,6 +169,8 @@ def _to_event(item: dict) -> HkEvent | None:
 def build_candidates(events: list[HkEvent], quotes: dict[str, Snapshot]) -> list[HkCandidate]:
     candidates: list[HkCandidate] = []
     for event in events:
+        if event.code.startswith(GEM_PREFIX):
+            continue
         snapshot = quotes.get(event.code)
         if not snapshot:
             continue
@@ -199,3 +206,161 @@ def discover(since_days: int = 60, limit: int = 20,
     codes = sorted({e.code for e in events})
     quotes = fetch_snapshots([("HK", code) for code in codes])
     return build_candidates(events, quotes)[:limit]
+
+
+def discover_by_results(since_days: int = 60, limit: int = 20) -> list[HkCandidate]:
+    """以**业绩公告**为事件源。
+
+    盈警/盈喜只是结果公布前的预告，且港股的预告多来自微盘；业绩公告
+    （季度/中期/年度）是强制披露，覆盖全市场，能覆盖到流动性好的标的。
+    代价是它本身不是「变化」信号，变化要靠业绩数字比对——所以候选的
+    排序按公告类型与流动性，具体数字需回公告原文或财务接口核对。
+    """
+    end = date.today()
+    start = end - timedelta(days=since_days)
+    events = fetch_events(start, end, categories=CATEGORY_RESULTS)
+    # 同一家公司同一报告期只留一条，避免重复
+    seen: set[tuple[str, str]] = set()
+    unique: list[HkEvent] = []
+    for event in events:
+        key = (event.code, event.title[:24])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(event)
+    codes = sorted({e.code for e in unique})
+    quotes = fetch_snapshots([("HK", code) for code in codes])
+    return build_candidates(unique, quotes)[:limit]
+
+
+# ---------- 财务变化信号（结构化，比 PDF 抽文可靠） ----------
+
+DC = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+CACHE_DIR = Path.home() / ".cache" / "pickahkstock" / "hk"
+DC_HEADERS = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
+
+MIN_REVENUE_YOY = 30.0
+MIN_PROFIT_YOY = 50.0
+
+
+def fetch_financial_snapshot(report_date: str, page_size: int = 500,
+                             max_pages: int = 8) -> list[dict]:
+    """港股市场级财务快照（东方财富数据中心）。
+
+    带日期过滤的查询每次要 60–150 秒（服务端全表扫描），所以结果按报告期
+    落盘缓存：第一次跑几分钟，之后是秒开。
+    """
+    cache_file = CACHE_DIR / f"MAININDICATOR_{report_date}.json"
+    if cache_file.exists():
+        try:
+            return json.loads(cache_file.read_text(encoding="utf-8"))
+        except ValueError:
+            pass
+    rows: list[dict] = []
+    for page in range(1, max_pages + 1):
+        params = {"reportName": "RPT_HKF10_FN_MAININDICATOR", "columns": "ALL",
+                  "pageSize": str(page_size), "pageIndex": str(page), "client": "WEB",
+                  "sortColumns": "REPORT_DATE", "sortTypes": "-1",
+                  "filter": f"(REPORT_DATE='{report_date}')"}
+        try:
+            response = requests.get(DC, headers=DC_HEADERS, params=params, timeout=180)
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError) as exc:
+            raise HkError(f"港股财务快照获取失败：{exc}") from exc
+        data = (payload.get("result") or {}).get("data") or []
+        if not data:
+            break
+        rows.extend(data)
+        if len(data) < page_size:
+            break
+    if rows:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    return rows
+
+
+def _num(value) -> float | None:
+    try:
+        return None if value is None else float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _dedupe(rows: list[dict], report_date: str) -> list[dict]:
+    """同一只股票同一报告期可能有多行（重述版本），收敛成一行。"""
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        code = str(row.get("SECURITY_CODE") or "").strip()
+        if code:
+            grouped.setdefault(code, []).append(row)
+    best: list[dict] = []
+    for code, items in grouped.items():
+        exact = [r for r in items if str(r.get("REPORT_DATE", ""))[:10] == report_date]
+        pool = exact or items
+        pool.sort(key=lambda r: str(r.get("REPORT_DATE") or ""), reverse=True)
+        best.append(pool[0])
+    return best
+
+
+def discover_by_financials(report_date: str, limit: int = 20) -> list[HkCandidate]:
+    """按已披露财务数据的同比变化找港股候选。
+
+    这是港股更贴近 A 股「业绩预告」的等效信号：与盈警公告不同，它覆盖
+    全市场（含流动性好的标的），且数字来自结构化接口而不是 PDF 抽文
+    ——港股公告 PDF 的中文是 CID 字体，pypdf 抽不出可读文本。
+    """
+    rows = _dedupe(fetch_financial_snapshot(report_date), report_date)
+    picked: list[dict] = []
+    for row in rows:
+        code = str(row.get("SECURITY_CODE") or "").strip()
+        if not code or code.startswith(GEM_PREFIX):
+            continue
+        revenue_yoy = _num(row.get("OPERATE_INCOME_YOY"))
+        profit_yoy = _num(row.get("HOLDER_PROFIT_YOY"))
+        if revenue_yoy is None and profit_yoy is None:
+            continue
+        if not (abs(revenue_yoy or 0) >= MIN_REVENUE_YOY
+                or abs(profit_yoy or 0) >= MIN_PROFIT_YOY):
+            continue
+        picked.append(row)
+    picked.sort(key=lambda r: -max(abs(_num(r.get("OPERATE_INCOME_YOY")) or 0),
+                                    abs(_num(r.get("HOLDER_PROFIT_YOY")) or 0)))
+    picked = picked[:limit * 2]
+    quotes = fetch_snapshots([("HK", str(r.get("SECURITY_CODE")).strip()) for r in picked])
+    candidates: list[HkCandidate] = []
+    for row in picked:
+        code = str(row.get("SECURITY_CODE")).strip()
+        snapshot = quotes.get(code)
+        if not snapshot:
+            continue
+        revenue_yoy = _num(row.get("OPERATE_INCOME_YOY"))
+        profit_yoy = _num(row.get("HOLDER_PROFIT_YOY"))
+        notes: list[str] = []
+        if snapshot.price < MIN_PRICE_HKD:
+            notes.append(f"股价 < {MIN_PRICE_HKD} 港元")
+        if snapshot.turnover < MIN_TURNOVER_HKD:
+            notes.append(f"成交额 < {MIN_TURNOVER_HKD / 1e6:.0f} 百万港元")
+        cap = snapshot.market_cap
+        if cap is not None and cap > MAX_CAP_HKD:
+            notes.append("总市值 > 500 亿港元，超出小资金研究体量")
+        if cap is not None and cap < MIN_CAP_HKD:
+            notes.append("总市值 < 10 亿港元，流动性与治理风险高")
+        if not snapshot.lot_size:
+            notes.append("每手股数缺失，仓位将按 0 处理")
+        candidates.append(HkCandidate(
+            code=code, name=snippet_name(row) or snapshot.name,
+            event=f"收入同比 {revenue_yoy:.0f}%、归母同比 {profit_yoy:.0f}%"
+            if revenue_yoy is not None and profit_yoy is not None
+            else f"收入同比 {revenue_yoy}%、归母同比 {profit_yoy}",
+            category="财务变化", published=report_date,
+            detail_url=f"{DC}?reportName=RPT_HKF10_FN_MAININDICATOR&filter=(REPORT_DATE='{report_date}')",
+            pdf_url="",
+            price=snapshot.price, turnover=snapshot.turnover, market_cap=cap,
+            turnover_rate=snapshot.turnover_rate, lot_size=snapshot.lot_size,
+            as_of=snapshot.as_of, notes=notes))
+    return candidates[:limit]
+
+
+def snippet_name(row: dict) -> str:
+    return str(row.get("SECURITY_NAME_ABBR") or "").strip()

@@ -146,26 +146,31 @@ def cmd_risks(args: argparse.Namespace) -> int:
 
 
 def cmd_hk_discover(args: argparse.Namespace) -> int:
-    """港股候选发现：以盈警/盈喜公告为事件源。"""
-    from .hk import discover
+    """港股候选发现：盈警/盈喜（--source alerts）或业绩公告（--source results）。"""
+    from .hk import discover, discover_by_financials, discover_by_results
 
-    candidates = discover(since_days=args.days, limit=args.limit)
+    if args.source == "results":
+        candidates = discover_by_results(since_days=args.days, limit=args.limit)
+        source_note = "业绩公告（强制披露，覆盖全市场）"
+    elif args.source == "financials":
+        candidates = discover_by_financials(args.date or "2026-06-30", limit=args.limit)
+        source_note = f"财务同比变化（报告期 {args.date or '2026-06-30'}，首次抓取约 8 分钟，落盘缓存）"
+    else:
+        candidates = discover(since_days=args.days, limit=args.limit)
+        source_note = "盈利警告/正面盈利预告（预告类，港股多来自微盘）"
     if not candidates:
         print("没有符合条件的港股候选。缺失不等于没有机会——先核对时间窗口与公告类别。")
         return 0
-    print(f"港股候选 {len(candidates)} 只（近 {args.days} 天盈利警告/正面盈利预告公告，"
-          f"按公告时间倒序，仅为研究顺序）\n")
+    print(f"港股候选 {len(candidates)} 只（近 {args.days} 天 · {source_note}，按公告时间倒序）\n")
     for c in candidates:
         cap = f"{c.market_cap / 1e8:.0f}亿" if c.market_cap else "—"
-        print(f"{c.code} {c.name:10s} {c.event[:30]:32s} 市值{cap:>8s} 价{c.price:>8.2f} "
-              f"成交{c.turnover / 1e8:>6.2f}亿 每手{c.lot_size or '—'}")
-        print(f"    {c.category}｜{c.published}｜换手 {c.turnover_rate}%")
-        print(f"    详情 {c.detail_url}")
+        print(f"{c.code} {c.name:10s} {c.category[:8]:10s} {c.event[:26]:28s} "
+              f"市值{cap:>7s} 价{c.price:>8.2f} 成交{c.turnover / 1e8:>6.2f}亿 每手{c.lot_size or '—'}")
+        print(f"    {c.published}｜换手 {c.turnover_rate}%｜{c.detail_url}")
         for note in c.notes:
             print(f"    ⚠ {note}")
-        print()
-    print("港股盈警与盈喜共用「盈利警告」类别，方向要看公告标题；"
-          "每手股数已从行情取到，但下单前仍需按交易所资料复核。")
+    print("\n每手股数已从行情取到，下单前仍需按交易所资料复核；"
+          "业绩公告本身不是变化信号，数字要回原文或财务接口比对。")
     return 0
 
 
@@ -359,9 +364,12 @@ def main(argv: list[str] | None = None) -> int:
     p_gov.add_argument("code")
     p_gov.set_defaults(func=cmd_governance)
 
-    p_hk = sub.add_parser("hk-discover", help="港股候选发现（盈警/盈喜公告驱动）")
+    p_hk = sub.add_parser("hk-discover", help="港股候选发现")
     p_hk.add_argument("--days", type=int, default=60, help="回看天数")
     p_hk.add_argument("--limit", type=int, default=15)
+    p_hk.add_argument("--source", choices=("alerts", "results", "financials"), default="alerts",
+                      help="alerts=盈警/盈喜公告；results=业绩公告；financials=财务同比变化")
+    p_hk.add_argument("--date", default="", help="财务同比模式的报告期 YYYY-MM-DD")
     p_hk.set_defaults(func=cmd_hk_discover)
 
     args = parser.parse_args(argv)
