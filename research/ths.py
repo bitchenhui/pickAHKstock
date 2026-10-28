@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 
 import requests
 
@@ -123,6 +124,39 @@ def fetch_daily_history(code: str, years: list[int]) -> list[dict]:
                 continue
     rows.sort(key=lambda r: r["day"])
     return rows
+
+
+def atr(bars: list[dict], period: int = 14) -> float | None:
+    """Wilder 口径 ATR（真实波幅均值），用于给出波动参考。
+
+    这是**参考线**，不是止损保证：跳空、停牌、涨跌停都可能让参考价无法成交。
+    """
+    if len(bars) < period + 1:
+        return None
+    ranges = []
+    for previous, current in zip(bars[-(period + 1):], bars[-period:]):
+        high, low, close = current["high"], current["low"], current["close"]
+        ranges.append(max(high - low, abs(high - previous["close"]), abs(low - previous["close"])))
+    return sum(ranges) / len(ranges)
+
+
+def reference_levels(code: str, years: list[int] | None = None) -> dict:
+    """取日线算出 ATR 与 2ATR 参考失效线，供账户层做单笔风险估算。"""
+    if years is None:
+        today = date.today()
+        years = [today.year - 1, today.year]
+    bars = fetch_daily_history(code, years)
+    if not bars:
+        raise ThsError(f"没有取到 {code} 的日线")
+    close = bars[-1]["close"]
+    value = atr(bars)
+    if not value:
+        raise ThsError(f"{code} 日线不足以计算 ATR")
+    return {"close": close, "atr": round(value, 4),
+            "atr_pct": round(value / close * 100, 2),
+            "stop_reference": round(close - 2 * value, 3),
+            "bars": len(bars), "last_day": bars[-1]["day"],
+            "source": THS_LINE.format(code=code, year=years[-1])}
 
 
 def fetch_profit_forecast(code: str) -> list[dict]:

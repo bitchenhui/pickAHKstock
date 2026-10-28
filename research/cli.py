@@ -129,6 +129,96 @@ def cmd_financials(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reference(args: argparse.Namespace) -> int:
+    """用同花顺日线算 ATR 与 2ATR 参考失效线，写入卡片的市场数据段。
+
+    这是参考线，不是止损保证：跳空、停牌、涨跌停都可能让参考价无法成交。
+    """
+    from .ths import reference_levels
+
+    card = Card.load(args.market, args.code)
+    levels = reference_levels(args.code)
+    context = dict(card.market_context or {})
+    context.update({"close": levels["close"], "atr": levels["atr"],
+                    "atr_pct": levels["atr_pct"], "stop_reference": levels["stop_reference"],
+                    "bars": levels["bars"], "bars_as_of": levels["last_day"],
+                    "bars_source": levels["source"]})
+    card.market_context = context
+    card.updated = date.today().isoformat()
+    card.save()
+    print(f"{card.name}（{card.market} {card.code}）参考线已更新")
+    print(f"  收盘 {levels['close']}｜ATR {levels['atr']}（{levels['atr_pct']}%）"
+          f"｜2ATR 参考失效线 {levels['stop_reference']}")
+    print(f"  样本 {levels['bars']} 根日线，截至 {levels['last_day']}（{levels['source']}）")
+    return 0
+
+
+def _load_all_cards() -> list[Card]:
+    if not CARD_DIR.exists():
+        return []
+    cards = []
+    for path in sorted(CARD_DIR.glob("*.json")):
+        cards.append(Card.from_dict(json.loads(path.read_text(encoding="utf-8"))))
+    return cards
+
+
+def cmd_account_show(args: argparse.Namespace) -> int:
+    from .account import Account, AccountError
+
+    try:
+        account = Account.load()
+    except AccountError as exc:
+        print_error(str(exc))
+        return 1
+    print(f"权益合计（人民币口径）{account.equity():,.0f}｜持仓市值 {account.position_value():,.0f}")
+    print(f"A 股可用现金 {account.cash('A'):,.0f} CNY｜港股可用现金 {account.cash('HK'):,.0f} HKD（两地资金不自动换汇）")
+    print(f"回撤 {account.drawdown() * 100:.1f}%（上限 {account.max_drawdown_pct * 100:.0f}%）"
+          f" → 风险状态：{account.drawdown_state()}")
+    if not account.positions:
+        print("持仓：无")
+    for position in account.positions:
+        print(f"  {position.market} {position.code} {position.name} "
+              f"{position.shares} 股 @ {position.cost} {position.currency}"
+              f"{'｜' + position.sector if position.sector else ''}")
+    if not account.confirmed_by_user:
+        print("\n⚠ 参数尚未确认（confirmed_by_user=false）：单笔风险、仓位上限等仍是占位值。")
+    return 0
+
+
+def cmd_account_plan(args: argparse.Namespace) -> int:
+    from .account import Account, AccountError, portfolio_plan
+
+    try:
+        account = Account.load()
+    except AccountError as exc:
+        print_error(str(exc))
+        return 1
+    cards = _load_all_cards()
+    if not cards:
+        print("还没有卡片。")
+        return 0
+    from .account import account_summary
+
+    summary = account_summary(cards, account)
+    print(f"账户状态：回撤 {summary['drawdown'] * 100:.1f}% → {summary['drawdown_state']}；"
+          f"A 股可用现金 {summary['cash_cny']:,.0f} CNY｜港股可用现金 {summary['cash_hkd']:,.0f} HKD")
+    print(f"卡片状态分布：{summary['card_states']}｜本轮计划新增名义金额 {summary['planned_additions']:,.0f}\n")
+    plans = portfolio_plan(cards, account)
+    for plan in plans:
+        print(f"{plan.code} {plan.name:8s} → {plan.action}")
+        if plan.lots:
+            print(f"    参考 {plan.lots} 手 / {plan.shares} 股 / 金额 {plan.notional:,.0f}")
+        for reason in plan.reasons:
+            print(f"    · {reason}")
+    print("\n这是账户级动作，不是股票名单，也不构成下单指令。"
+          "卡片仍在「观察」时不出手，是纪律，不是没找到机会。")
+    return 0
+
+
+def print_error(message: str) -> None:
+    print(f"错误：{message}")
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     if not CARD_DIR.exists():
         print("还没有卡片。")
@@ -178,6 +268,19 @@ def main(argv: list[str] | None = None) -> int:
     p_fin.add_argument("--periods", type=int, default=8, help="保留最近几个报告期")
     p_fin.add_argument("--quarter-periods", type=int, default=8, help="保留最近几个单季度")
     p_fin.set_defaults(func=cmd_financials)
+
+    p_ref = sub.add_parser("reference", help="用日线算 ATR 与 2ATR 参考失效线")
+    p_ref.add_argument("market")
+    p_ref.add_argument("code")
+    p_ref.set_defaults(func=cmd_reference)
+
+    p_acc = sub.add_parser("account", help="账户层：查看账户状态或给出账户级动作")
+    acc_sub = p_acc.add_subparsers(dest="account_command", required=True)
+    a_show = acc_sub.add_parser("show", help="账户权益、现金、持仓与回撤状态")
+    a_show.set_defaults(func=cmd_account_show)
+    a_plan = acc_sub.add_parser("plan", help="对所有卡片给出账户级动作")
+    a_plan.set_defaults(func=cmd_account_plan)
+    p_acc.set_defaults(func=lambda a: p_acc.print_help())
 
     args = parser.parse_args(argv)
     return args.func(args)

@@ -116,7 +116,15 @@
     "单季毛利率回落至 16% 以下（低于 Q1 的 16.04%）",
     "Q4 单季每股经营现金流转负"
   ],
-  "market_context": {},
+  "market_context": {
+    "close": 126.3,
+    "atr": 8.5121,
+    "atr_pct": 6.74,
+    "stop_reference": 109.276,
+    "bars": 438,
+    "bars_as_of": "2026-10-27",
+    "bars_source": "https://d.10jqka.com.cn/v6/line/hs_603991/01/2026.js"
+  },
   "financials": {
     "path": "已盈利",
     "source": "https://basic.10jqka.com.cn/api/stock/finance/603991_main.json",

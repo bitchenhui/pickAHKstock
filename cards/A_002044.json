@@ -128,7 +128,15 @@
     "2027 年 Q1 单季亏损超过 3 亿元（上年同期 -2.75 亿元）",
     "经营活动现金流净额连续两年为负"
   ],
-  "market_context": {},
+  "market_context": {
+    "close": 4.85,
+    "atr": 0.2543,
+    "atr_pct": 5.24,
+    "stop_reference": 4.341,
+    "bars": 439,
+    "bars_as_of": "2026-10-28",
+    "bars_source": "https://d.10jqka.com.cn/v6/line/hs_002044/01/2026.js"
+  },
   "financials": {
     "path": "已盈利",
     "source": "https://basic.10jqka.com.cn/api/stock/finance/002044_main.json",

@@ -1,0 +1,17 @@
+{
+  "_说明": "复制为 account.json 后填入真实参数。account.json 不入版本控制（见 .gitignore）。参数由使用者确认，工具不替你猜持仓、费率与资金。",
+  "capital_cny": 30000,
+  "capital_hkd": 30000,
+  "risk_per_trade": 0.005,
+  "max_position_pct": 0.2,
+  "max_total_pct": 0.6,
+  "max_sector_pct": 0.35,
+  "cash_floor_pct": 0.2,
+  "max_drawdown_pct": 0.2,
+  "peak_equity": 0,
+  "fx_cny_per_hkd": 0.92,
+  "hk_lots": {},
+  "positions": [],
+  "notes": "资金、费率、持仓与峰值权益都需按你的实际情况填写；peak_equity 为两币合计口径的账户历史峰值权益，未填则回撤状态恒为正常。",
+  "confirmed_by_user": false
+}

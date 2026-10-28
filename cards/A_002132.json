@@ -100,7 +100,15 @@
     "2026 年报全年扣非净利润低于 5000 万元",
     "有机硅市场价回落至 1 万元/吨以下"
   ],
-  "market_context": {},
+  "market_context": {
+    "close": 3.51,
+    "atr": 0.1336,
+    "atr_pct": 3.81,
+    "stop_reference": 3.243,
+    "bars": 438,
+    "bars_as_of": "2026-10-27",
+    "bars_source": "https://d.10jqka.com.cn/v6/line/hs_002132/01/2026.js"
+  },
   "financials": {
     "path": "已盈利",
     "source": "https://basic.10jqka.com.cn/api/stock/finance/002132_main.json",

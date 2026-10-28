@@ -114,7 +114,15 @@
     "单季毛利率回落至 1% 以下",
     "大宗商品价格出现明显回落且公司套保敞口未同步收缩"
   ],
-  "market_context": {},
+  "market_context": {
+    "close": 7.32,
+    "atr": 0.4829,
+    "atr_pct": 6.6,
+    "stop_reference": 6.354,
+    "bars": 439,
+    "bars_as_of": "2026-10-28",
+    "bars_source": "https://d.10jqka.com.cn/v6/line/hs_000626/01/2026.js"
+  },
   "financials": {
     "path": "已盈利",
     "source": "https://basic.10jqka.com.cn/api/stock/finance/000626_main.json",

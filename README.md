@@ -52,23 +52,30 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - `research/quotes.py` 腾讯行情快照（批量、免登录、字段映射显式）
 - `research/discover.py` L1 发现层：按**经营变化**（不是量价形态）提出研究对象，输出带公告日期与原文链接的候选
 - `research/pdftext.py` 公告 PDF 下载缓存与取文
-- `research/ths.py` 同花顺 F10 财务主表（报告期/年度/单季���三套序列与同比）、分年日线、分析师预测、管理层变动，均免账号
+- `research/ths.py` 同花顺 F10 财务主表（报告期/年度/单季度三套序列与同比）、分年日线、ATR 与参考失效线、分析师预测、管理层变动，均免账号
+- `research/account.py` L3 账户层：账户配置、回撤状态、按整手与风险预算的仓位估算、账户级动作（加仓/不加仓/减仓/清仓）
 - `research/card.py` 研究卡片 schema 与校验器：**结论等级由证据推导**，证据不足只能停在「观察」；财务路径（§30 已盈利 / §34 未盈利）没写完也不算数
 - `research/workflow.py` 卡片草稿生成与 Markdown 渲染
 - `cards/` 每只标的一张卡片（JSON，可入版本控制，作为研究留痕）
+- `account.example.json` 账户参数模板；复制为 `account.json`（已 gitignore）后填入真实资金、持仓与费率
 
 ```bash
 .venv/bin/python -m research.cli discover --period 2026-09-30 --limit 10   # 发现候选
 .venv/bin/python -m research.cli new --codes 002132,002044                  # 生成卡片草稿
 .venv/bin/python -m research.cli financials A 002132                        # 取同花顺财务序列（只取数，不下判断）
+.venv/bin/python -m research.cli reference A 002132                         # 用日线算 ATR 与 2ATR 参考失效线
 .venv/bin/python -m research.cli show A 002132                              # 渲染卡片
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
 .venv/bin/python -m research.cli list                                       # 所有卡片状态与阻塞数
+.venv/bin/python -m research.cli account show                               # 账户权益、现金、持仓与回撤状态
+.venv/bin/python -m research.cli account plan                               # 账户级动作（不是股票名单）
 ```
 
-工具只负责把数���取来并摆到人面前：路径归类、经常性判断、周期性判断这些必须由人写，写不出来就说明这一关没过。
+工具只负责把数据取来并摆到人面前：路径归类、经常性判断、周期性判断这些必须由人写，写不出来就说明这一关没过。账户层也一样——资金、持仓、费率与峰值权益由使用者填，工具不替你猜；缺 `account.json` 就拒绝给仓位建议。
 
 **单季度口径必须看。** 累计数据会骗人：2026 年前三季度「扭亏」的恒星科技，Q3 单季扣非实际是 -4991 万元。`financials` 命令同时给出单季度序列，就是为了让这种差异无处可藏。
+
+**账户层只给账户动作，不给股票名单。** 已持仓的卡片一旦被降级或淘汰，账户层会给出减仓/清仓动作；卡片还在「观察」时不出手是纪律，不是没找到机会。回撤状态只影响是否新增仓位，不改写研究判断。
 
 发现层目前只覆盖 A 股（业绩预告口径）；港股需要另按交易所公告口径实现。卡片中的每条证据都带出处、发布日期与原文链接，缺出处的证据一律标「待核实」，不会因为结论好看而被放行。
 
