@@ -1,0 +1,41 @@
+cards/A_002044.json
+  s_9b546d8fd446cf::t_80e47d14fdd5a9 6,64-91,122,126-129,132-467,495-499
+cards/A_603991.json
+  s_2be9ca1f77025c::t_4026f812e2f71e 6,64-77,109,113,115-117,120-455,483-487
+cards/A_605358.json
+  s_2be9ca1f77025c::t_51056938ec74ed 6,64-77,110,114,116-118,126-461,490-491
+research/card.py
+  s_2be9ca1f77025c::t_d241039dad74d4 85-104,118,126-136,145-146,166,260-271,283-284
+research/cli.py
+  s_2be9ca1f77025c::t_c309c80362d7d1 16,20,87-131,175-181
+research/ths.py
+  s_2be9ca1f77025c::t_8611593794e256 1-141
+research/workflow.py
+  s_2be9ca1f77025c::t_97b8e3eb8f9fd8 78-93
+tests/test_card.py
+  s_2be9ca1f77025c::t_ba05e3805867ac 4-15,40,98-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "11ec4a164f47ff0114fb22bf79f44b370139aefd",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    },
+    "s_9b546d8fd446cf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a7d4b9442e30c83ae",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
