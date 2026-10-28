@@ -1,0 +1,21 @@
+research/governance.py
+  s_2be9ca1f77025c::t_5cde8ce769f209 45-60,64-65,103,105,160
+tests/test_governance.py
+  s_2be9ca1f77025c::t_67ed88b46323b7 18,20-21,25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d665d9963c2bdf8e71be2b6e632bb70e19da9196",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
