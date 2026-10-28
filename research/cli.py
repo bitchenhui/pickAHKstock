@@ -157,16 +157,18 @@ def cmd_hk_discover(args: argparse.Namespace) -> int:
         source_note = f"财务同比变化（报告期 {args.date or '2026-06-30'}，首次抓取约 8 分钟，落盘缓存）"
     else:
         candidates = discover(since_days=args.days, limit=args.limit)
-        source_note = "盈利警告/正面盈利预告（预告类，港股多来自微盘）"
+        source_note = "盈利警告/正面盈利预告/业绩预告（港股不强制预告，但很多公司会主动发）"
     if not candidates:
         print("没有符合条件的港股候选。缺失不等于没有机会——先核对时间窗口与公告类别。")
         return 0
     print(f"港股候选 {len(candidates)} 只（近 {args.days} 天 · {source_note}，按公告时间倒序）\n")
     for c in candidates:
         cap = f"{c.market_cap / 1e8:.0f}亿" if c.market_cap else "—"
-        print(f"{c.code} {c.name:10s} {c.category[:8]:10s} {c.event[:26]:28s} "
+        arrow = {"正向": "▲", "负向": "▼", "混合": "◆", "待判读": "·"}.get(c.direction, "·")
+        print(f"{arrow} {c.code} {c.name:10s} {c.direction:4s} {c.event[:24]:26s} "
               f"市值{cap:>7s} 价{c.price:>8.2f} 成交{c.turnover / 1e8:>6.2f}亿 每手{c.lot_size or '—'}")
-        print(f"    {c.published}｜换手 {c.turnover_rate}%｜{c.detail_url}")
+        print(f"    {c.published}｜换手 {c.turnover_rate}%｜{c.direction_note}")
+        print(f"    {c.detail_url}")
         for note in c.notes:
             print(f"    ⚠ {note}")
     print("\n每手股数已从行情取到，下单前仍需按交易所资料复核；"

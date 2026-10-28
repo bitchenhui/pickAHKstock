@@ -42,10 +42,50 @@ MAX_CAP_HKD = 5e10
 CATEGORY_ALERT = "盈利警告"      # 盈警与盈喜共用
 CATEGORY_RESULTS = ("季度業績", "中期業績", "年度業績", "半年度報告", "中期報告",
                     "年度業績公佈", "全年業績公佈")
+# 盈警/盈喜共用「盈利警告」类别，方向只能从标题读。标题写法很杂：
+# 正面盈利预告 / 盈利预喜 / 业绩预增 / 扭亏为盈 / 盈喜 … 对应负面的一批。
+POSITIVE_TITLES = ("正面盈利预告", "盈利预喜", "盈喜", "业绩预增", "扭亏为盈",
+                   "转亏为盈", "减亏", "亏损减少", "预增", "增长")
+NEGATIVE_TITLES = ("盈利警告", "盈利预警", "溢利警告", "盈警", "预减", "预亏",
+                   "预亏", "亏损扩大", "减值", "下修")
+# 一眼看完的常见组合（供人工复核用）
+DIRECTION_HINT = {
+    "正面盈利预告": "正向预告：经营变化已由公司确认，但可能已被定价",
+    "盈利预喜": "正向预告：同上",
+    "扭亏为盈": "正向：由亏转盈，注意基数与一次性因素",
+    "亏损减少": "正向：仍在亏损，只是亏得少",
+    "盈利警告": "负向预告：经营低于预期，持有的假设面临证伪",
+    "盈利预警": "负向预告：同上",
+    "溢利警告": "负向预告：同上",
+    "业绩预增": "正向：业绩增长已预告，注意基数与口径",
+    "业绩预减": "负向：业绩下滑已预告",
+}
 # 基金与噪音：不是研究对象
 NOISE = ("基金", "ETF", "3456", "債券", "债", "票据", "可换股", "貨幣市場基金")
 # GEM（创业板）代码以 08 开头：主板研究里排除
 GEM_PREFIX = "08"
+
+
+def event_direction(title: str) -> tuple[str, str]:
+    """从标题判定预告方向，返回 (方向, 说明)。
+
+    方向判不准时返回「待判读」——宁可说不准，也不要猜。
+    """
+    positive = [word for word in POSITIVE_TITLES if word in title]
+    negative = [word for word in NEGATIVE_TITLES if word in title]
+    if positive and not negative:
+        for key, note in DIRECTION_HINT.items():
+            if key in title:
+                return "正向", note
+        return "正向", "标题含利好表述，方向仍需回原文确认"
+    if negative and not positive:
+        for key, note in DIRECTION_HINT.items():
+            if key in title:
+                return "负向", note
+        return "负向", "标题含利空表述，方向仍需回原文确认"
+    if positive and negative:
+        return "混合", "标题同时含正负表述（如盈喜与盈警并存），需回原文判断"
+    return "待判读", "标题未含明确方向词，需回原文判断"
 
 
 class HkError(RuntimeError):
@@ -77,6 +117,8 @@ class HkCandidate:
     market: str = "HK"
     event: str = ""
     category: str = ""
+    direction: str = ""           # 正向 / 负向 / 混合 / 待判读
+    direction_note: str = ""
     published: date | None = None
     detail_url: str = ""
     pdf_url: str = ""
@@ -95,6 +137,7 @@ class HkCandidate:
     def to_dict(self) -> dict:
         return {"code": self.code, "name": self.name, "market": self.market,
                 "headline": self.headline, "category": self.category,
+                "direction": self.direction, "direction_note": self.direction_note,
                 "published": self.published.isoformat() if self.published else None,
                 "detail_url": self.detail_url, "pdf_url": self.pdf_url,
                 "price": self.price, "turnover": self.turnover,
@@ -209,9 +252,11 @@ def build_candidates(events: list[HkEvent], quotes: dict[str, Snapshot]) -> list
                 notes.append("总市值 > 500 亿港元，超出小资金研究体量")
         if not snapshot.lot_size:
             notes.append("每手股数缺失，仓位将按 0 处理")
+        direction, direction_note = event_direction(event.title)
         candidates.append(HkCandidate(
             code=event.code, name=event.name or snapshot.name,
             event=event.title, category=event.category, published=event.published,
+            direction=direction, direction_note=direction_note,
             detail_url=event.detail_url, pdf_url=event.pdf_url,
             price=snapshot.price, turnover=snapshot.turnover,
             market_cap=snapshot.market_cap, turnover_rate=snapshot.turnover_rate,

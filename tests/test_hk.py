@@ -1,6 +1,7 @@
 import unittest
 
-from research.hk import CATEGORY_ALERT, CATEGORY_RESULTS, GEM_PREFIX, HkEvent, _dedupe
+from research.hk import (CATEGORY_ALERT, CATEGORY_RESULTS, GEM_PREFIX, HkEvent,
+                          _dedupe, event_direction)
 from research.quotes import Snapshot
 
 
@@ -28,6 +29,14 @@ class HkTests(unittest.TestCase):
 
     def test_gem_prefix_is_eight(self):
         self.assertEqual(GEM_PREFIX, "08")
+
+    def test_event_direction_reads_titles(self):
+        self.assertEqual(event_direction("正面盈利预告 - 转亏为盈")[0], "正向")
+        self.assertEqual(event_direction("盈利警告")[0], "负向")
+        self.assertEqual(event_direction("内幕消息盈利警告")[0], "负向")
+        self.assertEqual(event_direction("盈利预喜")[0], "正向")
+        self.assertEqual(event_direction("2026年第三季度报告")[0], "待判读")
+        self.assertEqual(event_direction("正面盈利预告及盈利警告")[0], "混合")
 
     def test_event_to_candidate_filters_gem_and_illiquid(self):
         from research.hk import build_candidates
