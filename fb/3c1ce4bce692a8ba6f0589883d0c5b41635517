@@ -1,0 +1,55 @@
+README.md
+  s_2be9ca1f77025c::t_3b4ba9adb2f73a 44,46-68
+cards/A_000626.json
+  s_2be9ca1f77025c::t_74c5bcb6da5a4f 1-146
+cards/A_002044.json
+  s_f6951d218ca7e5::t_845c4a03513eb4 1-139
+cards/A_002132.json
+  s_f6951d218ca7e5::t_55fe3dfab9cdd1 1-125
+cards/A_603991.json
+  s_2be9ca1f77025c::t_492fd58b9ef966 1-142
+cards/A_605358.json
+  s_2be9ca1f77025c::t_1ac64f20a974e9 1-154
+requirements.txt
+  s_2be9ca1f77025c::t_22c32165c8310d 3
+research/card.py
+  s_2be9ca1f77025c::t_71d5897fbc94b0 1-250
+research/cli.py
+  s_2be9ca1f77025c::t_0a3d53a558f376 1-133
+research/discover.py
+  s_2be9ca1f77025c::t_063bffc1d54f15 1-194
+research/events.py
+  s_2be9ca1f77025c::t_4eff556db120f3 1-138
+research/pdftext.py
+  s_2be9ca1f77025c::t_4c7aa4fb8d22dd 1-66
+research/quotes.py
+  s_2be9ca1f77025c::t_882e1c3500ac31 1-138
+research/workflow.py
+  s_2be9ca1f77025c::t_89f464fb7549b4 1-85
+tests/test_card.py
+  s_2be9ca1f77025c::t_780d2f6bb0aff8 1-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb3c1ce4bce692a8ba6f0589883d0c5b41635517",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    },
+    "s_f6951d218ca7e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac4e0091ce9262c19",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
