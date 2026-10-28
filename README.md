@@ -41,5 +41,28 @@ python3 -m venv .venv
 ## 测试
 
 ```bash
-PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache python3 -m unittest discover -s tests -v
+PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -s tests -v
 ```
+
+## 研究工作台（`research/`）
+
+上面的 Streamlit 应用是**量价原型**；`research/` 是另一条线：按策略 v1 的研究漏斗做**单股研究**，产出可追溯的研究卡片。两者定位不同，���不互相替代。
+
+- `research/events.py` 巨潮公告检索 + 东方财富业绩预告结构化数据（均可免登录）
+- `research/quotes.py` 腾讯行情快照（批量、免登录、字段映射显式）
+- `research/discover.py` L1 发现层：按**经营变化**（不是量价形态）提出研究对象，输出带公告日期与原文链接的候选
+- `research/pdftext.py` 公告 PDF 下载缓存与取文
+- `research/card.py` 研究卡片 schema 与校验器：**结论等级由证据推导**，证据不足只能停在「观察」
+- `research/workflow.py` 卡片草稿生成与 Markdown 渲染
+- `cards/` 每只标的一张卡片（JSON，可入版本控制，作为研究留痕）
+
+```bash
+.venv/bin/python -m research.cli discover --period 2026-09-30 --limit 10   # 发现候选
+.venv/bin/python -m research.cli new --codes 002132,002044                  # 生成卡片草稿
+.venv/bin/python -m research.cli show A 002132                              # 渲染卡片
+.venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
+.venv/bin/python -m research.cli list                                       # 所有卡片状态与阻塞数
+```
+
+发现层目前只覆盖 A 股（业绩预告口径）；港股需要另按交易所公告口径实现。卡片中的每条证据都带出处、发布日期与原文链接，缺出处的证据一律标「待核实」，不会因为结论好看而被放行。
+
