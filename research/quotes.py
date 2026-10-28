@@ -69,7 +69,8 @@ def _parse_hk(code: str, payload: str) -> Snapshot | None:
     """港股字段（腾讯行情，实测 78 段）：
 
     [3] 最新价 · [6] 成交量 · [37] 成交额(元) · [44] 流通市值(亿) ·
-    [45] 总市值(亿) · [59] 换手率% · [60] 每手股数 · [69] 总股本
+    [45] 总市值(亿) · [39] 市盈率(TTM) · [58] 市净率 · [59] 换手率% ·
+    [60] 每手股数 · [69] 总股本
 
     总市值取 [45]：00939 的流通市值与总市值不同，用「总股本 × 最新价」可验证。
     """
@@ -96,8 +97,8 @@ def _parse_hk(code: str, payload: str) -> Snapshot | None:
         price=price,
         turnover=turnover or 0.0,
         market_cap=market_cap,
-        pe=_num(_f(fields, 52)),
-        pb=_num(_f(fields, 53)),
+        pe=_num(_f(fields, 39)),
+        pb=_num(_f(fields, 58)),
         change_pct=_num(_f(fields, 32)),
         as_of=_f(fields, 30),
         turnover_rate=_num(_f(fields, 59)),
