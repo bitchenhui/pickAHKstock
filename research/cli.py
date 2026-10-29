@@ -329,7 +329,7 @@ def cmd_backtest(args: argparse.Namespace) -> int:
     from .backtest import run_backtest, sensitivity
 
     result = run_backtest(args.period, hold_days=args.hold, threshold=args.threshold,
-                          sample=args.sample)
+                          sample=args.sample, runup_filter=args.runup_filter)
     print(f"=== 事件研究｜报告期 {result.event_date}｜持有 {result.hold_days} 个交易日"
           f"｜门槛 {result.threshold:.0f}%｜池 {result.universe_size} 只")
     print("（事件日 = 各公司自己的业绩预告公告日，避免固定事件日带来的定价不对称）\n")
@@ -533,6 +533,8 @@ def main(argv: list[str] | None = None) -> int:
     p_bt.add_argument("--hold", type=int, default=60, help="持有交易日数")
     p_bt.add_argument("--threshold", type=float, default=50.0, help="强预告的同比变动门槛 %")
     p_bt.add_argument("--sample", type=int, default=150, help="抽样上限（×3）")
+    p_bt.add_argument("--runup-filter", type=float, default=None,
+                      help="按公告前涨幅过滤（如 0.15 表示剔除公告前涨超 15%% 的）")
     p_bt.add_argument("--sensitivity", action="store_true", help="附参数敏感性")
     p_bt.set_defaults(func=cmd_backtest)
 

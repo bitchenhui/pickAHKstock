@@ -53,6 +53,7 @@ class BacktestError(RuntimeError):
 class Group:
     name: str
     returns: list = field(default_factory=list)
+    excesses: list = field(default_factory=list)   # 相对沪深300的超额
     missing: int = 0
 
     def stats(self) -> dict:
@@ -242,15 +243,15 @@ def forward_return(prices: list[dict], buy_after: str, hold_days: int) -> float 
 
 
 def _prepare(forecasts: list[dict], holds: tuple[int, ...], sample: int,
-             seed: int) -> tuple[list[tuple[dict, date, list]], int]:
-    """抽样 + 取一次价格，供所有 (门槛, 持有期) 组合复用。"""
+             seed: int) -> tuple[list[tuple[dict, date, list]], int, list]:
+    """抽样 + 取一次价格 + 取基准，供所有 (门槛, 持有期) 组合复用。"""
     rng = random.Random(seed)
     pool = forecasts[:]
     rng.shuffle(pool)
     sampled = pool[:sample * 3]
     notices = [d for d in (_notice_date(row) for row in sampled) if d]
     if not notices:
-        return [], 0
+        return [], 0, []
     price_start = min(notices) - timedelta(days=40)
     price_end = max(notices) + timedelta(days=int(max(holds) * 2.2) + 30)
     prepared: list[tuple[dict, date, list]] = []
@@ -260,18 +261,121 @@ def _prepare(forecasts: list[dict], holds: tuple[int, ...], sample: int,
         if not notice:
             continue
         prepared.append((row, notice, load_prices(code, price_start, price_end)))
-    return prepared, len({str(r.get("SECURITY_CODE")) for r in forecasts})
+    index = index_bars(price_start, price_end)
+    return prepared, len({str(r.get("SECURITY_CODE")) for r in forecasts}), index
+
+
+def index_bars(start: date, end: date) -> list[dict]:
+    """沪深300 前复权日线，用作基准。
+
+    所有组的中位数都是负的——说明绝对收益被市场环境主导。比较必须相对基准，
+    否则比的是"谁在熊市里跌得少"，而不是"信号有没有信息量"。
+    """
+    symbol = "sh000300"
+    url = TENCENT_QFQ.format(symbol=symbol, start=start.isoformat(),
+                             end=end.isoformat(), count=400)
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=25)
+        response.raise_for_status()
+        payload = response.json()
+    except (requests.RequestException, ValueError):
+        return []
+    block = (payload.get("data") or {}).get(symbol) or {}
+    bars = block.get("qfqday") or block.get("day") or []
+    out: list[dict] = []
+    for bar in bars:
+        if len(bar) < 3:
+            continue
+        try:
+            out.append({"day": bar[0], "close": float(bar[2])})
+        except (TypeError, ValueError):
+            continue
+    out.sort(key=lambda b: b["day"])
+    return out
+
+
+def _window_return(bars: list[dict], start_after: str, hold_days: int) -> float | None:
+    if not bars:
+        return None
+    start = None
+    for index, bar in enumerate(bars):
+        if bar["day"] > start_after:
+            start = index
+            break
+    if start is None:
+        return None
+    end = min(start + hold_days, len(bars) - 1)
+    if end <= start or bars[start]["close"] <= 0:
+        return None
+    return (bars[end]["close"] / bars[start]["close"]) - 1
+
+
+def _bootstrap_median_diff(strong: list, control: list, rounds: int = 2000,
+                            seed: int = 7) -> tuple[float | None, float | None]:
+    """中位数差的 bootstrap 95% 区间。
+
+    小样本下中位数差的噪声极大——不给区间的话，一个 −7.6pct 的差很容易被
+    读成结论，其实可能只是抽样噪声。
+    """
+    if len(strong) < 5 or len(control) < 5:
+        return None, None
+    rng = random.Random(seed)
+    diffs: list[float] = []
+    for _ in range(rounds):
+        a = [strong[rng.randrange(len(strong))] for _ in strong]
+        b = [control[rng.randrange(len(control))] for _ in control]
+        diffs.append(statistics.median(a) - statistics.median(b))
+    diffs.sort()
+    low = diffs[int(len(diffs) * 0.025)]
+    high = diffs[int(len(diffs) * 0.975)]
+    return round(low * 100, 2), round(high * 100, 2)
+
+
+def pre_announcement_runup(prices: list[dict], notice: str, lookback: int = 20) -> float | None:
+    """公告日之前的涨幅：判断「利好是否已被price in」。
+
+    发现层目前只按业绩变动选股，没有"价格是否已经反映"这一层。若强预告候选
+    普遍在公告前已大涨，公告后买等于接利好出尽的那一段——这正是要检验的。
+    """
+    if not prices:
+        return None
+    index = None
+    for position, bar in enumerate(prices):
+        if bar["day"] >= notice:
+            index = position
+            break
+    if index is None or index == 0:
+        return None
+    start = max(0, index - lookback)
+    base = prices[start]["close"]
+    if base <= 0:
+        return None
+    return (prices[index - 1]["close"] / base) - 1
 
 
 def _compare(prepared: list[tuple[dict, date, list]], threshold: float,
-             hold_days: int) -> tuple[dict, dict]:
+             hold_days: int, index: list | None = None,
+             runup_filter: float | None = None) -> tuple[dict, dict]:
     groups = {"强预告组": Group("强预告组"), "非强预告（对照）": Group("非强预告（对照）")}
+    if runup_filter is not None:
+        groups["强预告但公告前已涨透"] = Group("强预告但公告前已涨透")
     for row, notice, prices in prepared:
         value = forward_return(prices, notice.isoformat(), hold_days)
         if value is None:
             continue
-        bucket = "强预告组" if is_strong(row, threshold) else "非强预告（对照）"
+        strong = is_strong(row, threshold)
+        if strong and runup_filter is not None:
+            runup = pre_announcement_runup(prices, notice.isoformat())
+            if runup is not None and runup > runup_filter:
+                bucket = "强预告但公告前已涨透"
+                groups[bucket].returns.append(value)
+                continue
+        bucket = "强预告组" if strong else "非强预告（对照）"
         groups[bucket].returns.append(value)
+        if index:
+            benchmark = _window_return(index, notice.isoformat(), hold_days)
+            if benchmark is not None:
+                groups[bucket].excesses.append(value - benchmark)
     stats = {name: group.stats() for name, group in groups.items()}
     event_median = stats.get("强预告组", {}).get("median")
     base_median = stats.get("非强预告（对照）", {}).get("median")
@@ -280,12 +384,25 @@ def _compare(prepared: list[tuple[dict, date, list]], threshold: float,
         excess["强预告 − 对照（中位数）"] = round(event_median - base_median, 2)
         excess["强预告 − 对照（胜率）"] = round(
             (stats["强预告组"]["win_rate"] or 0) - (stats["非强预告（对照）"]["win_rate"] or 0), 1)
+    strong_excess = groups["强预告组"].excesses
+    control_excess = groups["非强预告（对照）"].excesses
+    if strong_excess and control_excess:
+        relative = (statistics.median(strong_excess) - statistics.median(control_excess)) * 100
+        excess["相对沪深300超额（中位数）"] = round(relative, 2)
+        low, high = _bootstrap_median_diff(strong_excess, control_excess)
+        if low is not None:
+            excess["超额 95% 区间"] = f"[{low}, {high}]"
+            excess["显著性"] = ("区间不含 0，差异在此样本下不太像噪声" if low * high > 0
+                                else "区间含 0，样本不足以判定")
+    if runup_filter is not None and "强预告但公告前已涨透" in stats:
+        excess["公告前涨幅门槛"] = f"{runup_filter * 100:.0f}%"
     return stats, excess
 
 
 def run_backtest(report_period: str = "2026-06-30", hold_days: int = HOLD_DAYS,
                  threshold: float = MIN_CHANGE, sample: int = 150,
-                 seed: int = 20261029) -> BacktestResult:
+                 seed: int = 20261029,
+                 runup_filter: float | None = None) -> BacktestResult:
     """事件研究：用每家公司**自己的公告日**做事件日，比较持有期收益。
 
     为什么不用固定事件日：强预告组集中在 4 月公告，若事件日定在 4 月底，它们的
@@ -299,8 +416,8 @@ def run_backtest(report_period: str = "2026-06-30", hold_days: int = HOLD_DAYS,
     forecasts = forecasts_by_report_period(datetime.strptime(report_period, "%Y-%m-%d").date())
     if not forecasts:
         raise BacktestError(f"报告期 {report_period} 没有取到业绩预告")
-    prepared, universe = _prepare(forecasts, (hold_days,), sample, seed)
-    stats, excess = _compare(prepared, threshold, hold_days)
+    prepared, universe, index = _prepare(forecasts, (hold_days,), sample, seed)
+    stats, excess = _compare(prepared, threshold, hold_days, index, runup_filter)
     result = BacktestResult(event_date="各公司自身公告日", hold_days=hold_days,
                             threshold=threshold, universe_size=universe)
     result.groups = stats
@@ -308,6 +425,9 @@ def run_backtest(report_period: str = "2026-06-30", hold_days: int = HOLD_DAYS,
     result.notes.append(f"报告期 {report_period}，池 {universe} 只，"
                         f"强预告 {stats.get('强预告组', {}).get('n')} 只，"
                         f"对照 {stats.get('非强预告（对照）', {}).get('n')} 只")
+    if runup_filter is not None:
+        result.notes.append(f"已按「公告前 {runup_filter * 100:.0f}% 涨幅」过滤，"
+                            f"被过滤的 {stats.get('强预告但公告前已涨透', {}).get('n', 0)} 只单列一组")
     result.notes.append(
         "局限：对照组是同报告期非强预告而非「完全无预告」（缺全市场代码池）；"
         "池子按主板代码粗筛（前视）、退市与停牌样本缺失、未计费用与滑点、A 股 T+1、"
@@ -333,11 +453,32 @@ def sensitivity(report_period: str = "2026-06-30", thresholds=(30.0, 50.0, 100.0
     forecasts = forecasts_by_report_period(datetime.strptime(report_period, "%Y-%m-%d").date())
     if not forecasts:
         return []
-    prepared, _ = _prepare(forecasts, tuple(holds), sample, 20261029)
+    prepared, _, index = _prepare(forecasts, tuple(holds), sample, 20261029)
     out: list[dict] = []
     for hold in holds:
         for threshold in thresholds:
-            stats, excess = _compare(prepared, threshold, hold)
+            stats, excess = _compare(prepared, threshold, hold, index)
             out.append({"hold_days": hold, "threshold": threshold,
                         "groups": stats, "excess": excess})
+    return out
+
+
+def multi_period(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-06-30"),
+                 hold_days: int = 60, threshold: float = MIN_CHANGE,
+                 sample: int = 150) -> list[dict]:
+    """多个报告期合并：单期样本太少、市场环境单一，结论会不稳。
+
+    合并的收益是按公司取中位数（等权），不是组合净值——§51 要求的组合层
+    检验（净值、回撤、现金占比）还需要一套完整的历史成分与交易规则，
+    那是下一步的事。
+    """
+    out: list[dict] = []
+    for period in periods:
+        try:
+            result = run_backtest(period, hold_days=hold_days, threshold=threshold,
+                                  sample=sample)
+        except BacktestError as exc:
+            out.append({"period": period, "error": str(exc)})
+            continue
+        out.append({"period": period, "groups": result.groups, "excess": result.excess})
     return out
