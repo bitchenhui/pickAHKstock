@@ -1,0 +1,25 @@
+research/backtest.py
+  s_2be9ca1f77025c::t_0c5a8e2cd24c03 37-38,134,139-175,177-179,181,183-206,230-231,235-241,448-449,457
+research/cli.py
+  s_2be9ca1f77025c::t_8187fae11d43da 44-46,68,298
+research/discover.py
+  s_2be9ca1f77025c::t_065a45a0496b17 14,20-22,40,68,119-130,132,138-141,152,161-162,174-178,181-182,193-194,204,208-211
+research/events.py
+  s_2be9ca1f77025c::t_5f76cd7d66bfa1 53-54,135-137,141-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "47bea673c3a286813967e0ea63c31115b741f160",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
