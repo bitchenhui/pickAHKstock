@@ -156,6 +156,8 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
                 continue
             if len(holdings) >= config.max_positions:
                 continue
+            if any(h.code == code for h in holdings):
+                continue          # 同一只在持仓中不重复建仓（多期预告会重复出现）
             equity = cash + sum(h.shares * closes.get(h.code, {}).get(day, h.buy_price)
                                 for h in holdings)
             if equity <= 0:
