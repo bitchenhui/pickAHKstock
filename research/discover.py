@@ -39,6 +39,7 @@ class Candidate:
     change_upper: float | None = None
     forecast_amount: float | None = None   # 预告净利润下限（元）
     one_off: bool = False                  # 原因含重组/处置/补助等一次性因素
+    small_amount: bool = False             # 预告净利润绝对额低于门槛（低基数噪音）
     metric: str = ""
     metrics: list[str] = field(default_factory=list)
     notice_date: date | None = None
@@ -67,6 +68,7 @@ class Candidate:
             "metric": self.metric, "metrics": self.metrics,
             "change_lower": self.change_lower, "change_upper": self.change_upper,
             "forecast_amount": self.forecast_amount, "one_off": self.one_off,
+            "small_amount": self.small_amount,
             "notice_date": self.notice_date.isoformat() if self.notice_date else None,
             "reason": self.reason, "source_url": self.source_url,
             "pdf_url": self.pdf_url, "pdf_title": self.pdf_title,
@@ -130,7 +132,7 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
     返回 (候选, 统计)，统计里含被剔除的低基数数量，不静默丢弃。
     """
     grouped: dict[str, list[Forecast]] = {}
-    dropped_small_amount = 0
+    small_amount = 0
     for forecast in forecasts:
         if forecast.forecast_type not in GOOD_FORECAST_TYPES:
             continue
@@ -138,8 +140,10 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
             continue
         if (min_amount and forecast.amount_lower is not None
                 and forecast.amount_lower < min_amount):
-            dropped_small_amount += 1
-            continue
+            # 不剔除，只标记并降权：基线检验里绝对额门槛的收益证据不稳健
+            # （9 格改善、5 持平、6 变差），不足以当硬规则；但绝对额小的
+            # 更可能是低基数噪音，排后面是合理的
+            small_amount += 1
         grouped.setdefault(forecast.code, []).append(forecast)
 
     candidates: list[Candidate] = []
@@ -160,6 +164,10 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
             notes.append("变动原因含重组/处置/补助等一次性因素：需区分经常性经营改善与一次性损益")
         if primary.metric not in ("归属于上市公司股东的净利润", "净利润"):
             notes.append(f"主指标为「{primary.metric}」，非归母净利润口径，需在卡片中改用归母口径核对")
+        if (primary.amount_lower is not None and min_amount
+                and primary.amount_lower < min_amount):
+            notes.append(f"预告净利润下限仅 {primary.amount_lower / 1e8:.2f} 亿元，"
+                         f"同比幅度多半来自低基数，绝对额需先核对")
         if primary.change_lower is not None and primary.change_lower >= 300:
             notes.append(f"同比幅度 {primary.change_lower:.0f}% 属极端值，多为低基数所致，须核对绝对额与经营性")
         candidates.append(Candidate(
@@ -174,11 +182,14 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
             price=snapshot.price, turnover=snapshot.turnover,
             market_cap=snapshot.market_cap, pe=snapshot.pe, pb=snapshot.pb,
             as_of=snapshot.as_of, notes=notes,
-            forecast_amount=primary.amount_lower, one_off=one_off))
+            forecast_amount=primary.amount_lower, one_off=one_off,
+            small_amount=bool(primary.amount_lower is not None
+                              and primary.amount_lower < min_amount)))
     # 排序用**预告绝对额**而不是同比幅度：幅度会把低基数暴增顶到最前面。
     # 一次性因素（重组/处置/补助）的候选降权但保留——它们仍有研究价值。
-    return sorted(candidates, key=lambda c: (c.one_off, -(c.forecast_amount or 0), -c.turnover)), {
-        "dropped_small_amount": dropped_small_amount}
+    return sorted(candidates, key=lambda c: (c.one_off, c.small_amount,
+                                           -(c.forecast_amount or 0), -c.turnover)), {
+        "small_amount": small_amount}
 
 
 def discover(report_period: str, since_days: int = 90, limit: int = 15,

@@ -39,22 +39,28 @@ class DiscoveryFilterTests(unittest.TestCase):
         self.assertEqual(candidates[0].metric, "归属于上市公司股东的净利润")
         self.assertEqual(candidates[0].change_lower, 500.0)
 
-    def test_small_absolute_amount_is_dropped_and_counted(self):
+    def test_small_absolute_amount_is_flagged_not_dropped(self):
+        """绝对额过小的候选不剔除，只标记并降权排序——回测证据不支持硬剔除。"""
         forecasts = [
             forecast(code="002132", change=800.0, amount=1e6),   # 低基数暴增
             forecast(code="002044", change=40.0, amount=2e8),    # 正常
         ]
         quotes = {"002132": snapshot("002132"), "002044": snapshot("002044")}
         candidates, stats = build_candidates(forecasts, quotes, [])
-        self.assertEqual([c.code for c in candidates], ["002044"])
-        self.assertEqual(stats["dropped_small_amount"], 1)
+        self.assertEqual(len(candidates), 2)
+        self.assertEqual([c.code for c in candidates], ["002044", "002132"])
+        self.assertTrue(candidates[1].small_amount)
+        self.assertFalse(candidates[0].small_amount)
+        self.assertEqual(stats["small_amount"], 1)
+        self.assertTrue(any("低基数" in n for n in candidates[1].notes))
 
-    def test_amount_filter_can_be_disabled(self):
+    def test_amount_threshold_of_zero_disables_the_flag(self):
         forecasts = [forecast(change=800.0, amount=1e6)]
         candidates, stats = build_candidates(forecasts, {"002132": snapshot()}, [],
                                             min_amount=0)
         self.assertEqual(len(candidates), 1)
-        self.assertEqual(stats["dropped_small_amount"], 0)
+        self.assertFalse(candidates[0].small_amount)
+        self.assertEqual(stats["small_amount"], 0)
 
     def test_sorting_is_by_forecast_amount_not_by_change(self):
         forecasts = [
