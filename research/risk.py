@@ -25,11 +25,25 @@ RISK_KEYWORDS: dict[str, tuple[str, ...]] = {
     "停复牌与风险警示": ("停牌", "复牌", "退市", "风险警示", "*ST", "其他风险警示"),
 }
 
+# 港股公告标题是繁体，用词也不同（例：冻结=凍結、减值=減值、供股=供股）
+HK_RISK_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "仲裁与诉讼": ("仲裁", "訴訟", "法律程序", "法律程序", "頒令", "起訴", "索償"),
+    "账户与偿债": ("凍結", "冻结", "違約", "违约", "逾期", "債務重組", "债务重组",
+                   "清盤", "清盘", "呈請", "呈请", "強制出售"),
+    "股权质押": ("質押", "质押", "抵押"),
+    "监管问询": ("聯交所", "联交所", "披露易", "制裁", "調查", "调查", "監管", "监管", "指令"),
+    "资产质量": ("減值", "减值", "撇賬", "撇帳", "撇账", "應收", "呆賬"),
+    "治理变动": ("辭任", "辞任", "辭職", "辞职", "離任", "离任", "罷免", "免職"),
+    "停复牌与退市": ("停牌", "复牌", "復牌", "除牌", "短暫停牌", "短暂停牌"),
+    "股本摊薄": ("供股", "配售", "認購", "认购", "發行新股", "发行新股", "股份合併", "股份合并"),
+}
+
 # 与研究无关的常规公告，不列入风险
 ROUTINE_NOISE = ("会议决议", "法律意见书", "会议资料", "股东会决议", "提名", "候选人",
                   "会议通知", "股东大会资料", "董事会决议", "监事会决议", "选举",
                   "会计师事务所", "续聘", "募集资金存放", "募集资金使用情况",
-                  "投资者关系", "调研", "独立董事", "更正", "补充更正", "更正后")
+                  "投资者关系", "调研", "独立董事", "更正", "补充更正", "更正后",
+                  "月報表", "月报表", "翌日披露報表", "翌日披露报表")
 
 
 class RiskEvent:
@@ -48,20 +62,21 @@ class RiskEvent:
         return f"[{self.category}] {self.published} {self.title}  {self.url}"
 
 
-def classify(title: str) -> str | None:
+def classify(title: str, market: str = "A") -> str | None:
     if any(noise in title for noise in ROUTINE_NOISE):
         return None
-    for category, words in RISK_KEYWORDS.items():
+    table = RISK_KEYWORDS if market == "A" else HK_RISK_KEYWORDS
+    for category, words in table.items():
         if any(word in title for word in words):
             return category
     return None
-
 
 def scan_risks(code: str, name: str, since_days: int = 240,
                market: str = "A") -> list[RiskEvent]:
     """按公司名取全部公告，再筛出风险类标题。
 
-    A 股走巨潮；港股走 HKEXnews（若接口不可用则返回空并由调用方标注缺口）。
+    A 股走巨潮；港股走东方财富公告流（HKEXnews 的检索接口实测取不到数据，
+    已弃用）。港股的公告标题是繁体，用词也不同，见 HK_RISK_WORDS。
     """
     today = date.today()
     start = today - timedelta(days=since_days)
@@ -71,16 +86,17 @@ def scan_risks(code: str, name: str, since_days: int = 240,
         for item in items:
             if item.code != code:
                 continue
-            category = classify(item.title)
+            category = classify(item.title, market)
             if category:
                 events.append(RiskEvent(code, name, item.title, item.published, item.url, category))
     else:
-        from .hk import fetch_hk_announcements
+        from .hk import fetch_events
 
-        for item in fetch_hk_announcements(start, today, title=""):
+        for item in fetch_events(start, today, categories=()):
             if item.code != code:
                 continue
-            category = classify(item.title)
+            category = classify(item.title, market)
             if category:
-                events.append(RiskEvent(code, name, item.title, item.published, item.url, category))
+                events.append(RiskEvent(code, name, item.title, item.published,
+                                        item.detail_url, category))
     return sorted(events, key=lambda e: e.published, reverse=True)

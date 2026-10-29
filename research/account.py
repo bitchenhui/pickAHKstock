@@ -158,8 +158,17 @@ class Plan:
 
 
 def lot_size(card: Card, account: Account) -> int | None:
+    """每手股数。
+
+    A 股固定 100 股；港股优先用卡片市场数据段里从行情取到的每手股数
+    （腾讯行情 [60] 字段，与东财 TRADE_UNIT 逐只互验一致），其次才是
+    账户配置里的手填值——两者都没有时按 0 处理。
+    """
     if card.market == "A":
         return 100
+    from_context = (card.market_context or {}).get("lot_size")
+    if isinstance(from_context, int) and from_context > 0:
+        return from_context
     lot = account.hk_lots.get(card.code)
     return lot if isinstance(lot, int) and lot > 0 else None
 

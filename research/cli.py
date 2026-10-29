@@ -47,6 +47,20 @@ def cmd_discover(args: argparse.Namespace) -> int:
 
 def cmd_new(args: argparse.Namespace) -> int:
     wanted = {c.strip() for c in args.codes.split(",") if c.strip()}
+    if args.market == "HK":
+        from .hk import discover as hk_discover
+        from .workflow import scaffold_hk
+
+        candidates = hk_discover(since_days=args.since_days, limit=max(args.limit, len(wanted) * 3))
+        picked = [c for c in candidates if c.code in wanted] if wanted else candidates[:args.limit]
+        if not picked:
+            print("没有匹配的港股候选。先跑 hk-discover 看有哪些。")
+            return 1
+        for candidate in picked:
+            card = scaffold_hk(candidate)
+            path = card.save()
+            print(f"{candidate.code} {candidate.name}（{candidate.direction}）→ {path}")
+        return 0
     # 指定代码时要多取一些候选，否则按幅度排序的目标可能落在取样窗口之外。
     pool = max(args.limit, len(wanted) * 5, 20)
     candidates = discover(args.period, args.since_days, pool)
@@ -85,26 +99,36 @@ def cmd_show(args: argparse.Namespace) -> int:
 
 
 def cmd_financials(args: argparse.Namespace) -> int:
-    """取同花顺 F10 财务主表写入卡片，并打印供人工判断的摘要。
+    """取财务序列写入卡片：A股走同花顺 F10，港股走东方财富数据中心。
 
     只取数，不下判断：path / recurring_judgment / cyclical_judgment 仍要人写。
     """
-    from .ths import fetch_financials, key_series
-
     card = Card.load(args.market, args.code)
-    data = fetch_financials(args.code)
-    track = card.financials
-    track.source = data["source"]
-    track.periods = list(data["periods"])[:args.periods]
-    track.quarter_periods = list(data.get("simple_periods", []))[:args.quarter_periods]
-    # 只保留展示区间内的报告期：卡片要能被人读完，不能把 F10 全历史塞进来
-    track.metrics = {name: {p: series[p] for p in track.periods if p in series}
-                     for name, series in key_series(data, subjects=tuple(KEY_SUBJECTS)).items()}
-    track.quarter_metrics = {
-        name: {p: series[p] for p in track.quarter_periods if p in series}
-        for name, series in key_series(data, block="simple", subjects=tuple(KEY_SUBJECTS)).items()}
-    track.notes = [n for n in track.notes if not n.startswith("数据已于")]
-    track.notes.append(f"数据已于 {date.today().isoformat()} 取自同花顺 F10 财务主表")
+    if args.market == "HK":
+        from .hk import fetch_stock_financials
+
+        data = fetch_stock_financials(args.code)
+        track = card.financials
+        track.source = data["source"]
+        track.periods = data["periods"]
+        track.metrics = data["metrics"]
+        track.quarter_metrics = {}
+    else:
+        from .ths import fetch_financials, key_series
+
+        data = fetch_financials(args.code)
+        track = card.financials
+        track.source = data["source"]
+        track.periods = list(data["periods"])[:args.periods]
+        track.quarter_periods = list(data.get("simple_periods", []))[:args.quarter_periods]
+        # 只保留展示区间内的报告期：卡片要能被人读完，不能把 F10 全历史塞进来
+        track.metrics = {name: {p: series[p] for p in track.periods if p in series}
+                         for name, series in key_series(data, subjects=tuple(KEY_SUBJECTS)).items()}
+        track.quarter_metrics = {
+            name: {p: series[p] for p in track.quarter_periods if p in series}
+            for name, series in key_series(data, block="simple", subjects=tuple(KEY_SUBJECTS)).items()}
+    track.notes = [n for n in track.notes if not n.startswith("财务序列已于")]
+    track.notes.append(f"财务序列已于 {date.today().isoformat()} 取自 {track.source}")
     card.updated = date.today().isoformat()
     card.save()
     print(f"{card.name}（{card.market} {card.code}）财务轨迹已更新：{track.source}")
@@ -316,6 +340,7 @@ def main(argv: list[str] | None = None) -> int:
     p_discover.set_defaults(func=cmd_discover)
 
     p_new = sub.add_parser("new", help="从候选生成卡片草稿")
+    p_new.add_argument("--market", default="A", choices=("A", "HK"))
     p_new.add_argument("--period", default="2026-09-30")
     p_new.add_argument("--since-days", type=int, default=90)
     p_new.add_argument("--codes", default="", help="逗号分隔的代码；留空则取前 N 只")
@@ -335,7 +360,7 @@ def main(argv: list[str] | None = None) -> int:
     p_list = sub.add_parser("list", help="列出所有卡片")
     p_list.set_defaults(func=cmd_list)
 
-    p_fin = sub.add_parser("financials", help="取同花顺财务主表写入卡片（只取数，不下判断）")
+    p_fin = sub.add_parser("financials", help="取财务序列写入卡片（A股同花顺 F10 / 港股东方财富；只取数，不下判断）")
     p_fin.add_argument("market")
     p_fin.add_argument("code")
     p_fin.add_argument("--periods", type=int, default=8, help="保留最近几个报告期")

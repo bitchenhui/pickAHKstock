@@ -461,3 +461,45 @@ def blockers_of(candidate: HkCandidate) -> list[str]:
 
 def snippet_name(row: dict) -> str:
     return str(row.get("SECURITY_NAME_ABBR") or "").strip()
+
+
+HK_METRICS = ("OPERATE_INCOME", "OPERATE_INCOME_YOY", "HOLDER_PROFIT", "HOLDER_PROFIT_YOY",
+              "GROSS_PROFIT_RATIO", "NET_PROFIT_RATIO", "ROE_AVG", "ROA", "DEBT_ASSET_RATIO",
+              "NETCASH_OPERATE", "BASIC_EPS", "BPS", "TOTAL_ASSETS", "TOTAL_LIABILITIES",
+              "TOTAL_PARENT_EQUITY", "TOTAL_MARKET_CAP", "PE_TTM", "PB_TTM",
+              "ACCOUNTS_RECE_TDAYS", "INVENTORY_TDAYS", "DIVIDEND_RATE")
+
+
+def fetch_stock_financials(code: str, periods: int = 8) -> dict:
+    """单只港股的财务序列（东方财富数据中心）。
+
+    单只查询同样要 60–150 秒（服务端全表扫描），但只返回这一只的全部报告期，
+    可以看到最新的季度。
+    """
+    params = {"reportName": "RPT_HKF10_FN_MAININDICATOR", "columns": "ALL",
+              "pageSize": "120", "pageIndex": "1", "client": "WEB",
+              "sortColumns": "REPORT_DATE", "sortTypes": "-1",
+              "filter": f"(SECURITY_CODE=\"{code}\")"}
+    try:
+        response = requests.get(DC, headers=DC_HEADERS, params=params, timeout=200)
+        response.raise_for_status()
+        payload = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise HkError(f"港股财务序列获取失败 {code}：{exc}") from exc
+    rows = (payload.get("result") or {}).get("data") or []
+    if not rows:
+        raise HkError(f"没有取到 {code} 的财务数据")
+    rows.sort(key=lambda r: str(r.get("REPORT_DATE") or ""), reverse=True)
+    kept = rows[:periods]
+    period_list = [str(r.get("REPORT_DATE") or "")[:10] for r in kept]
+    metrics: dict[str, dict[str, str]] = {}
+    for name in HK_METRICS:
+        series = {}
+        for row, period in zip(kept, period_list):
+            value = row.get(name)
+            if value is not None:
+                series[period] = value
+        if series:
+            metrics[name] = series
+    return {"periods": period_list, "metrics": metrics, "name": snippet_name(rows[0]),
+            "source": f"{DC}?reportName=RPT_HKF10_FN_MAININDICATOR&filter=(SECURITY_CODE=\"{code}\")"}

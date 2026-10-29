@@ -64,8 +64,10 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 
 ```bash
 .venv/bin/python -m research.cli discover --period 2026-09-30 --limit 10   # 发现候选
-.venv/bin/python -m research.cli new --codes 002132,002044                  # 生成卡片草稿
-.venv/bin/python -m research.cli financials A 002132                        # 取同花顺财务序列（只取数，不下判断）
+.venv/bin/python -m research.cli new --codes 002132,002044                  # 生成卡片草稿（A 股）
+.venv/bin/python -m research.cli new --market HK --codes 09696,03323        # 生成卡片草稿（港股）
+.venv/bin/python -m research.cli financials A 002132                        # 取财务序列（只取数，不下判断）
+.venv/bin/python -m research.cli financials HK 09696                        # 港股财务（东方财富，单只查询较慢）
 .venv/bin/python -m research.cli reference A 002132                         # 用日线算 ATR 与 2ATR 参考失效线
 .venv/bin/python -m research.cli risks A 002132                             # 风险公告扫描
 .venv/bin/python -m research.cli governance A 002132                       # 治理与筹码（户数/质押/诉讼/担保）
@@ -84,7 +86,9 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 
 **账户层只给账户动作，不给股票名单。** 已持仓的卡片一旦被降级或淘汰，账户层会给出减仓/清仓动作；卡片还在「观察」时不出手是纪律，不是没找到机会。回撤状态只影响是否新增仓位，不改写研究判断。
 
-**港股公告 PDF 不能用 A 股那套抽文。** 港股公告的中文是 CID 字体，pypdf 抽出的中文字符数为 0（数字完整但对应不到科目），所以港股的数字必须走结构化财务接口，PDF 只用于人工复核。
+**港股公告 PDF 不能用 A 股那套抽文。** 港股公告的中文是 CID 字体，pypdf 抽出的中文字符数为 0（数字完整但对应不到科目），所以港股的数字必须走结构化财务接口，PDF 只用于人工复核。港股财务报表多为人民币口径、股价为港元，比较估值前要自己换算汇率。
+
+**港股的预告标题不能当结论。** 首两张港股卡片就是反例：盈利预喜的天齐锂业，Q3 单季归母环比 −42%（预喜讲的是前三季累计）；盈利预警的中国建材，Q3 单季已扭亏且现金流单季回正 44 亿（预警讲的也是累计）。两个方向的标题都只覆盖累计口径，**必须做单季拆解**。这也是 A 股那边同一个教训在港股的复现。
 
 **风险公告要单独扫。** 业绩预告挑出来的候选，身上可能还挂着仲裁、账户冻结、监管问询、商誉减值、重组终止。`risks` 命令按标题关键词扫九类风险；关键词会误报（例：立昂微「终止信用评级」实为可转债摘牌而非信用恶化），所以每条都要回原文确认。
 

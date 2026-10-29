@@ -8,6 +8,39 @@ from .card import Card, CounterCase, Evidence, LogEntry, Scenario
 from .discover import Candidate
 
 
+def scaffold_hk(candidate, source: str = "港股发现层") -> Card:
+    """港股卡片草稿：公告事件 + 行情（含每手股数），财务序列另用 financials 命令补。
+
+    港股公告 PDF 的中文抽不出来，所以业务判断只能依赖结构化财务接口；
+    公告本身在这里的作用是「事件与公开时间」的出处。
+    """
+    from .card import Card, Evidence
+
+    today = date.today().isoformat()
+    card = Card(
+        market="HK", code=candidate.code, name=candidate.name, status="观察",
+        view="", horizon="",
+        evidence=[Evidence(
+            id="E1",
+            claim=f"{candidate.published} 公告：{candidate.event}",
+            kind="披露", publisher="香港交易所披露易（经东方财富转发）",
+            title=candidate.event, published=str(candidate.published),
+            url=candidate.detail_url, observed=today,
+            alternative=candidate.direction_note,
+            next_check="2026 年报与下一次业绩公告",
+            status="已核实" if candidate.direction in ("正向", "负向") else "待核实",
+            note="港股公告 PDF 中文为 CID 字体无法抽取，方向以标题判定并需财务数据复核")],
+        market_context={"price": candidate.price, "turnover": candidate.turnover,
+                        "market_cap": candidate.market_cap, "lot_size": candidate.lot_size,
+                        "turnover_rate": candidate.turnover_rate, "as_of": candidate.as_of,
+                        "role": "市场确认与执行参考，不是业务证据"},
+        gaps=["港股无巨潮治理数据接口：股东户数、质押、担保、诉讼等治理维度未取得",
+              "港股公告 PDF 中文无法抽取，原文需人工阅读"],
+        log=[LogEntry(at=today, event=f"由{source}生成草稿", from_status="", to_status="观察")],
+        created=today, updated=today)
+    return card
+
+
 def scaffold(candidate: Candidate, source: str = "发现层") -> Card:
     """按 §22 五要素把一条披露事件变成卡片草稿：变化、公开时间、原始出处、可替代解释、下一验证节点。"""
     today = date.today().isoformat()
