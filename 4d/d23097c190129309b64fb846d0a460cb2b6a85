@@ -1,0 +1,33 @@
+cards/A_000626.json
+  s_2be9ca1f77025c::t_fb3aa55a72708c 6,113-127,158,506,602-603,617-622
+cards/A_002044.json
+  s_2be9ca1f77025c::t_cfc7116b37ca02 6,128-142,173,521,618-619,627-632
+cards/A_002132.json
+  s_2be9ca1f77025c::t_bff33174759c6a 6,98-112,143,493,595-596,610-615
+cards/A_603991.json
+  s_2be9ca1f77025c::t_ee0a92ca7d39f8 6,188-202,234,586,701-702,716-721
+cards/A_605358.json
+  s_2be9ca1f77025c::t_ffc19c1f39e3aa 6,113-127,160,513,610-611,625-630
+research/cli.py
+  s_2be9ca1f77025c::t_5b69aeb9484c20 238
+research/segments.py
+  s_2be9ca1f77025c::t_95bd06507b21dc 54-55,59-60,70-80,126-127,167-168,172-173,181-193
+tests/test_segments.py
+  s_2be9ca1f77025c::t_07d10fb6154c8a 17-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4dd23097c190129309b64fb846d0a460cb2b6a85",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
