@@ -1,0 +1,29 @@
+README.md
+  s_2be9ca1f77025c::t_cf39ac1ca84a9a 59,77,95-96
+cards/HK_03323.json
+  s_2be9ca1f77025c::t_d6d0aca21f1b81 6,56-61,64-65,100,133,230-232,246-251
+cards/HK_09696.json
+  s_2be9ca1f77025c::t_34255c27a06fea 6,56-61,64-65,99,223-225,239-244
+research/cli.py
+  s_2be9ca1f77025c::t_65323b9d8835b8 248-279,438-442
+research/hk_business.py
+  s_2be9ca1f77025c::t_736646f55f3023 1-140
+tests/test_hk_business.py
+  s_2be9ca1f77025c::t_0917f7728e2b6c 1-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "70f81761ddc267cf9fbd30e42fa8bcd6fe12f6bd",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
