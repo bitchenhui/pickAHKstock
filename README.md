@@ -57,6 +57,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - `research/governance.py` 治理与筹码结构：巨潮的股东户数、股权质押、诉讼、担保结构化数据——比标题扫描多出「几次、多少钱、谁在质押、筹码在集中还是分散」
 - `research/hk.py` 港股发现层，三条事件源：`alerts` 盈警/盈喜/业绩预告（最像 A 股业绩预告，60 天实测 80 个，多为流动性好的中大盘）、`results` 业绩公告（强制披露、覆盖全市场）、`financials` 财务同比变化（结构化接口，覆盖全市场且给出变化量级）。**每手股数从腾讯行情取到，不必手填**
 - `research/hk_business.py` 港股**经营回顾正文**逐期对比：港股没有可程序化取得的分部数字，但经营回顾是中文可读的，里面常有行业量价与分部描述
+- `research/board.py` 研究看板：把「谁该被研究」变成可执行的排序——到期必看 > 临近复核 > 观察池 > 待立项
 - `research/account.py` L3 账户层：账户配置、回撤状态、按整手与风险预算的仓位估算、账户级动作（加仓/不加仓/减仓/清仓）
 - `research/card.py` 研究卡片 schema 与校验器：**结论等级由证据推导**，证据不足只能停在「观察」；财务路径（§30 已盈利 / §34 未盈利）没写完也不算数
 - `research/workflow.py` 卡片草稿生成与 Markdown 渲染
@@ -77,6 +78,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli business HK 03323                            # 港股：经营回顾逐期对比
 .venv/bin/python -m research.cli show A 002132                              # 渲染卡片
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
+.venv/bin/python -m research.cli board                              # 研究看板：谁该被研究（按优先级）
+.venv/bin/python -m research.cli board --new                       # 附上发现层的新候选（待立项）
 .venv/bin/python -m research.cli list                                       # 所有卡片状态、等级与质量门
 .venv/bin/python -m research.cli account show                               # 账户权益、现金、持仓与回撤状态
 .venv/bin/python -m research.cli account plan                               # 账户级动作（不是股票名单）
@@ -93,6 +96,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 **港股的预告标题不能当结论。** 首两张港股卡片就是反例：盈利预喜的天齐锂业，Q3 单季归母环比 −42%（预喜讲的是前三季累计）；盈利预警的中国建材，Q3 单季已扭亏且现金流单季回正 44 亿（预警讲的也是累计）。两个方向的标题都只覆盖累计口径，**必须做单季拆解**。这也是 A 股那边同一个教训在港股的复现。
 
 **港股的量价证据来自经营回顾，不是分部数字。** 港股没有可程序化取得的分部收入表，但东方财富把报告里的经营回顾文字抽了出来（RPT_HKF10_ORG_BUSSINESS），中文可读。中国建材 2026 年中期报告里写着固投 −5.7%、基建由正转负、水泥产量近 17 年同期最低、「行业已由存量竞合阶段进入减量博弈、效益转亏」——这是 A 股接口里拿不到的行业级证据。反过来，天齐锂业的经营回顾与去年同期几乎逐字相同且无任何经营数据，**信息不披露本身就是负面信号**。
+
+**研究对象由谁定：三段式。** 规则定优先级（到期必看）、日期定复核节奏（临近复核与观察池）、机器提议而人裁决（待立项）。只由人定会陷入确认偏误——你只会研究自己已经喜欢的那几只；只由机器定又会漏掉你真正关心的。卡片里的催化剂日期与「下一验证节点」就是排期依据，`board` 命令把它们变成待办清单。
 
 **风险公告要单独扫。** 业绩预告挑出来的候选，身上可能还挂着仲裁、账户冻结、监管问询、商誉减值、重组终止。`risks` 命令按标题关键词扫九类风险；关键词会误报（例：立昂微「终止信用评级」实为可转债摘牌而非信用恶化），所以每条都要回原文确认。
 

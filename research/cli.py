@@ -277,6 +277,53 @@ def cmd_business(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_board(args: argparse.Namespace) -> int:
+    """研究看板：谁该被研究，按优先级排好。
+
+    到期必看 > 临近复核 > 观察池 > 待立项。前三类由卡片上的日期与状态定，
+    最后一类由发现层提议、由人决定是否立项。
+    """
+    from .board import build_board, new_candidates
+
+    cards = _load_all_cards()
+    items = build_board(cards, horizon_days=args.horizon)
+    fresh: list = []
+    if args.new:
+        from .discover import discover as a_discover
+        from .hk import discover as hk_discover
+
+        try:
+            a_candidates = a_discover(args.period, args.days, args.limit)
+        except Exception as exc:
+            print(f"A 股发现层未取到候选：{exc}")
+            a_candidates = []
+        try:
+            hk_candidates = hk_discover(since_days=args.days, limit=args.limit)
+        except Exception as exc:
+            print(f"港股发现层未取到候选：{exc}")
+            hk_candidates = []
+        fresh = new_candidates(a_candidates, hk_candidates)
+    if not items and not fresh:
+        print("看板是空的。没有卡片，也没有新候选。")
+        return 0
+    current = None
+    for item in items + fresh:
+        if item.bucket != current:
+            current = item.bucket
+            print(f"\n=== {current}")
+        mark = "!" if item.overdue else " "
+        print(f" {mark} {item.market} {item.code} {item.name:10s} "
+              f"[{item.card_status or item.status}] {item.reason}")
+        if item.due:
+            print(f"      到期 {item.due}")
+    counts: dict[str, int] = {}
+    for item in items + fresh:
+        counts[item.bucket] = counts.get(item.bucket, 0) + 1
+    print("\n小结：" + "｜".join(f"{k} {v}" for k, v in counts.items()))
+    print("「到期复核」里的条目不是建议，是已经欠下的功课；「待立项」由你决定要不要立项。")
+    return 0
+
+
 def cmd_reference(args: argparse.Namespace) -> int:
     """用同花顺日线算 ATR 与 2ATR 参考失效线，写入卡片的市场数据段。
 
@@ -439,6 +486,14 @@ def main(argv: list[str] | None = None) -> int:
     p_bus.add_argument("market")
     p_bus.add_argument("code")
     p_bus.set_defaults(func=cmd_business)
+
+    p_board = sub.add_parser("board", help="研究看板：谁该被研究（按优先级排）")
+    p_board.add_argument("--horizon", type=int, default=30, help="临近多少天算临近复核")
+    p_board.add_argument("--new", action="store_true", help="附上发现层的新候选（待立项）")
+    p_board.add_argument("--days", type=int, default=60, help="新候选的回看窗口")
+    p_board.add_argument("--period", default="2026-09-30", help="A 股新候选的报告期")
+    p_board.add_argument("--limit", type=int, default=10, help="每个市场取几个新候选")
+    p_board.set_defaults(func=cmd_board)
 
     p_acc = sub.add_parser("account", help="账户层：查看账户状态或给出账户级动作")
     acc_sub = p_acc.add_subparsers(dest="account_command", required=True)
