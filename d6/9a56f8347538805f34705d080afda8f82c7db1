@@ -1,0 +1,23 @@
+README.md
+  s_2be9ca1f77025c::t_e4dd11bc61b625 102-107
+research/backtest.py
+  s_2be9ca1f77025c::t_0aeee8b62abe6d 56,246-247,254,264-353,357-358,360-361,366-373,375-378,387-398,404-405,419-420,428-430,456,460,464-484
+research/cli.py
+  s_2be9ca1f77025c::t_401731c10dc956 332,536-537
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d69a56f8347538805f34705d080afda8f82c7db1",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
