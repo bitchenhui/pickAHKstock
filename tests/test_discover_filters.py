@@ -73,3 +73,27 @@ class DiscoveryFilterTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OneOffOrderingTests(unittest.TestCase):
+    def test_one_off_candidates_are_downweighted_not_dropped(self):
+        """一次性因素（重组/处置/补助）的候选应排后面，但仍然保留。"""
+        from research.events import Forecast
+        import datetime
+
+        def make(code, reason, amount):
+            return Forecast(code=code, name="测试",
+                            notice_date=datetime.date(2026, 7, 15), report_period="2026-06-30",
+                            metric="归属于上市公司股东的净利润", forecast_type="预增",
+                            change_lower=50.0, change_upper=60.0, reason=reason,
+                            source_url="", amount_lower=amount, amount_upper=amount)
+
+        forecasts = [
+            make("002132", "公司完成重大资产重组，置入新业务", 9e8),
+            make("002044", "主营业务收入增长，销量提升", 9e8),
+        ]
+        quotes = {"002132": snapshot("002132"), "002044": snapshot("002044")}
+        candidates, _stats = build_candidates(forecasts, quotes, [])
+        self.assertEqual(len(candidates), 2)
+        self.assertEqual([c.code for c in candidates], ["002044", "002132"])
+        self.assertTrue(candidates[1].one_off)

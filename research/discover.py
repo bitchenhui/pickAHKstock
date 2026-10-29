@@ -38,6 +38,7 @@ class Candidate:
     change_lower: float | None = None
     change_upper: float | None = None
     forecast_amount: float | None = None   # 预告净利润下限（元）
+    one_off: bool = False                  # 原因含重组/处置/补助等一次性因素
     metric: str = ""
     metrics: list[str] = field(default_factory=list)
     notice_date: date | None = None
@@ -65,7 +66,7 @@ class Candidate:
             "headline": self.headline, "forecast_type": self.forecast_type,
             "metric": self.metric, "metrics": self.metrics,
             "change_lower": self.change_lower, "change_upper": self.change_upper,
-            "forecast_amount": self.forecast_amount,
+            "forecast_amount": self.forecast_amount, "one_off": self.one_off,
             "notice_date": self.notice_date.isoformat() if self.notice_date else None,
             "reason": self.reason, "source_url": self.source_url,
             "pdf_url": self.pdf_url, "pdf_title": self.pdf_title,
@@ -154,7 +155,8 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
         notes: list[str] = []
         if not announcement:
             notes.append("未取得巨潮原文链接，需人工补出处")
-        if any(marker in primary.reason for marker in NON_RECURRING_MARKERS):
+        one_off = any(marker in primary.reason for marker in NON_RECURRING_MARKERS)
+        if one_off:
             notes.append("变动原因含重组/处置/补助等一次性因素：需区分经常性经营改善与一次性损益")
         if primary.metric not in ("归属于上市公司股东的净利润", "净利润"):
             notes.append(f"主指标为「{primary.metric}」，非归母净利润口径，需在卡片中改用归母口径核对")
@@ -172,9 +174,10 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
             price=snapshot.price, turnover=snapshot.turnover,
             market_cap=snapshot.market_cap, pe=snapshot.pe, pb=snapshot.pb,
             as_of=snapshot.as_of, notes=notes,
-            forecast_amount=primary.amount_lower))
-    # 排序用**预告绝对额**而不是同比幅度：幅度会把低基数暴增顶到最前面
-    return sorted(candidates, key=lambda c: (-(c.forecast_amount or 0), -c.turnover)), {
+            forecast_amount=primary.amount_lower, one_off=one_off))
+    # 排序用**预告绝对额**而不是同比幅度：幅度会把低基数暴增顶到最前面。
+    # 一次性因素（重组/处置/补助）的候选降权但保留——它们仍有研究价值。
+    return sorted(candidates, key=lambda c: (c.one_off, -(c.forecast_amount or 0), -c.turnover)), {
         "dropped_small_amount": dropped_small_amount}
 
 
