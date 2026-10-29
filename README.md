@@ -58,6 +58,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - `research/hk.py` 港股发现层，三条事件源：`alerts` 盈警/盈喜/业绩预告（最像 A 股业绩预告，60 天实测 80 个，多为流动性好的中大盘）、`results` 业绩公告（强制披露、覆盖全市场）、`financials` 财务同比变化（结构化接口，覆盖全市场且给出变化量级）。**每手股数从腾讯行情取到，不必手填**
 - `research/hk_business.py` 港股**经营回顾正文**逐期对比：港股没有可程序化取得的分部数字，但经营回顾是中文可读的，里面常有行业量价与分部描述
 - `research/board.py` 研究看板：把「谁该被研究」变成可执行的排序——到期必看 > 临近复核 > 观察池 > 待立项
+- `research/backtest.py` §51 基线检验：按**各自公告日**做事件研究，比较强预告组与对照组的持有期收益，并做参数敏感性
 - `research/account.py` L3 账户层：账户配置、回撤状态、按整手与风险预算的仓位估算、账户级动作（加仓/不加仓/减仓/清仓）
 - `research/card.py` 研究卡片 schema 与校验器：**结论等级由证据推导**，证据不足只能停在「观察」；财务路径（§30 已盈利 / §34 未盈利）没写完也不算数
 - `research/workflow.py` 卡片草稿生成与 Markdown 渲染
@@ -80,6 +81,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
 .venv/bin/python -m research.cli board                              # 研究看板：谁该被研究（按优先级）
 .venv/bin/python -m research.cli board --new                       # 附上发现层的新候选（待立项）
+.venv/bin/python -m research.cli backtest --period 2026-06-30 --sensitivity   # §51 基线检验
 .venv/bin/python -m research.cli list                                       # 所有卡片状态、等级与质量门
 .venv/bin/python -m research.cli account show                               # 账户权益、现金、持仓与回撤状态
 .venv/bin/python -m research.cli account plan                               # 账户级动作（不是股票名单）

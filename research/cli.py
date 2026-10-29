@@ -324,6 +324,39 @@ def cmd_board(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_backtest(args: argparse.Namespace) -> int:
+    """§51 基线检验：强预告组相对对照组的持有期收益，以及参数敏感性。"""
+    from .backtest import run_backtest, sensitivity
+
+    result = run_backtest(args.period, hold_days=args.hold, threshold=args.threshold,
+                          sample=args.sample)
+    print(f"=== 事件研究｜报告期 {result.event_date}｜持有 {result.hold_days} 个交易日"
+          f"｜门槛 {result.threshold:.0f}%｜池 {result.universe_size} 只")
+    print("（事件日 = 各公司自己的业绩预告公告日，避免固定事件日带来的定价不对称）\n")
+    for name, stats in result.groups.items():
+        if not stats.get("n"):
+            print(f"  {name:16s} 样本不足")
+            continue
+        print(f"  {name:16s} n={stats['n']:>3d} 中位 {stats['median']:>7}% 均值 {stats['mean']:>7}% "
+              f"胜率 {stats['win_rate']:>5}% 最差十分位 {stats['p10']:>7}%")
+    if result.excess:
+        print("\n  超额：" + "｜".join(f"{k} {v}" for k, v in result.excess.items()))
+    for note in result.notes:
+        print(f"  注：{note}")
+    if args.sensitivity:
+        print("\n=== 参数敏感性（结论若在参数变动下翻转，就不算数）")
+        print(f"  {'持有':>5s} {'门槛':>6s} | {'强预告 n/中位/胜率':>22s} | {'对照 n/中位/胜率':>22s} | 中位超额")
+        for row in sensitivity(args.period, thresholds=(30.0, 50.0, 100.0),
+                               holds=(10, 20, 60), sample=args.sample):
+            strong = row["groups"].get("强预告组", {})
+            control = row["groups"].get("非强预告（对照）", {})
+            excess = row["excess"].get("强预告 − 对照（中位数）")
+            print(f"  {row['hold_days']:>5d} {row['threshold']:>5.0f}% | "
+                  f"{strong.get('n')}/{strong.get('median')}/{strong.get('win_rate')} | "
+                  f"{control.get('n')}/{control.get('median')}/{control.get('win_rate')} | {excess}")
+    return 0
+
+
 def cmd_reference(args: argparse.Namespace) -> int:
     """用同花顺日线算 ATR 与 2ATR 参考失效线，写入卡片的市场数据段。
 
@@ -494,6 +527,14 @@ def main(argv: list[str] | None = None) -> int:
     p_board.add_argument("--period", default="2026-09-30", help="A 股新候选的报告期")
     p_board.add_argument("--limit", type=int, default=10, help="每个市场取几个新候选")
     p_board.set_defaults(func=cmd_board)
+
+    p_bt = sub.add_parser("backtest", help="§51 基线检验：强预告组 vs 对照组")
+    p_bt.add_argument("--period", default="2026-06-30", help="业绩预告的报告期")
+    p_bt.add_argument("--hold", type=int, default=60, help="持有交易日数")
+    p_bt.add_argument("--threshold", type=float, default=50.0, help="强预告的同比变动门槛 %")
+    p_bt.add_argument("--sample", type=int, default=150, help="抽样上限（×3）")
+    p_bt.add_argument("--sensitivity", action="store_true", help="附参数敏感性")
+    p_bt.set_defaults(func=cmd_backtest)
 
     p_acc = sub.add_parser("account", help="账户层：查看账户状态或给出账户级动作")
     acc_sub = p_acc.add_subparsers(dest="account_command", required=True)
