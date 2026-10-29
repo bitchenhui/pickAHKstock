@@ -377,18 +377,20 @@ def cmd_portfolio(args: argparse.Namespace) -> int:
           f"｜最多 {config.max_positions} 只｜单只 {config.position_pct:.0%}"
           f"｜现金下限 {config.cash_floor_pct:.0%}｜持有 {config.hold_days} 日")
     print("含佣金（万2.5，最低 5 元）、印花税（千1，卖出）、双边各 0.2% 滑点、100 股整手\n")
-    header = f"{'组合':>12s} {'交易':>4s} {'总收益':>8s} {'最差回撤':>8s} {'现金占比':>8s} {'胜率':>6s} {'费用':>10s} {'错过率':>8s}"
+    header = (f"{'组合':>12s} {'交易':>4s} {'总收益':>8s} {'最差回撤':>8s} {'现金占比':>8s} {'胜率':>6s} "
+              f"{'费用':>9s} {'覆盖率':>7s} {'选中中位':>9s} {'全池中位':>9s}")
     print(header)
     for label, item in (("强预告组合", event), ("随机基线组合", base)):
         print(f"{label:>12s} {item['trades']:>4d} {item['total_return']:>7}% {item['max_drawdown']:>7}% "
-              f"{item['cash_ratio']:>7}% {item['win_rate']:>5}% {item['fee_total']:>10,.0f} "
-              f"{item['missed_top_share']:>7}%")
+              f"{item['cash_ratio']:>7}% {item['win_rate']:>5}% {item['fee_total']:>9,.0f} "
+              f"{item['coverage']:>6}% {str(item['selection_median']):>9s} {str(item['pool_median']):>9s}")
     if index_return is not None:
         print(f"\n同期沪深300：{index_return * 100:+.2f}%")
     print(f"因整手或资金买不到的次数：强预告 {event['skipped_unaffordable']}｜"
           f"基线 {base['skipped_unaffordable']}")
-    print("\n「错过率」= 表现最好的那批窗口里，组合没买到的比例；"
-          "「现金占比」= 平均闲置现金占本金——小资金的真实约束会体现在这里。")
+    print("\n「覆盖率」= 买到的候选 / 候选总数（受最多持 5 只与资金约束限制）；"
+          "「选中中位」= 买到的那些的持有期收益中位数，「全池中位」= 全体候选的中位数——"
+          "两者的差才是「挑得准不准」。「现金占比」= 平均闲置现金占本金，小资金的真实约束会体现在这里。")
     print("局限：退市与停牌样本缺失（幸存者偏差）、池子未按市值区间过滤（前视）、"
           "预告本身有选择性、只有 4 个报告期。")
     return 0

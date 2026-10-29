@@ -66,10 +66,13 @@ class PortfolioResult:
     cash_ratio: float = 0.0
     total_return: float = 0.0
     max_drawdown: float = 0.0
-    win_rate: float = 0.0
+    win_rate: float = 0.0            # 0-1 的小数
     fee_total: float = 0.0
     turnover: float = 0.0
-    missed_top_share: float = 0.0     # 错过率：没买到的窗口里最好的那只是谁
+    missed_top_share: float = 0.0     # 错过率：表现最好的那批窗口里没买到的比例
+    coverage: float = 0.0             # 候选覆盖率：买到的 / 事件总数
+    selection_median: float | None = None   # 买到的候选的持有期收益中位数
+    pool_median: float | None = None        # 全体事件窗口的收益中位数
     skipped_unaffordable: int = 0     # 因整手/资金买不到的次数
     notes: list = field(default_factory=list)
 
@@ -79,6 +82,11 @@ class PortfolioResult:
                 "max_drawdown": round(self.max_drawdown * 100, 2),
                 "cash_ratio": round(self.cash_ratio * 100, 1),
                 "win_rate": round(self.win_rate * 100, 1),
+                "coverage": round(self.coverage * 100, 1),
+                "selection_median": (None if self.selection_median is None
+                                     else round(self.selection_median * 100, 2)),
+                "pool_median": (None if self.pool_median is None
+                                else round(self.pool_median * 100, 2)),
                 "fee_total": round(self.fee_total, 2),
                 "turnover": round(self.turnover, 2),
                 "missed_top_share": round(self.missed_top_share * 100, 1),
@@ -200,7 +208,7 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
     final_equity = equity_curve[-1][1] if equity_curve else config.initial_capital
     result.total_return = final_equity / config.initial_capital - 1
     result.max_drawdown = max_drawdown
-    result.win_rate = (sum(1 for t in closed if t.pnl > 0) / len(closed) * 100) if closed else 0.0
+    result.win_rate = (sum(1 for t in closed if t.pnl > 0) / len(closed)) if closed else 0.0
 
     # 错过率：每个事件窗口里表现最好的标的，是否被组合买过
     bought = {t.code for t in result.trades}
@@ -217,6 +225,13 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
         top_third = best_window[:max(1, len(best_window) // 3)]
         result.missed_top_share = sum(1 for _, _, bought_flag in top_third
                                       if not bought_flag) / len(top_third)
+        # 覆盖率与选择质量：错过率会被「最多持 N 只」的硬约束主导，
+        # 所以必须同时看买到的比例，以及买到的那些挑得准不准
+        result.coverage = sum(1 for _, _, flag in best_window if flag) / len(best_window)
+        bought_values = [value for value, _, flag in best_window if flag]
+        if bought_values:
+            result.selection_median = statistics.median(bought_values)
+        result.pool_median = statistics.median(value for value, _, _ in best_window)
     return result
 
 

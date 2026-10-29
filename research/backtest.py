@@ -342,7 +342,7 @@ def index_bars(start: date, end: date) -> list[dict]:
     腾讯的指数 K 线接口对区间与复权参数比较挑剔（某些区间会返回非 JSON），
     所以依次尝试几个写法，取到就用；结果落盘缓存。
     """
-    cache_file = CACHE_DIR / "index_sh000300.json"
+    cache_file = CACHE_DIR / f"index_{start.isoformat()}_{end.isoformat()}.json"
     if cache_file.exists():
         try:
             cached = json.loads(cache_file.read_text(encoding="utf-8"))
