@@ -359,6 +359,41 @@ def cmd_backtest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_portfolio(args: argparse.Namespace) -> int:
+    """§51 组合层检验：按交易约束跑组合，看净值、回撤、现金占比、错过率与费用。"""
+    from .portfolio import PortfolioConfig, run_portfolio_test
+
+    config = PortfolioConfig(initial_capital=args.capital, max_positions=args.max_positions,
+                             position_pct=args.position_pct, cash_floor_pct=args.cash_floor,
+                             hold_days=args.hold)
+    result = run_portfolio_test(threshold=args.threshold, min_amount=args.min_amount,
+                                config=config)
+    if "error" in result:
+        print(result["error"])
+        return 1
+    event, base = result["event"], result["baseline"]
+    index_return = result.get("index_return")
+    print(f"组合层检验｜事件 {result['events']} 个｜本金 {config.initial_capital:,.0f}"
+          f"｜最多 {config.max_positions} 只｜单只 {config.position_pct:.0%}"
+          f"｜现金下限 {config.cash_floor_pct:.0%}｜持有 {config.hold_days} 日")
+    print("含佣金（万2.5，最低 5 元）、印花税（千1，卖出）、双边各 0.2% 滑点、100 股整手\n")
+    header = f"{'组合':>12s} {'交易':>4s} {'总收益':>8s} {'最差回撤':>8s} {'现金占比':>8s} {'胜率':>6s} {'费用':>10s} {'错过率':>8s}"
+    print(header)
+    for label, item in (("强预告组合", event), ("随机基线组合", base)):
+        print(f"{label:>12s} {item['trades']:>4d} {item['total_return']:>7}% {item['max_drawdown']:>7}% "
+              f"{item['cash_ratio']:>7}% {item['win_rate']:>5}% {item['fee_total']:>10,.0f} "
+              f"{item['missed_top_share']:>7}%")
+    if index_return is not None:
+        print(f"\n同期沪深300：{index_return * 100:+.2f}%")
+    print(f"因整手或资金买不到的次数：强预告 {event['skipped_unaffordable']}｜"
+          f"基线 {base['skipped_unaffordable']}")
+    print("\n「错过率」= 表现最好的那批窗口里，组合没买到的比例；"
+          "「现金占比」= 平均闲置现金占本金——小资金的真实约束会体现在这里。")
+    print("局限：退市与停牌样本缺失（幸存者偏差）、池子未按市值区间过滤（前视）、"
+          "预告本身有选择性、只有 4 个报告期。")
+    return 0
+
+
 def cmd_reference(args: argparse.Namespace) -> int:
     """用同花顺日线算 ATR 与 2ATR 参考失效线，写入卡片的市场数据段。
 
@@ -539,6 +574,16 @@ def main(argv: list[str] | None = None) -> int:
                       help="按公告前涨幅过滤（如 0.15 表示剔除公告前涨超 15%% 的）")
     p_bt.add_argument("--sensitivity", action="store_true", help="附参数敏感性")
     p_bt.set_defaults(func=cmd_backtest)
+
+    p_pf = sub.add_parser("portfolio", help="§51 组合层检验：净值/回撤/现金占比/错过率")
+    p_pf.add_argument("--threshold", type=float, default=30.0, help="强预告同比门槛（%%）")
+    p_pf.add_argument("--min-amount", type=float, default=5e7, help="预告净利润下限门槛（元，0 表示不过滤）")
+    p_pf.add_argument("--capital", type=float, default=100000.0)
+    p_pf.add_argument("--max-positions", type=int, default=5)
+    p_pf.add_argument("--position-pct", type=float, default=0.2)
+    p_pf.add_argument("--cash-floor", type=float, default=0.2)
+    p_pf.add_argument("--hold", type=int, default=60)
+    p_pf.set_defaults(func=cmd_portfolio)
 
     p_acc = sub.add_parser("account", help="账户层：查看账户状态或给出账户级动作")
     acc_sub = p_acc.add_subparsers(dest="account_command", required=True)
