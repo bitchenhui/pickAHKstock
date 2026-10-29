@@ -568,7 +568,7 @@ def main(argv: list[str] | None = None) -> int:
     p_bt = sub.add_parser("backtest", help="§51 基线检验：强预告组 vs 对照组")
     p_bt.add_argument("--period", default="2026-06-30", help="业绩预告的报告期")
     p_bt.add_argument("--hold", type=int, default=60, help="持有交易日数")
-    p_bt.add_argument("--threshold", type=float, default=50.0, help="强预告的同比变动门槛 %")
+    p_bt.add_argument("--threshold", type=float, default=50.0, help="强预告的同比变动门槛（%%）")
     p_bt.add_argument("--sample", type=int, default=150, help="抽样上限（×3）")
     p_bt.add_argument("--runup-filter", type=float, default=None,
                       help="按公告前涨幅过滤（如 0.15 表示剔除公告前涨超 15%% 的）")
