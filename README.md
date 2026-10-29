@@ -83,7 +83,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
 .venv/bin/python -m research.cli board                              # 研究看板：谁该被研究（按优先级）
 .venv/bin/python -m research.cli board --new                       # 附上发现层的新候选（待立项）
-.venv/bin/python -m research.cli backtest --period 2026-06-30 --sensitivity   # §51 基线检验
+.venv/bin/python -m research.cli backtest --period 2026-06-30 --sensitivity   # §51 事件研究
+.venv/bin/python -m research.cli portfolio --threshold 30 --capital 100000  # §51 组合层检验
 .venv/bin/python -m research.cli list                                       # 所有卡片状态、等级与质量门
 .venv/bin/python -m research.cli account show                               # 账户权益、现金、持仓与回撤状态
 .venv/bin/python -m research.cli account plan                               # 账户级动作（不是股票名单）
@@ -100,6 +101,12 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 **港股的预告标题不能当结论。** 首两张港股卡片就是反例：盈利预喜的天齐锂业，Q3 单季归母环比 −42%（预喜讲的是前三季累计）；盈利预警的中国建材，Q3 单季已扭亏且现金流单季回正 44 亿（预警讲的也是累计）。两个方向的标题都只覆盖累计口径，**必须做单季拆解**。这也是 A 股那边同一个教训在港股的复现。
 
 **港股的量价证据来自经营回顾，不是分部数字。** 港股没有可程序化取得的分部收入表，但东方财富把报告里的经营回顾文字抽了出来（RPT_HKF10_ORG_BUSSINESS），中文可读。中国建材 2026 年中期报告里写着固投 −5.7%、基建由正转负、水泥产量近 17 年同期最低、「行业已由存量竞合阶段进入减量博弈、效益转亏」——这是 A 股接口里拿不到的行业级证据。反过来，天齐锂业的经营回顾与去年同期几乎逐字相同且无任何经营数据，**信息不披露本身就是负面信号**。
+
+**发现层挑候选的三条口径**（都是基线检验逼出来的）：
+
+1. **主指标按口径固定**（归母 > 扣非 > 营收），不挑「幅度最大」的那条。否则一家「营收 +30%、归母 +500%」的公司会以 +500% 被顶到最前面。
+2. **绝对额下限**：预告净利润下限低于 5000 万元的剔除——同比看着惊人，绝对额却小到不改变基本面。剔除数量计数可见。
+3. **排序按预告绝对额**，不按同比幅度。极端幅度（≥300%）会加标记要求核对，但不直接剔除。
 
 **§51 基线检验怎么读。** `backtest` 命令做的是**事件研究**：每家公司用**自己**的业绩预告公告日做事件日（固定事件日不对等——强预告组集中在 4 月公告，其公告效应已部分计入事件日之前，而对照组在窗口内还没被定价）。读结果时注意三件事：
 
