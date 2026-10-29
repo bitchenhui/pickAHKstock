@@ -220,6 +220,31 @@ def cmd_governance(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_segments(args: argparse.Namespace) -> int:
+    """分产品/行业收入与毛利：把「增长从哪来」拆成四象限。"""
+    from .segments import compare, fetch_segments
+
+    rows = fetch_segments(args.code, args.market)
+    if not rows:
+        print(f"{args.code}：没有取到主营构成数据。")
+        return 0
+    periods = sorted({r.report_date for r in rows}, reverse=True)
+    print(f"{args.code} 主营构成：{len(rows)} 行，最近报告期 {periods[:3]}\n")
+    for kind in ("按产品", "按行业"):
+        changes = compare(rows, kind)
+        if not changes:
+            continue
+        print(f"--- {kind}（最新报告期 vs 去年同期）")
+        for change in sorted(changes, key=lambda c: -(c.income or 0))[:args.limit]:
+            income = "—" if change.income_yoy is None else f"{change.income_yoy:+.1f}%"
+            margin = "—" if change.margin_change is None else f"{change.margin_change:+.2f}pct"
+            print(f"  {change.item[:16]:18s} 收入同比 {income:>10s}  毛利率变动 {margin:>10s} | {change.verdict}")
+        print()
+    print("这是代理判断，不是量价拆分：真正的单价×销量只在定期报告正文里，本工具拿不到，")
+    print("结论前需回原文核对；主营构成只到半年报/年报频率。")
+    return 0
+
+
 def cmd_reference(args: argparse.Namespace) -> int:
     """用同花顺日线算 ATR 与 2ATR 参考失效线，写入卡片的市场数据段。
 
@@ -371,6 +396,12 @@ def main(argv: list[str] | None = None) -> int:
     p_ref.add_argument("market")
     p_ref.add_argument("code")
     p_ref.set_defaults(func=cmd_reference)
+
+    p_seg = sub.add_parser("segments", help="分产品收入与毛利的四象限拆分")
+    p_seg.add_argument("market")
+    p_seg.add_argument("code")
+    p_seg.add_argument("--limit", type=int, default=6)
+    p_seg.set_defaults(func=cmd_segments)
 
     p_acc = sub.add_parser("account", help="账户层：查看账户状态或给出账户级动作")
     acc_sub = p_acc.add_subparsers(dest="account_command", required=True)
