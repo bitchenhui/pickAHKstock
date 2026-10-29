@@ -1,0 +1,36 @@
+research/account.py
+  s_2be9ca1f77025c::t_2998dcff944fe1 161-166,169-171
+README.md
+  s_2be9ca1f77025c::t_cd2b502e5dc980 89
+  s_2be9ca1f77025c::t_3b4ba9adb2f73a 67
+  s_2be9ca1f77025c::t_e0eca6f269752b 68-70
+  s_2be9ca1f77025c::t_efb3278b7da990 90-91
+research/risk.py
+  s_2be9ca1f77025c::t_dda8fb1a785460 28-40,45-46,65,68-69,78-79,89,93,95,98,100-101
+cards/HK_03323.json
+  s_2be9ca1f77025c::t_99f3ccdff77302 1-249
+cards/HK_09696.json
+  s_2be9ca1f77025c::t_59d38f85314c79 1-242
+research/cli.py
+  s_2be9ca1f77025c::t_4e0bb39dfa8bb3 50-63,102,107-131,343,363
+research/hk.py
+  s_2be9ca1f77025c::t_a4bd7d1496cb1d 464-505
+research/workflow.py
+  s_2be9ca1f77025c::t_324324230d9892 11-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b592c2d5e4b44b3d5e97e1cb3294f003db4a7e1f",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
