@@ -1,0 +1,23 @@
+research/backtest.py
+  s_2be9ca1f77025c::t_4668d59540069f 1-343
+research/cli.py
+  s_2be9ca1f77025c::t_fe11e4a9809604 327-359,531-538
+tests/test_backtest.py
+  s_2be9ca1f77025c::t_2156250d52f5af 1-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "057cf16167dead9c17ef2f0c65f631fc1cc0f77d",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
