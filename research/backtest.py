@@ -270,27 +270,49 @@ def index_bars(start: date, end: date) -> list[dict]:
 
     所有组的中位数都是负的——说明绝对收益被市场环境主导。比较必须相对基准，
     否则比的是"谁在熊市里跌得少"，而不是"信号有没有信息量"。
+
+    腾讯的指数 K 线接口对区间与复权参数比较挑剔（某些区间会返回非 JSON），
+    所以依次尝试几个写法，取到就用；结果落盘缓存。
     """
-    symbol = "sh000300"
-    url = TENCENT_QFQ.format(symbol=symbol, start=start.isoformat(),
-                             end=end.isoformat(), count=400)
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=25)
-        response.raise_for_status()
-        payload = response.json()
-    except (requests.RequestException, ValueError):
-        return []
-    block = (payload.get("data") or {}).get(symbol) or {}
-    bars = block.get("qfqday") or block.get("day") or []
-    out: list[dict] = []
-    for bar in bars:
-        if len(bar) < 3:
-            continue
+    cache_file = CACHE_DIR / "index_sh000300.json"
+    if cache_file.exists():
         try:
-            out.append({"day": bar[0], "close": float(bar[2])})
-        except (TypeError, ValueError):
+            cached = json.loads(cache_file.read_text(encoding="utf-8"))
+            if cached:
+                return cached
+        except ValueError:
+            pass
+    variants = [
+        ("sh000300", "qfq"), ("sh000300", ""), ("sz399300", "qfq"), ("sz399001", "qfq"),
+    ]
+    out: list[dict] = []
+    for symbol, adjust in variants:
+        url = TENCENT_QFQ.format(symbol=symbol, start=start.isoformat(),
+                                 end=end.isoformat(), count=400)
+        if not adjust:
+            url = (f"https://web.ifzq.gtimg.cn/appstock/app/kline/kline"
+                   f"?param={symbol},day,{start},{end},400")
+        try:
+            response = requests.get(url, headers=HEADERS, timeout=25)
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError):
             continue
+        block = (payload.get("data") or {}).get(symbol) or {}
+        bars = block.get("qfqday") or block.get("day") or []
+        for bar in bars:
+            if len(bar) < 3:
+                continue
+            try:
+                out.append({"day": bar[0], "close": float(bar[2])})
+            except (TypeError, ValueError):
+                continue
+        if out:
+            break
     out.sort(key=lambda b: b["day"])
+    if out:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
     return out
 
 
