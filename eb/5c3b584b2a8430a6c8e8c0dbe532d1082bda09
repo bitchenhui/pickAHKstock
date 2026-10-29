@@ -1,0 +1,23 @@
+research/cli.py
+  s_2be9ca1f77025c::t_f1da57854bd487 46
+research/discover.py
+  s_2be9ca1f77025c::t_5cf937caa39335 42,71,135,143-146,167-170,185-187,190-192
+tests/test_discover_filters.py
+  s_2be9ca1f77025c::t_1bff1a42fe02dd 42-43,50-55,57,62-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb5c3b584b2a8430a6c8e8c0dbe532d1082bda09",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
