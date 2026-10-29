@@ -41,7 +41,9 @@ def _print_candidates(candidates: list[Candidate]) -> None:
 
 
 def cmd_discover(args: argparse.Namespace) -> int:
-    _print_candidates(discover(args.period, args.since_days, args.limit))
+    candidates, stats = discover(args.period, args.since_days, args.limit)
+    _print_candidates(candidates)
+    print(f"已剔除低基数噪音（预告净利润下限过小）：{stats.get('dropped_small_amount', 0)} 条")
     return 0
 
 
@@ -63,7 +65,7 @@ def cmd_new(args: argparse.Namespace) -> int:
         return 0
     # 指定代码时要多取一些候选，否则按幅度排序的目标可能落在取样窗口之外。
     pool = max(args.limit, len(wanted) * 5, 20)
-    candidates = discover(args.period, args.since_days, pool)
+    candidates, _stats = discover(args.period, args.since_days, pool)
     picked = [c for c in candidates if c.code in wanted] if wanted else candidates[:args.limit]
     if not picked:
         print("没有匹配的候选。")
@@ -293,7 +295,7 @@ def cmd_board(args: argparse.Namespace) -> int:
         from .hk import discover as hk_discover
 
         try:
-            a_candidates = a_discover(args.period, args.days, args.limit)
+            a_candidates, _stats = a_discover(args.period, args.days, args.limit)
         except Exception as exc:
             print(f"A 股发现层未取到候选：{exc}")
             a_candidates = []

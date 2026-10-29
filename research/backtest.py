@@ -34,6 +34,8 @@ from pathlib import Path
 
 import requests
 
+from .events import metric_rank
+
 DC = "https://datacenter-web.eastmoney.com/api/data/v1/get"
 TENCENT_QFQ = ("https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
                "?param={symbol},day,{start},{end},{count},qfq")
@@ -129,21 +131,79 @@ def forecasts_by_report_period(report_period: date, page_size: int = 500,
         rows.extend(data)
         if len(data) < page_size:
             break
-    best: dict[tuple[str, str], tuple[float, dict]] = {}
+    best: dict[tuple[str, str, str], dict] = {}
     for row in rows:
         code = str(row.get("SECURITY_CODE") or "").strip()
         if not code or not code.startswith(MAIN_BOARD_PREFIX):
             continue
-        key = (code, str(row.get("REPORT_DATE") or "")[:10])
-        try:
-            change = abs(float(row.get("ADD_AMP_LOWER")))
-        except (TypeError, ValueError):
-            change = 0.0
-        if key not in best or change > best[key][0]:
-            best[key] = (change, row)
-    result = [row for _, row in best.values()]
+        # 缓存按（代码, 报告期, 指标）存一条：不同口径（归母/扣非/营收）都要能
+        # 离线复算，不能在缓存阶段就把口径定死
+        key = (code, str(row.get("REPORT_DATE") or "")[:10],
+               str(row.get("PREDICT_FINANCE") or ""))
+        if key in best:
+            try:
+                if abs(float(row.get("ADD_AMP_LOWER") or 0)) <= abs(
+                        float(best[key].get("ADD_AMP_LOWER") or 0)):
+                    continue
+            except (TypeError, ValueError):
+                pass
+        best[key] = row
+    result = list(best.values())
     cache_file.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
-    return result
+    return primary_rows(result)
+
+
+def forecasts_raw(report_period: date) -> list[dict]:
+    """读取缓存里的**多指标**原始行（不挑主指标），用于离线比较不同口径。"""
+    cache_file = CACHE_DIR / f"forecasts_{report_period.isoformat()}.json"
+    if not cache_file.exists():
+        forecasts_by_report_period(report_period)
+    try:
+        return json.loads(cache_file.read_text(encoding="utf-8"))
+    except ValueError:
+        return []
+
+
+def legacy_primary_rows(rows: list[dict]) -> list[dict]:
+    """旧口径：同一公司同一报告期取「|同比幅度| 最大」的那条。
+
+    保留它是为了能离线复现基线检验第一版的结果——那一版正是这个口径，
+    而它也是低基数暴增被系统性选中的原因。
+    """
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for row in rows:
+        code = str(row.get("SECURITY_CODE") or "").strip()
+        key = (code, str(row.get("REPORT_DATE") or "")[:10])
+        grouped.setdefault(key, []).append(row)
+    out: list[dict] = []
+    for items in grouped.values():
+        try:
+            chosen = max(items, key=lambda r: abs(float(r.get("ADD_AMP_LOWER") or 0)))
+        except (TypeError, ValueError):
+            chosen = items[0]
+        out.append(chosen)
+    return out
+
+
+def primary_rows(rows: list[dict]) -> list[dict]:
+    """从缓存的多指标行里挑出主指标行：归母 > 扣非 > 营收，口径固定。
+
+    发现层与回测必须同一口径，否则对照无效。
+    """
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for row in rows:
+        code = str(row.get("SECURITY_CODE") or "").strip()
+        key = (code, str(row.get("REPORT_DATE") or "")[:10])
+        grouped.setdefault(key, []).append(row)
+    out: list[dict] = []
+    for items in grouped.values():
+        try:
+            chosen = min(items, key=lambda r: (metric_rank(str(r.get("PREDICT_FINANCE") or "")),
+                                                  -abs(float(r.get("ADD_AMP_LOWER") or 0))))
+        except (TypeError, ValueError):
+            chosen = items[0]
+        out.append(chosen)
+    return out
 
 
 def point_in_time(forecasts: list[dict], event_date: date,
@@ -167,10 +227,18 @@ def point_in_time(forecasts: list[dict], event_date: date,
     return strong, unknown
 
 
-def is_strong(row: dict, threshold: float = MIN_CHANGE) -> bool:
+def is_strong(row: dict, threshold: float = MIN_CHANGE,
+              min_amount: float | None = None) -> bool:
     forecast_type = str(row.get("PREDICT_TYPE") or "")
     if forecast_type not in STRONG_TYPES:
         return False
+    if min_amount:
+        try:
+            amount = float(row.get("PREDICT_AMT_LOWER"))
+        except (TypeError, ValueError):
+            amount = None
+        if amount is not None and amount < min_amount:
+            return False   # 绝对额过小：低基数噪音
     try:
         return abs(float(row.get("ADD_AMP_LOWER"))) >= threshold
     except (TypeError, ValueError):
@@ -377,7 +445,8 @@ def pre_announcement_runup(prices: list[dict], notice: str, lookback: int = 20) 
 
 def _compare(prepared: list[tuple[dict, date, list]], threshold: float,
              hold_days: int, index: list | None = None,
-             runup_filter: float | None = None) -> tuple[dict, dict]:
+             runup_filter: float | None = None,
+             min_amount: float | None = None) -> tuple[dict, dict]:
     groups = {"强预告组": Group("强预告组"), "非强预告（对照）": Group("非强预告（对照）")}
     if runup_filter is not None:
         groups["强预告但公告前已涨透"] = Group("强预告但公告前已涨透")
@@ -385,7 +454,7 @@ def _compare(prepared: list[tuple[dict, date, list]], threshold: float,
         value = forward_return(prices, notice.isoformat(), hold_days)
         if value is None:
             continue
-        strong = is_strong(row, threshold)
+        strong = is_strong(row, threshold, min_amount)
         if strong and runup_filter is not None:
             runup = pre_announcement_runup(prices, notice.isoformat())
             if runup is not None and runup > runup_filter:

@@ -50,6 +50,8 @@ class Forecast:
     change_upper: float | None
     reason: str
     source_url: str
+    amount_lower: float | None = None   # 预告金额下限（元）
+    amount_upper: float | None = None   # 预告金额上限（元）
 
 
 def fetch_announcements(searchkey: str, start: date, end: date, max_pages: int = 8,
@@ -130,8 +132,23 @@ def fetch_forecasts(report_period: str, page_size: int = 200) -> list[Forecast]:
             change_lower=_f(row.get("ADD_AMP_LOWER")),
             change_upper=_f(row.get("ADD_AMP_UPPER")),
             reason=str(row.get("CHANGE_REASON_EXPLAIN") or "").strip(),
-            source_url=f"https://data.eastmoney.com/bbsj/yjyg.html"))
+            source_url=f"https://data.eastmoney.com/bbsj/yjyg.html",
+            amount_lower=_f(row.get("PREDICT_AMT_LOWER")),
+            amount_upper=_f(row.get("PREDICT_AMT_UPPER"))))
     return forecasts
+
+
+# 预告指标的优先级：归母净利润口径优先，避免在归母/扣非/营收之间挑到「幅度最大」
+# 的那一条——那会把低基数暴增的公司顶到候选前面（基线检验里就是这么出问题的）。
+METRIC_PRIORITY = ("归属于上市公司股东的净利润", "归属母公司股东的净利润",
+                   "扣除非经常性损益后的净利润", "净利润", "营业收入")
+
+
+def metric_rank(metric: str) -> int:
+    for index, name in enumerate(METRIC_PRIORITY):
+        if metric == name:
+            return index
+    return len(METRIC_PRIORITY)
 
 
 def _f(value) -> float | None:

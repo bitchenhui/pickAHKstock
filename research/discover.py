@@ -11,12 +11,15 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from .events import (Announcement, Forecast, FORECAST_TITLES, fetch_announcements,
-                     fetch_forecasts)
+                     fetch_forecasts, metric_rank)
 from .quotes import Snapshot, fetch_snapshots
 
 MAIN_BOARD = ("00", "60")
 GOOD_FORECAST_TYPES = ("预增", "略增", "扭亏", "减亏", "续盈", "预盈")
 MIN_CHANGE_PCT = 30.0
+# 预告净利润下限的绝对额门槛（元）。低于此值的多为低基数暴增：同比幅度看着惊人，
+# 绝对额却小到不改变基本面——基线检验里这类是最差的一批。
+MIN_FORECAST_AMOUNT = 5e7
 MIN_TURNOVER = 2e7
 MIN_PRICE = 2.0
 CAP_LOW, CAP_HIGH = 2e9, 3e10
@@ -34,6 +37,7 @@ class Candidate:
     forecast_type: str = ""
     change_lower: float | None = None
     change_upper: float | None = None
+    forecast_amount: float | None = None   # 预告净利润下限（元）
     metric: str = ""
     metrics: list[str] = field(default_factory=list)
     notice_date: date | None = None
@@ -61,6 +65,7 @@ class Candidate:
             "headline": self.headline, "forecast_type": self.forecast_type,
             "metric": self.metric, "metrics": self.metrics,
             "change_lower": self.change_lower, "change_upper": self.change_upper,
+            "forecast_amount": self.forecast_amount,
             "notice_date": self.notice_date.isoformat() if self.notice_date else None,
             "reason": self.reason, "source_url": self.source_url,
             "pdf_url": self.pdf_url, "pdf_title": self.pdf_title,
@@ -111,12 +116,28 @@ def _match_announcement(code: str, notice_date: date | None,
 
 
 def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
-                     announcements: list[Announcement]) -> list[Candidate]:
+                     announcements: list[Announcement],
+                     min_amount: float = MIN_FORECAST_AMOUNT) -> tuple[list[Candidate], dict]:
+    """把业绩预告变成候选。
+
+    两处关键改动（都来自基线检验 docs/backtest-v1.md）：
+    1. **主指标按口径固定**（归母 > 扣非 > 营收），不再取「幅度最大」的那条——
+       否则一家「营收 +30%、归母 +500%」的公司会以 +500% 被顶到最前面，
+       低基数暴增就是这样被系统性地选出来的
+    2. **加绝对额门槛**：预告净利润下限过小的，多为低基数噪音，剔除但计数可见
+
+    返回 (候选, 统计)，统计里含被剔除的低基数数量，不静默丢弃。
+    """
     grouped: dict[str, list[Forecast]] = {}
+    dropped_small_amount = 0
     for forecast in forecasts:
         if forecast.forecast_type not in GOOD_FORECAST_TYPES:
             continue
         if forecast.change_lower is None or forecast.change_lower < MIN_CHANGE_PCT:
+            continue
+        if (min_amount and forecast.amount_lower is not None
+                and forecast.amount_lower < min_amount):
+            dropped_small_amount += 1
             continue
         grouped.setdefault(forecast.code, []).append(forecast)
 
@@ -128,7 +149,7 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
         keep, reason = is_researchable(snapshot)
         if not keep:
             continue
-        primary = max(items, key=lambda f: abs(f.change_lower or 0))
+        primary = min(items, key=lambda f: (metric_rank(f.metric), -(f.change_lower or 0)))
         announcement = _match_announcement(code, primary.notice_date, announcements)
         notes: list[str] = []
         if not announcement:
@@ -137,6 +158,8 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
             notes.append("变动原因含重组/处置/补助等一次性因素：需区分经常性经营改善与一次性损益")
         if primary.metric not in ("归属于上市公司股东的净利润", "净利润"):
             notes.append(f"主指标为「{primary.metric}」，非归母净利润口径，需在卡片中改用归母口径核对")
+        if primary.change_lower is not None and primary.change_lower >= 300:
+            notes.append(f"同比幅度 {primary.change_lower:.0f}% 属极端值，多为低基数所致，须核对绝对额与经营性")
         candidates.append(Candidate(
             code=code, name=primary.name or snapshot.name,
             forecast_type=primary.forecast_type,
@@ -148,12 +171,15 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
             pdf_title=announcement.title if announcement else "",
             price=snapshot.price, turnover=snapshot.turnover,
             market_cap=snapshot.market_cap, pe=snapshot.pe, pb=snapshot.pb,
-            as_of=snapshot.as_of, notes=notes))
-    # 排序只用于安排研究顺序：变化幅度优先，同幅按成交额降序（流动性）。
-    return sorted(candidates, key=lambda c: (-(c.change_lower or 0), -c.turnover))
+            as_of=snapshot.as_of, notes=notes,
+            forecast_amount=primary.amount_lower))
+    # 排序用**预告绝对额**而不是同比幅度：幅度会把低基数暴增顶到最前面
+    return sorted(candidates, key=lambda c: (-(c.forecast_amount or 0), -c.turnover)), {
+        "dropped_small_amount": dropped_small_amount}
 
 
-def discover(report_period: str, since_days: int = 90, limit: int = 15) -> list[Candidate]:
+def discover(report_period: str, since_days: int = 90, limit: int = 15,
+             min_amount: float = MIN_FORECAST_AMOUNT) -> tuple[list[Candidate], dict]:
     today = date.today()
     start = today - timedelta(days=since_days)
     forecasts = fetch_forecasts(report_period)
@@ -164,8 +190,8 @@ def discover(report_period: str, since_days: int = 90, limit: int = 15) -> list[
     # 巨潮按证券代码倒序返回，页数不够会漏掉后段代码的候选；这里取够页数再匹配原文
     announcements = fetch_announcements("业绩", start, today,
                                         max_pages=30, title_must=FORECAST_TITLES)
-    candidates = build_candidates(forecasts, snapshots, announcements)
-    return candidates[:limit]
+    candidates, stats = build_candidates(forecasts, snapshots, announcements, min_amount)
+    return candidates[:limit], stats
 
 
 def main() -> None:
@@ -175,11 +201,14 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=15)
     args = parser.parse_args()
 
-    candidates = discover(args.period, args.since_days, args.limit)
+    candidates, stats = discover(args.period, args.since_days, args.limit)
     if not candidates:
         print("没有符合筛选条件的候选。缺失不等于没有机会——先核对数据源与筛选口径。")
         return
-    print(f"候选 {len(candidates)} 只（报告期 {args.period}，按变化幅度排序，仅为研究顺序）\n")
+    print(f"候选 {len(candidates)} 只（报告期 {args.period}，按预告绝对额排序，仅为研究顺序）")
+    print(f"已剔除低基数噪音（预告净利润下限 < {MIN_FORECAST_AMOUNT / 1e8:.2f} 亿）："
+          f"{stats.get('dropped_small_amount', 0)} 条")
+    print()
     for c in candidates:
         cap = f"{c.market_cap / 1e8:.0f}亿" if c.market_cap else "—"
         turn = f"{c.turnover / 1e8:.2f}亿"
