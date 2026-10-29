@@ -1,0 +1,21 @@
+research/account.py
+  s_2be9ca1f77025c::t_2998dcff944fe1 161-166,169-171
+research/risk.py
+  s_2be9ca1f77025c::t_dda8fb1a785460 28-40,45-46,65,68-69,78-79,89,93,95,98,100-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e8a7bace883360b8cd2ab41be8e2a2fff645e28e",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
