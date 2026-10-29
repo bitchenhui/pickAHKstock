@@ -83,7 +83,6 @@ def secucode(code: str, market: str = "A") -> str:
         return f"{code}.HK"
     return f"{code}.SH" if code.startswith("6") else f"{code}.SZ"
 
-
 def fetch_segments(code: str, market: str = "A", report_date: str | None = None,
                    limit: int = 40) -> list[SegmentRow]:
     """分产品/行业/地区的收入、占比与毛利率。

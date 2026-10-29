@@ -245,6 +245,38 @@ def cmd_segments(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_business(args: argparse.Namespace) -> int:
+    """港股经营回顾逐期对比：港股没有分部数字，但经营回顾正文是中文可读的。"""
+    from .hk_business import diff_reviews, fetch_reviews
+
+    reviews = fetch_reviews(args.code, args.market)
+    if not reviews:
+        print(f"{args.code}：没有取到经营回顾。")
+        return 0
+    print(f"{args.code} 经营回顾 {len(reviews)} 期（最近 {reviews[0].period}）")
+    diff = diff_reviews(reviews)
+    if not diff:
+        print("  没有去年同期可对比。")
+        return 0
+    print(f"  对比 {diff.prior_period} → {diff.period}，篇幅 {diff.length_change:+d} 字")
+    changed = {k: v for k, v in diff.theme_delta.items() if v}
+    print(f"  主题词频变化：{changed or '无明显变化'}")
+    if diff.numbers:
+        print("  本期数字：")
+        for item in diff.numbers[:8]:
+            print(f"    · {item}")
+    if diff.new_phrases:
+        print("  新增表述：")
+        for phrase in diff.new_phrases[:5]:
+            print(f"    + {phrase[:150]}")
+    if diff.dropped_phrases:
+        print("  消失表述：")
+        for phrase in diff.dropped_phrases[:4]:
+            print(f"    - {phrase[:150]}")
+    print("\n这是管理层自述，不是第三方数据；数字要回原文核对。")
+    return 0
+
+
 def cmd_reference(args: argparse.Namespace) -> int:
     """用同花顺日线算 ATR 与 2ATR 参考失效线，写入卡片的市场数据段。
 
@@ -402,6 +434,11 @@ def main(argv: list[str] | None = None) -> int:
     p_seg.add_argument("code")
     p_seg.add_argument("--limit", type=int, default=6)
     p_seg.set_defaults(func=cmd_segments)
+
+    p_bus = sub.add_parser("business", help="港股经营回顾逐期对比")
+    p_bus.add_argument("market")
+    p_bus.add_argument("code")
+    p_bus.set_defaults(func=cmd_business)
 
     p_acc = sub.add_parser("account", help="账户层：查看账户状态或给出账户级动作")
     acc_sub = p_acc.add_subparsers(dest="account_command", required=True)

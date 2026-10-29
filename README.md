@@ -56,6 +56,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - `research/risk.py` 风险公告扫描：按公司名取全部公告再按标题分类，覆盖仲裁诉讼、账户偿债、股权质押、监管问询、审计意见、重组变更、资产质量、治理变动、停复牌九类
 - `research/governance.py` 治理与筹码结构：巨潮的股东户数、股权质押、诉讼、担保结构化数据——比标题扫描多出「几次、多少钱、谁在质押、筹码在集中还是分散」
 - `research/hk.py` 港股发现层，三条事件源：`alerts` 盈警/盈喜/业绩预告（最像 A 股业绩预告，60 天实测 80 个，多为流动性好的中大盘）、`results` 业绩公告（强制披露、覆盖全市场）、`financials` 财务同比变化（结构化接口，覆盖全市场且给出变化量级）。**每手股数从腾讯行情取到，不必手填**
+- `research/hk_business.py` 港股**经营回顾正文**逐期对比：港股没有可程序化取得的分部数字，但经营回顾是中文可读的，里面常有行业量价与分部描述
 - `research/account.py` L3 账户层：账户配置、回撤状态、按整手与风险预算的仓位估算、账户级动作（加仓/不加仓/减仓/清仓）
 - `research/card.py` 研究卡片 schema 与校验器：**结论等级由证据推导**，证据不足只能停在「观察」；财务路径（§30 已盈利 / §34 未盈利）没写完也不算数
 - `research/workflow.py` 卡片草稿生成与 Markdown 渲染
@@ -73,6 +74,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli governance A 002132                       # 治理与筹码（户数/质押/诉讼/担保）
 .venv/bin/python -m research.cli hk-discover --source results --days 30               # 港股：业绩公告
 .venv/bin/python -m research.cli hk-discover --source financials --date 2026-06-30  # 港股：财务同比变化
+.venv/bin/python -m research.cli business HK 03323                            # 港股：经营回顾逐期对比
 .venv/bin/python -m research.cli show A 002132                              # 渲染卡片
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
 .venv/bin/python -m research.cli list                                       # 所有卡片状态、等级与质量门
@@ -89,6 +91,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 **港股公告 PDF 不能用 A 股那套抽文。** 港股公告的中文是 CID 字体，pypdf 抽出的中文字符数为 0（数字完整但对应不到科目），所以港股的数字必须走结构化财务接口，PDF 只用于人工复核。港股财务报表多为人民币口径、股价为港元，比较估值前要自己换算汇率。
 
 **港股的预告标题不能当结论。** 首两张港股卡片就是反例：盈利预喜的天齐锂业，Q3 单季归母环比 −42%（预喜讲的是前三季累计）；盈利预警的中国建材，Q3 单季已扭亏且现金流单季回正 44 亿（预警讲的也是累计）。两个方向的标题都只覆盖累计口径，**必须做单季拆解**。这也是 A 股那边同一个教训在港股的复现。
+
+**港股的量价证据来自经营回顾，不是分部数字。** 港股没有可程序化取得的分部收入表，但东方财富把报告里的经营回顾文字抽了出来（RPT_HKF10_ORG_BUSSINESS），中文可读。中国建材 2026 年中期报告里写着固投 −5.7%、基建由正转负、水泥产量近 17 年同期最低、「行业已由存量竞合阶段进入减量博弈、效益转亏」——这是 A 股接口里拿不到的行业级证据。反过来，天齐锂业的经营回顾与去年同期几乎逐字相同且无任何经营数据，**信息不披露本身就是负面信号**。
 
 **风险公告要单独扫。** 业绩预告挑出来的候选，身上可能还挂着仲裁、账户冻结、监管问询、商誉减值、重组终止。`risks` 命令按标题关键词扫九类风险；关键词会误报（例：立昂微「终止信用评级」实为可转债摘牌而非信用恶化），所以每条都要回原文确认。
 
