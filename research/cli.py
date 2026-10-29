@@ -235,7 +235,7 @@ def cmd_segments(args: argparse.Namespace) -> int:
         if not changes:
             continue
         print(f"--- {kind}（最新报告期 vs 去年同期）")
-        for change in sorted(changes, key=lambda c: -(c.income or 0))[:args.limit]:
+        for change in sorted(changes, key=lambda c: -(c.income_yoy or 0))[:args.limit]:
             income = "—" if change.income_yoy is None else f"{change.income_yoy:+.1f}%"
             margin = "—" if change.margin_change is None else f"{change.margin_change:+.2f}pct"
             print(f"  {change.item[:16]:18s} 收入同比 {income:>10s}  毛利率变动 {margin:>10s} | {change.verdict}")

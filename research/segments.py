@@ -51,11 +51,13 @@ class SegmentChange:
     kind: str
     income_yoy: float | None
     margin_change: float | None   # 百分点
-    verdict: str                  # 四象限判断
+    gross_margin: float | None = None   # 最新报告期的毛利率水平（%）
+    verdict: str = ""             # 四象限判断
 
     def to_dict(self) -> dict:
         return {"item": self.item, "kind": self.kind, "income_yoy": self.income_yoy,
-                "margin_change": self.margin_change, "verdict": self.verdict}
+                "margin_change": self.margin_change, "gross_margin": self.gross_margin,
+                "verdict": self.verdict}
 
 
 def _num(value) -> float | None:
@@ -63,6 +65,17 @@ def _num(value) -> float | None:
         return None if value is None or value == "" else float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _pct(value: float | None) -> float | None:
+    """占比与毛利率在主营构成接口里是**比率**（0.2325 表示 23.25%）。
+
+    这里统一换算成百分点，否则「毛利率变动」会差 100 倍（+17.34pct 变成 +0.17pct），
+    四象限判断会全部失真。阈��� 1 以下按比率处理——主营构成里毛利率 0.5% 这类值不存在。
+    """
+    if value is None:
+        return None
+    return value * 100 if abs(value) <= 1 else value
 
 
 def secucode(code: str, market: str = "A") -> str:
@@ -110,8 +123,8 @@ def fetch_segments(code: str, market: str = "A", report_date: str | None = None,
             kind=MAINOP_TYPE.get(str(item.get("MAINOP_TYPE")), "其他"),
             item=str(item.get("ITEM_NAME") or ""),
             income=_num(item.get("MAIN_BUSINESS_INCOME")),
-            share=_num(item.get("MBI_RATIO")),
-            gross_margin=_num(item.get("GROSS_RPOFIT_RATIO"))))
+            share=_pct(_num(item.get("MBI_RATIO"))),
+            gross_margin=_pct(_num(item.get("GROSS_RPOFIT_RATIO")))))
     return rows
 
 
@@ -151,11 +164,13 @@ def compare(rows: list[SegmentRow], kind: str = "按产品") -> list[SegmentChan
             margin_change = row.gross_margin - old.gross_margin
         changes.append(SegmentChange(item=item, kind=kind, income_yoy=income_yoy,
                                      margin_change=margin_change,
-                                     verdict=_verdict(income_yoy, margin_change)))
+                                     gross_margin=row.gross_margin,
+                                     verdict=_verdict(income_yoy, margin_change, row.gross_margin)))
     return changes
 
 
-def _verdict(income_yoy: float | None, margin_change: float | None) -> str:
+def _verdict(income_yoy: float | None, margin_change: float | None,
+             gross_margin: float | None = None) -> str:
     if income_yoy is None and margin_change is None:
         return "无可比数据"
     up_income = (income_yoy or 0) > 5
@@ -163,11 +178,16 @@ def _verdict(income_yoy: float | None, margin_change: float | None) -> str:
     up_margin = (margin_change or 0) > 0.5
     down_margin = (margin_change or 0) < -0.5
     if up_income and up_margin:
-        return "收入↑毛利↑：提价或结构改善，价格贡献为主"
-    if up_income and down_margin:
-        return "收入↑毛利↓：以量换价，放量但牺牲单位盈利"
-    if down_income and up_margin:
-        return "收入↓毛利↑：主动收缩低毛利业务，结构改善但规模在缩"
-    if down_income and down_margin:
-        return "收入↓毛利↓：量价双杀"
-    return "变化不显著"
+        verdict = "收入↑毛利↑：提价或结构改善，价格贡献为主"
+    elif up_income and down_margin:
+        verdict = "收入↑毛利↓：以量换价，放量但牺牲单位盈利"
+    elif down_income and up_margin:
+        verdict = "收入↓毛利↑：主动收缩低毛利业务，结构改善但规模在缩"
+    elif down_income and down_margin:
+        verdict = "收入↓毛利↓：量价双杀"
+    else:
+        verdict = "变化不显著"
+    # 象限必须结合水平看：负毛利率的业务即使"改善"也仍在亏钱
+    if gross_margin is not None and gross_margin < 0:
+        verdict += f"（该业务毛利率仍为 {gross_margin:.2f}%，仍在亏损）"
+    return verdict

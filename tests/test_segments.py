@@ -14,6 +14,10 @@ class SegmentTests(unittest.TestCase):
         self.assertEqual(_period_key("2025-12-31"), "2025Q4")
         self.assertEqual(_period_key("2026-03-31"), "2026Q1")
 
+    def test_negative_margin_is_flagged(self):
+        verdict = _verdict(48.0, 12.0, -5.26)
+        self.assertIn("仍在亏损", verdict)
+
     def test_four_quadrant_verdicts(self):
         self.assertIn("提价", _verdict(30.0, 2.0))
         self.assertIn("以量换价", _verdict(30.0, -2.0))
