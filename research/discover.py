@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
@@ -40,6 +42,8 @@ class Candidate:
     forecast_amount: float | None = None   # 预告净利润下限（元）
     one_off: bool = False                  # 原因含重组/处置/补助等一次性因素
     small_amount: bool = False             # 预告净利润绝对额低于门槛（低基数噪音）
+    lot_cost_pct: float | None = None      # 一手金额占账户本金的比例（小资金买不进的关键）
+    unaffordable: bool = False             # 一手金额超过单只仓位上限，账户建不了仓
     metric: str = ""
     metrics: list[str] = field(default_factory=list)
     notice_date: date | None = None
@@ -69,6 +73,7 @@ class Candidate:
             "change_lower": self.change_lower, "change_upper": self.change_upper,
             "forecast_amount": self.forecast_amount, "one_off": self.one_off,
             "small_amount": self.small_amount,
+            "lot_cost_pct": self.lot_cost_pct, "unaffordable": self.unaffordable,
             "notice_date": self.notice_date.isoformat() if self.notice_date else None,
             "reason": self.reason, "source_url": self.source_url,
             "pdf_url": self.pdf_url, "pdf_title": self.pdf_title,
@@ -120,7 +125,9 @@ def _match_announcement(code: str, notice_date: date | None,
 
 def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
                      announcements: list[Announcement],
-                     min_amount: float = MIN_FORECAST_AMOUNT) -> tuple[list[Candidate], dict]:
+                     min_amount: float = MIN_FORECAST_AMOUNT,
+                     capital: float = 0.0,
+                     position_pct: float = 0.05) -> tuple[list[Candidate], dict]:
     """把业绩预告变成候选。
 
     两处关键改动（都来自基线检验 docs/backtest-v1.md）：
@@ -170,6 +177,14 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
                          f"同比幅度多半来自低基数，绝对额需先核对")
         if primary.change_lower is not None and primary.change_lower >= 300:
             notes.append(f"同比幅度 {primary.change_lower:.0f}% 属极端值，多为低基数所致，须核对绝对额与经营性")
+        # 可买性：一手金额占本金的比例。超过单只仓位上限就等于账户建不了仓——
+        # §51 组合层检验里强预告组有 122 次因整手买不进（基线仅 23 次）
+        lot_cost = snapshot.price * 100          # A 股 100 股一手
+        lot_cost_pct = (lot_cost / capital) if capital else None
+        unaffordable = bool(lot_cost_pct is not None and lot_cost_pct > position_pct)
+        if unaffordable:
+            notes.append(f"一手约 {lot_cost:,.0f} 元，占本金 {lot_cost_pct:.1%}，"
+                         f"超过单只上限 {position_pct:.0%}：按当前账户规模买不进")
         candidates.append(Candidate(
             code=code, name=primary.name or snapshot.name,
             forecast_type=primary.forecast_type,
@@ -184,16 +199,28 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
             as_of=snapshot.as_of, notes=notes,
             forecast_amount=primary.amount_lower, one_off=one_off,
             small_amount=bool(primary.amount_lower is not None
-                              and primary.amount_lower < min_amount)))
+                              and primary.amount_lower < min_amount),
+            lot_cost_pct=lot_cost_pct, unaffordable=unaffordable))
     # 排序用**预告绝对额**而不是同比幅度：幅度会把低基数暴增顶到最前面。
     # 一次性因素（重组/处置/补助）的候选降权但保留——它们仍有研究价值。
-    return sorted(candidates, key=lambda c: (c.one_off, c.small_amount,
-                                           -(c.forecast_amount or 0), -c.turnover)), {
+    # 排序依据（每条都有检验支持，见 docs/backtest-v3.md）：
+    # 1. 买不进的（按当前账户规模）排最后——组合层检验里强预告组 122 次因
+    #    整手买不进，小资金吃不到右尾
+    # 2. 一次性因素（重组/处置/补助）排后——§30 要求区分经营性与一次性
+    # 3. 绝对额过小的排后——低基数噪音
+    # 4. **变化幅度小的优先**：事件研究（门槛 30% 优于 50%/100%）与组合层排序
+    #    对照（幅度升序 +28.24% 最好、幅度降序 +15.96% 最差）两个独立读数
+    #    指向同一件事——极端幅度是噪音，不是信号
+    # 5. 同幅度按预告绝对额降序（金额大的信息量更大）
+    return sorted(candidates, key=lambda c: (c.unaffordable, c.one_off, c.small_amount,
+                                           c.change_lower if c.change_lower is not None else 0.0,
+                                           -(c.forecast_amount or 0))), {
         "small_amount": small_amount}
 
 
 def discover(report_period: str, since_days: int = 90, limit: int = 15,
-             min_amount: float = MIN_FORECAST_AMOUNT) -> tuple[list[Candidate], dict]:
+             min_amount: float = MIN_FORECAST_AMOUNT, capital: float = 0.0,
+             position_pct: float = 0.05) -> tuple[list[Candidate], dict]:
     today = date.today()
     start = today - timedelta(days=since_days)
     forecasts = fetch_forecasts(report_period)
@@ -204,7 +231,9 @@ def discover(report_period: str, since_days: int = 90, limit: int = 15,
     # 巨潮按证券代码倒序返回，页数不够会漏掉后段代码的候选；这里取够页数再匹配原文
     announcements = fetch_announcements("业绩", start, today,
                                         max_pages=30, title_must=FORECAST_TITLES)
-    candidates, stats = build_candidates(forecasts, snapshots, announcements, min_amount)
+    candidates, stats = build_candidates(forecasts, snapshots, announcements,
+                                         min_amount, capital, position_pct)
+    stats["unaffordable"] = sum(1 for c in candidates if c.unaffordable)
     return candidates[:limit], stats
 
 
@@ -215,7 +244,18 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=15)
     args = parser.parse_args()
 
-    candidates, stats = discover(args.period, args.since_days, args.limit)
+    capital = 0.0
+    position_pct = 0.05
+    account_file = Path(__file__).resolve().parent.parent / "account.json"
+    if account_file.exists():
+        try:
+            account = json.loads(account_file.read_text(encoding="utf-8"))
+            capital = float(account.get("capital_cny") or 0)
+            position_pct = float(account.get("max_position_pct") or position_pct)
+        except (ValueError, OSError):
+            pass
+    candidates, stats = discover(args.period, args.since_days, args.limit,
+                                capital=capital, position_pct=position_pct)
     if not candidates:
         print("没有符合筛选条件的候选。缺失不等于没有机会——先核对数据源与筛选口径。")
         return

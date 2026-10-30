@@ -316,7 +316,8 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
                        threshold: float = 30.0, min_amount: float | None = 5e7,
                        config: PortfolioConfig | None = None,
                        seed: int = 20261029,
-                       sort_key: str = "amount_desc") -> dict:
+                       sort_key: str = "amount_desc",
+                       prefilter_affordability: bool = False) -> dict:
     """组合层检验：事件组 vs 随机基线，报告净值、最差回撤、现金占比、错过率与费用。"""
     from .backtest import (forecasts_by_report_period, index_bars, primary_rows,
                            forecasts_raw, legacy_primary_rows)
@@ -346,6 +347,19 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
 
     codes = sorted({str(e.get("SECURITY_CODE") or "").strip() for e in events})
     series = {code: load_prices(code, start, end) for code in codes}
+
+    if prefilter_affordability:
+        # 事前剔除「一手金额就超过单只仓位上限」的候选：在「买得进」的前提下
+        # 才谈得上排序有没有价值（否则排序只是决定谁被跳过）
+        def affordable(event):
+            code = str(event.get("SECURITY_CODE") or "").strip()
+            bars = series.get(code) or []
+            notice = str(event.get("NOTICE_DATE") or "")[:10]
+            bar = next((b for b in bars if b["day"] > notice), None)
+            if not bar:
+                return True
+            return bar["close"] * config.lot_size <= config.initial_capital * config.position_pct
+        events = [e for e in events if affordable(e)]
 
     event_result = simulate(events, series, trading_days, config, name="强预告组合",
                             sort_key=sort_key)
