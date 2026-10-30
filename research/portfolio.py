@@ -397,19 +397,23 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
     }
 
     if market_baseline:
-        market_result = _market_portfolio(period_rows, events, trading_days, config,
-                                          start, end, seed, market_sample)
+        market_result = _market_portfolio(period_rows, trading_days, config,
+                                          start, end, seed, market_sample,
+                                          threshold, min_amount)
         if market_result is not None:
             result["market_baseline"] = market_result.to_dict()
             result["market_baseline_detail"] = market_result
     return result
 
 
-def _market_portfolio(period_rows, events, trading_days, config, start, end,
-                      seed: int, sample: int):
+def _market_portfolio(period_rows, trading_days, config, start, end,
+                      seed: int, sample: int, threshold: float,
+                      min_amount: float | None):
     """全市场随机组合：当期没发预告的 A 股，事件日按当期公告日分布抽。
 
-    建仓时点、每期买入机会的数量都与事件组对齐，唯一的差别是标的从市场里随机抽。
+    建仓时点与**每期买入机会的数量**都与事件组对齐（按期分别对齐），
+    唯一的差别是标的从市场里随机抽。数量不对齐的话，两边的资金暴露时间
+    就不同，收益差里混着暴露差，不是信号差。
     """
     from .industry import industry_map
 
@@ -422,8 +426,9 @@ def _market_portfolio(period_rows, events, trading_days, config, start, end,
                    if str(row.get("NOTICE_DATE") or "")[:10]]
         if not notices:
             continue
+        strong_here = sum(1 for row in rows if is_strong(row, threshold, min_amount))
         candidates = sorted(market_codes - forecasters)
-        want = min(len(candidates), sample)
+        want = min(len(candidates), strong_here or sample)
         for code in rng.sample(candidates, want):
             market_events.append({
                 "SECURITY_CODE": code,
