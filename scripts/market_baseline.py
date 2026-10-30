@@ -32,8 +32,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from research.backtest import (forecasts_by_report_period,  # noqa: E402
-                               forward_return, index_bars, is_strong,
-                               load_prices, prefetch_prices, primary_rows)
+                               forward_return, is_strong, load_prices,
+                               prefetch_prices, primary_rows)
 
 PERIODS = ("2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
            "2025-06-30", "2025-12-31", "2026-03-31", "2026-06-30")

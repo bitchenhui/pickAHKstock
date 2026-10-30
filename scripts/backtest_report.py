@@ -83,6 +83,20 @@ def event_study() -> tuple[list[str], dict]:
 
 def portfolio() -> list[str]:
     lines = ["### 组合层（八期合并，20 只 × 5%，含可买性过滤）", ""]
+    # 合并口径的窗口跨八期，比单期宽得多——先把这段窗口的行情预取回来，
+    # 否则每只股票都要重新下一遍年份文件。
+    codes, notices = [], []
+    for period in PERIODS:
+        rows = primary_rows(forecasts_raw(date(*map(int, period.split("-")))))
+        codes += [str(row.get("SECURITY_CODE") or "").strip() for row in rows]
+        notices += [str(row.get("NOTICE_DATE") or "")[:10] for row in rows
+                    if str(row.get("NOTICE_DATE") or "")[:10]]
+    if notices:
+        start = date.fromisoformat(min(notices)) - timedelta(days=40)
+        end = date.fromisoformat(max(notices)) + timedelta(days=int(CONFIG.hold_days + 30))
+        got = prefetch_prices(codes, start, end)
+        lines.append(f"（跨期窗口 {start} → {end}，预取行情 {got} 只）")
+        lines.append("")
     result = run_portfolio_test(periods=PERIODS, threshold=30.0, min_amount=5e7,
                                 sort_key="amount_desc", prefilter_affordability=True,
                                 config=CONFIG)
