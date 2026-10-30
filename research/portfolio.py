@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 
 from .backtest import (Group, forward_return, is_strong, load_prices,
-                       pre_announcement_runup)
+                       prefetch_prices, pre_announcement_runup)
 
 
 @dataclass
@@ -439,6 +439,8 @@ def _market_portfolio(period_rows, trading_days, config, start, end,
     if not market_events:
         return None
     codes = sorted({event["SECURITY_CODE"] for event in market_events})
+    # 几千只股票串行取价要几十分钟，并行预取（限流友好的并发数）才跑得动
+    prefetch_prices(codes, start, end)
     series = {code: load_prices(code, start, end) for code in codes}
     return simulate(market_events, series, trading_days, config,
                     name="全市场随机组合", sort_key="random")
