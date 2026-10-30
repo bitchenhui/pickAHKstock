@@ -54,6 +54,15 @@ python3 -m venv .venv
 PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -s tests -v
 ```
 
+## 两条主线：推荐个股与分析个股
+
+- **推荐个股**——`recommend` 命令给出推荐清单：触发事件与方向、巨潮原文链接、
+  预告绝对额与变化幅度、**买不买得进**（一手金额占本金比例）、分析师覆盖与预期，
+  以及每条的「下一步该做什么」。排序沿用 §51 八期检验固化的规则。
+- **分析个股**——`cards/` 里每只标的一张研究卡片：证据链、情景、反证、
+  「我可能错在哪」、结构化判断（数值+期间+依据+核对日期）、分析师预期，
+  结论等级由证据推导。
+
 ## 研究工作台（`research/`）
 
 上面的 Streamlit 应用是**量价原型**；`research/` 是另一条线：按策略 v1 的研究漏斗做**单股研究**，产出可追溯的研究卡片。两者定位不同，���不互相替代。
@@ -89,6 +98,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli business HK 03323                            # 港股：经营回顾逐期对比
 .venv/bin/python -m research.cli show A 002132                              # 渲染卡片
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
+.venv/bin/python -m research.cli recommend --period 2026-06-30      # 推荐清单：先看哪个、为什么、下一步
+.venv/bin/python -m research.cli expectations A 002044                    # 分析师预期写进卡片（第三方证据）
 .venv/bin/python -m research.cli card-snapshot                       # 给卡片打快照（卡片检验集起点）
 .venv/bin/python -m research.cli card-score                          # 回看：卡片状态 vs 后续 20/60 日
 .venv/bin/python -m research.cli board                              # 研究看板：谁该被研究（按优先级）
