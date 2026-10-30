@@ -36,7 +36,13 @@ python3 -m venv .venv
 
 参考思路：[TradingAgents-CN](https://github.com/hsliuping/TradingAgents-CN) 的多视角辩论、[TradingAgents-Astock](https://github.com/simonlin1212/TradingAgents-astock) 的 A 股适配、[go-stock](https://github.com/ArvinLovegood/go-stock) 的本地化行情工具、[aiagents-stock](https://github.com/oficcejo/aiagents-stock) 的 Agent 流程、[WyckoffTradingAgent](https://github.com/YoungCan-Wang/WyckoffTradingAgent) 的价量结构。这里只借鉴研究分工，不复制任何项目代码，也不宣称复现 Wyckoff 完整判读。
 
-**基线检验的结果见 [docs/backtest-v1.md](docs/backtest-v1.md) 与 [docs/backtest-v2.md](docs/backtest-v2.md)**。v2 是修完发现层口径后的前后对照：事件研究的中位超额从 +0.26 升到 +1.96（24 格），组合层比随机基线高 16–19 个百分点；但两个组合都跑输沪深300（覆盖率只有 8%、一半资金闲置），而且**强预告组的最差回撤 26.5% 已超过策略稿的 20% 账户回撤边界**——瓶颈在仓位与周转，不在选股。
+**基线检验的结果见 [docs/backtest-v1.md](docs/backtest-v1.md) → [v2](docs/backtest-v2.md) → [v3](docs/backtest-v3.md)（v3 是当前结论）**。核心三条：
+
+1. **发现层的口径要固定**：主指标取「幅度最大」的那条会让 47% 的公司用错口径，修正后事件研究的中位超额从 +0.26 升到 +1.96（24 格）。
+2. **瓶颈是仓位不是选股**：集中持 5 只 × 20% 时最差回撤 26–31%、覆盖率只有 7%；改成 20 只 × 5% 后回撤降到 15%、覆盖率升到 28–32%，信号优势才显现。**回撤的第一道防线是仓位结构，不是止损规则**——「触及即平仓」锁死反弹还压不住回撤。
+3. **排序目前没有贡献**（随机顺序与最好的排序键打平），而且收益高度依赖单一市场环境。发现层不该把"排序"当价值主张。
+
+另外发现一个操作层面的硬约束：强预告候选股价偏高，**10 万本金有 122 次因整手买不进**（基线只有 23 次）——候选池与账户规模不匹配。
 
 数据接口字段参考 [AKShare A/H 股票接口](https://akshare.akfamily.xyz/data/stock/stock.html)；交易单位以 [上交所交易规则](https://www.sse.com.cn/lawandrules/sselawsrules2025/trade/) 和 [港交所证券市场交易机制](https://www.hkex.com.hk/Services/Trading/Securities/Overview/Trading-Mechanism?sc_lang=zh-HK) 为准。依赖外部免费数据服务，可能限流或中断；不要把缺失结果解释为没有机会。
 

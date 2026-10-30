@@ -1,9 +1,9 @@
 {
-  "_说明": "复制为 account.json 后填入真实参数。account.json 不入版本控制（见 .gitignore）。参数由使用者确认，工具不替你猜持仓、费率与资金。",
+  "_说明": "仓位默认值来自 §51 组合层检验（docs/backtest-v3.md）：集中持 5 只 × 20% 时最差回撤 26–31%、覆盖率只有 7%，超过策略稿的 20% 回撤边界；改成 20 只 × 5% 后回撤降到 15%、覆盖率升到 28–32%。上限可填 'max_positions' 与 'position_pct'。",
   "capital_cny": 30000,
   "capital_hkd": 30000,
   "risk_per_trade": 0.005,
-  "max_position_pct": 0.2,
+  "max_position_pct": 0.05,
   "max_total_pct": 0.6,
   "max_sector_pct": 0.35,
   "cash_floor_pct": 0.2,
@@ -13,5 +13,6 @@
   "hk_lots": {},
   "positions": [],
   "notes": "资金、费率、持仓与峰值权益都需按你的实际情况填写；peak_equity 为两币合计口径的账户历史峰值权益，未填则回撤状态恒为正常。",
-  "confirmed_by_user": false
+  "confirmed_by_user": false,
+  "max_positions": 20
 }

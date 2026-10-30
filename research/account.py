@@ -40,7 +40,8 @@ class Account:
     capital_cny: float = 0.0
     capital_hkd: float = 0.0
     risk_per_trade: float = 0.005       # 单笔参考风险占本币资金比例
-    max_position_pct: float = 0.20     # 单只上限
+    max_position_pct: float = 0.05     # 单只上限（§51 检验后从 20% 降到 5%）
+    max_positions: int = 20            # 最多同时持有几只
     max_total_pct: float = 0.60        # 总仓位上限
     max_sector_pct: float = 0.35       # 单一行业上限
     cash_floor_pct: float = 0.20       # 现金下限

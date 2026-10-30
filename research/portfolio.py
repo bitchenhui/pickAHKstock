@@ -37,6 +37,25 @@ class PortfolioConfig:
     stamp_duty: float = 0.001          # 印花税 千1（卖出侧）
     slippage: float = 0.002            # 单边滑点
     lot_size: int = 100
+    max_drawdown: float = 0.20         # 账户回撤边界（策略稿 §44）
+    apply_drawdown_rule: bool = True   # 是否按回撤状态限制新增仓位
+    force_exit_on_drawdown: bool = False  # 触及边界时是否强制平掉现有持仓
+
+
+def drawdown_state(drawdown: float, limit: float) -> str:
+    """与账户层同一套阈值：警戒 50% / 收缩 75% / 暂停新增 100%。
+
+    模拟器必须用工具真正执行的那套规则，否则测出来的不是策略自己能做到的事。
+    """
+    if limit <= 0:
+        return "正常"
+    if drawdown >= limit:
+        return "暂停新增"
+    if drawdown >= limit * 0.75:
+        return "收缩"
+    if drawdown >= limit * 0.5:
+        return "警戒"
+    return "正常"
 
 
 @dataclass
@@ -73,6 +92,9 @@ class PortfolioResult:
     coverage: float = 0.0             # 候选覆盖率：买到的 / 事件总数
     selection_median: float | None = None   # 买到的候选的持有期收益中位数
     pool_median: float | None = None        # 全体事件窗口的收益中位数
+    halted_day: str = ""              # 因回撤停止新增仓位的日期
+    halted_state: str = ""            # 触发时的回撤状态
+    blocked_by_drawdown: int = 0      # 因回撤规则被拒的新增次数
     skipped_unaffordable: int = 0     # 因整手/资金买不到的次数
     notes: list = field(default_factory=list)
 
@@ -90,7 +112,9 @@ class PortfolioResult:
                 "fee_total": round(self.fee_total, 2),
                 "turnover": round(self.turnover, 2),
                 "missed_top_share": round(self.missed_top_share * 100, 1),
-                "skipped_unaffordable": self.skipped_unaffordable}
+                "skipped_unaffordable": self.skipped_unaffordable,
+                "halted_day": self.halted_day, "halted_state": self.halted_state,
+                "blocked_by_drawdown": self.blocked_by_drawdown}
 
 
 def _price_map(prices: list[dict]) -> dict[str, float]:
@@ -105,7 +129,7 @@ def _fee(notional: float, config: PortfolioConfig, side: str) -> float:
 
 def simulate(events: list[dict], price_series: dict[str, list[dict]],
              trading_days: list[str], config: PortfolioConfig,
-             name: str = "组合") -> PortfolioResult:
+             name: str = "组合", sort_key: str = "amount_desc") -> PortfolioResult:
     """按公告日逐日建仓、到期卖出的事件驱动组合模拟。"""
     result = PortfolioResult(name=name)
     if not events or not trading_days:
@@ -113,11 +137,26 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
         return result
     closes = {code: _price_map(series) for code, series in price_series.items()}
     day_index = {day: index for index, day in enumerate(trading_days)}
+    rng = random.Random(20261029)
     events_by_day: dict[str, list[dict]] = {}
     for event in events:
         notice = str(event.get("NOTICE_DATE") or "")[:10]
         if notice:
             events_by_day.setdefault(notice, []).append(event)
+    # 同一天内按**发现层的排序**买（默认：预告绝对额降序），否则买到的只是
+    # API 返回顺序决定的任意子集，组合结果无法归因于选股
+    for day, items in events_by_day.items():
+        if sort_key == "random":
+            rng.shuffle(items)
+        elif sort_key == "change_asc":       # 温和优先：幅度小的先买
+            items.sort(key=lambda r: (float(r.get("ADD_AMP_LOWER") or 0)
+                                      if str(r.get("ADD_AMP_LOWER") or "") else 0.0))
+        elif sort_key == "change_desc":      # 幅度大的先买（对照）
+            items.sort(key=lambda r: -(float(r.get("ADD_AMP_LOWER") or 0)
+                                       if str(r.get("ADD_AMP_LOWER") or "") else 0.0))
+        else:                                # amount_desc：发现层默认
+            items.sort(key=lambda r: -(float(r.get("PREDICT_AMT_LOWER") or 0)
+                                       if str(r.get("PREDICT_AMT_LOWER") or "") else 0.0))
 
     cash = config.initial_capital
     holdings: list[Trade] = []      # 未平仓
@@ -131,7 +170,35 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
 
     for day in trading_days:
         index = day_index[day]
-        # 1) 先卖出到期持仓
+        # 0) 先算当日权益：强制平仓需要按当日价格判断回撤
+        equity_open = cash + sum(h.shares * closes.get(h.code, {}).get(day, h.buy_price)
+                                 for h in holdings)
+        if config.force_exit_on_drawdown and holdings and peak > 0:
+            if 1 - equity_open / peak >= config.max_drawdown:
+                remaining = []
+                for trade in holdings:
+                    sell = closes.get(trade.code, {}).get(day)
+                    if not sell:
+                        # 当日无价（停牌或序列未覆盖）：不能当成已卖出，
+                        # 否则持仓会凭空消失、权益虚降、回撤被算成假的
+                        remaining.append(trade)
+                        continue
+                    sell_price = sell * (1 - config.slippage)
+                    notional = sell_price * trade.shares
+                    fee = _fee(notional, config, "sell")
+                    cash += notional - fee
+                    trade.sell_day = day
+                    trade.sell_price = round(sell_price, 4)
+                    trade.fees += fee
+                    trade.pnl = (sell_price - trade.buy_price) * trade.shares - trade.fees
+                    result.fee_total += fee
+                    result.turnover += notional
+                    closed.append(trade)
+                    if not result.halted_day:
+                        result.halted_day = day
+                        result.halted_state = "强制平仓"
+                holdings = remaining
+        # 1) 再卖出到期持仓
         still_open = []
         for trade in holdings:
             if index - day_index.get(trade.buy_day, index) >= config.hold_days:
@@ -170,6 +237,16 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
                                 for h in holdings)
             if equity <= 0:
                 continue
+            # 回撤状态：与账户层同一套规则，触及边界后停止新增仓位
+            if config.apply_drawdown_rule:
+                state = drawdown_state(1 - equity / peak if peak > 0 else 0.0,
+                                       config.max_drawdown)
+                if state in ("收缩", "暂停新增"):
+                    result.blocked_by_drawdown += 1
+                    if not result.halted_day:
+                        result.halted_day = day
+                        result.halted_state = state
+                    continue
             # 两个约束取小：单只占权益上限；买完仍要留够现金下限
             budget = min(equity * config.position_pct,
                          cash - equity * config.cash_floor_pct)
@@ -238,7 +315,8 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
 def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-06-30"),
                        threshold: float = 30.0, min_amount: float | None = 5e7,
                        config: PortfolioConfig | None = None,
-                       seed: int = 20261029) -> dict:
+                       seed: int = 20261029,
+                       sort_key: str = "amount_desc") -> dict:
     """组合层检验：事件组 vs 随机基线，报告净值、最差回撤、现金占比、错过率与费用。"""
     from .backtest import (forecasts_by_report_period, index_bars, primary_rows,
                            forecasts_raw, legacy_primary_rows)
@@ -269,7 +347,8 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
     codes = sorted({str(e.get("SECURITY_CODE") or "").strip() for e in events})
     series = {code: load_prices(code, start, end) for code in codes}
 
-    event_result = simulate(events, series, trading_days, config, name="强预告组合")
+    event_result = simulate(events, series, trading_days, config, name="强预告组合",
+                            sort_key=sort_key)
 
     # 基线：同一池子里随机抽等量的事件（同样按公告日建仓）
     rng = random.Random(seed)
@@ -279,7 +358,7 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
     baseline_codes = sorted({str(e.get("SECURITY_CODE") or "").strip() for e in baseline_events})
     baseline_series = {code: load_prices(code, start, end) for code in baseline_codes}
     baseline_result = simulate(baseline_events, baseline_series, trading_days, config,
-                               name="随机基线组合")
+                               name="随机基线组合", sort_key="random")
     return {
         "config": config,
         "events": len(events),

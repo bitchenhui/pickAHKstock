@@ -365,9 +365,26 @@ def cmd_portfolio(args: argparse.Namespace) -> int:
 
     config = PortfolioConfig(initial_capital=args.capital, max_positions=args.max_positions,
                              position_pct=args.position_pct, cash_floor_pct=args.cash_floor,
-                             hold_days=args.hold)
-    result = run_portfolio_test(threshold=args.threshold, min_amount=args.min_amount,
-                                config=config)
+                             hold_days=args.hold, max_drawdown=args.max_drawdown,
+                             apply_drawdown_rule=not args.no_drawdown_rule,
+                             force_exit_on_drawdown=args.force_exit)
+    periods = ("2025-06-30", "2025-12-31", "2026-03-31", "2026-06-30")
+    if args.per_period:
+        print("分期拆解（每期独立起算 10 万）——合并数字会掩盖收益集中在单一市场环境\n")
+        print(f"{'报告期':>12s} | {'总收益':>7s} {'最差回撤':>8s} {'交易':>4s} {'覆盖率':>7s} | "
+              f"{'随机基线':>8s} {'基线回撤':>8s}")
+        for period in periods:
+            result = run_portfolio_test(periods=(period,), threshold=args.threshold,
+                                        min_amount=args.min_amount, config=config)
+            if "error" in result:
+                continue
+            event, base = result["event"], result["baseline"]
+            print(f"{period:>12s} | {event['total_return']:>6}% {event['max_drawdown']:>7}% "
+                  f"{event['trades']:>4d} {event['coverage']:>6}% | {base['total_return']:>7}% "
+                  f"{base['max_drawdown']:>7}%")
+        print()
+    result = run_portfolio_test(periods=periods, threshold=args.threshold,
+                                min_amount=args.min_amount, config=config)
     if "error" in result:
         print(result["error"])
         return 1
@@ -585,6 +602,10 @@ def main(argv: list[str] | None = None) -> int:
     p_pf.add_argument("--position-pct", type=float, default=0.2)
     p_pf.add_argument("--cash-floor", type=float, default=0.2)
     p_pf.add_argument("--hold", type=int, default=60)
+    p_pf.add_argument("--max-drawdown", type=float, default=0.20, help="账户回撤边界")
+    p_pf.add_argument("--no-drawdown-rule", action="store_true", help="不启用回撤触发的停止新增")
+    p_pf.add_argument("--force-exit", action="store_true", help="触及回撤边界时强制平仓")
+    p_pf.add_argument("--per-period", action="store_true", help="附分期拆解（每期独立起算）")
     p_pf.set_defaults(func=cmd_portfolio)
 
     p_acc = sub.add_parser("account", help="账户层：查看账户状态或给出账户级动作")
