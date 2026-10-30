@@ -279,6 +279,41 @@ def _merge(old: list[dict], new: list[dict]) -> list[dict]:
 THS_LINE = "https://d.10jqka.com.cn/v6/line/hs_{code}/01/{year}.js"
 
 
+THS_INDEX = "https://d.10jqka.com.cn/v6/line/hs_399300/01/{year}.js"
+
+
+def _fetch_ths_index(start: date, end: date) -> list[dict]:
+    """沪深300 日线（同花顺分年文件，01 = 前复权）。
+
+    腾讯的指数接口在请求量大时会被 WAF 挡掉，基准一缺，超额指标就没了。
+    """
+    import re
+
+    out: list[dict] = []
+    for year in range(start.year, end.year + 1):
+        url = THS_INDEX.format(year=year)
+        try:
+            response = requests.get(url, headers=HEADERS, timeout=20)
+            response.raise_for_status()
+            text = response.text
+        except requests.RequestException:
+            continue
+        match = re.search(r'"data"\s*:\s*"([^"]+)"', text)
+        if not match:
+            continue
+        for line in match.group(1).split(";"):
+            parts = line.split(",")
+            if len(parts) < 5:
+                continue
+            try:
+                out.append({"day": f"{parts[0][:4]}-{parts[0][4:6]}-{parts[0][6:8]}",
+                            "close": float(parts[4])})
+            except ValueError:
+                continue
+        time.sleep(0.05)
+    return [bar for bar in out if start.isoformat() <= bar["day"] <= end.isoformat()]
+
+
 def _covered_years(bars: list[dict], start: date, end: date) -> set:
     """缓存里已经覆盖到**所需区间**的年份——这些年份文件不用再下一次。
 
@@ -539,6 +574,10 @@ def index_bars(start: date, end: date) -> list[dict]:
                 continue
         if out:
             break
+    if not out:
+        # 腾讯被限流时，基准会整个缺失——超额指标就无从谈起。
+        # 同花顺的沪深300（深市代码 399300）可以兜底。
+        out = _fetch_ths_index(start, end)
     out.sort(key=lambda b: b["day"])
     if out:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
