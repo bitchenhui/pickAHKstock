@@ -1,0 +1,41 @@
+README.md
+  s_2be9ca1f77025c::t_a6fdbe54638200 45-46,92-93
+cards/_snapshots/2026-10-30_A_000626.json
+  s_2be9ca1f77025c::t_41adc10853e027 1-12
+cards/_snapshots/2026-10-30_A_002044.json
+  s_2be9ca1f77025c::t_09f73b4ee8d62b 1-12
+cards/_snapshots/2026-10-30_A_002132.json
+  s_2be9ca1f77025c::t_79b70cdc7ac6bf 1-12
+cards/_snapshots/2026-10-30_A_603991.json
+  s_2be9ca1f77025c::t_f8328e691dd55f 1-12
+cards/_snapshots/2026-10-30_A_605358.json
+  s_2be9ca1f77025c::t_ad28a92a961403 1-12
+cards/_snapshots/2026-10-30_HK_03323.json
+  s_2be9ca1f77025c::t_a06d8f6c71b37b 1-12
+cards/_snapshots/2026-10-30_HK_09696.json
+  s_2be9ca1f77025c::t_5f16581fb33006 1-12
+docs/backtest-v3.md
+  s_2be9ca1f77025c::t_2dd85aea4143e9 45-47,63-65,126-140,142-174,182,184,186,192,199
+research/backtest.py
+  s_2be9ca1f77025c::t_646bdcb5b7f8d6 263-269
+research/cli.py
+  s_2be9ca1f77025c::t_b3632bea782ffe 416-479,627-632
+research/tracking.py
+  s_2be9ca1f77025c::t_d915ad81d423ed 1-126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7f5e5975b928bc96beb3d7bbf02f3050d5aa70e2",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
