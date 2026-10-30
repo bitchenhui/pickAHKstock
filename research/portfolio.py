@@ -317,14 +317,25 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
                        config: PortfolioConfig | None = None,
                        seed: int = 20261029,
                        sort_key: str = "amount_desc",
-                       prefilter_affordability: bool = False) -> dict:
-    """组合层检验：事件组 vs 随机基线，报告净值、最差回撤、现金占比、错过率与费用。"""
+                       prefilter_affordability: bool = False,
+                       market_baseline: bool = False,
+                       market_sample: int = 400) -> dict:
+    """组合层检验：事件组 vs 随机基线，报告净值、最差回撤、现金占比、错过率与费用。
+
+    基线有两条，含义不同，别混：
+    - **池内随机**：同报告期**发了预告但变动不达标**的公司。这批公司本身就是
+      坏消息集合，拿它当基线会把信号优势高估。
+    - **全市场随机**（market_baseline=True）：当期没发预告的 A 股，事件日从当期
+      真实公告日分布里等概率抽，建仓时点与事件组可比。这才是「有没有 alpha」
+      该问的基线。
+    """
     from .backtest import (forecasts_by_report_period, index_bars, primary_rows,
                            forecasts_raw, legacy_primary_rows)
 
     config = config or PortfolioConfig()
     events: list[dict] = []
     pool: list[dict] = []
+    period_rows: list[list[dict]] = []
     for period in periods:
         try:
             report_date = datetime.strptime(period, "%Y-%m-%d").date()
@@ -335,6 +346,7 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
             if is_strong(row, threshold, min_amount):
                 events.append(row)
         pool.extend(rows)
+        period_rows.append(rows)
     if not events:
         return {"error": "没有符合条件的强预告事件"}
 
@@ -373,7 +385,8 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
     baseline_series = {code: load_prices(code, start, end) for code in baseline_codes}
     baseline_result = simulate(baseline_events, baseline_series, trading_days, config,
                                name="随机基线组合", sort_key="random")
-    return {
+
+    result = {
         "config": config,
         "events": len(events),
         "index_return": (index[-1]["close"] / index[0]["close"] - 1) if index else None,
@@ -382,3 +395,45 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
         "event_detail": event_result,
         "baseline_detail": baseline_result,
     }
+
+    if market_baseline:
+        market_result = _market_portfolio(period_rows, events, trading_days, config,
+                                          start, end, seed, market_sample)
+        if market_result is not None:
+            result["market_baseline"] = market_result.to_dict()
+            result["market_baseline_detail"] = market_result
+    return result
+
+
+def _market_portfolio(period_rows, events, trading_days, config, start, end,
+                      seed: int, sample: int):
+    """全市场随机组合：当期没发预告的 A 股，事件日按当期公告日分布抽。
+
+    建仓时点、每期买入机会的数量都与事件组对齐，唯一的差别是标的从市场里随机抽。
+    """
+    from .industry import industry_map
+
+    market_codes = set(industry_map("second").keys())
+    rng = random.Random(seed + 1)
+    market_events: list[dict] = []
+    for rows in period_rows:
+        forecasters = {str(row.get("SECURITY_CODE") or "").strip() for row in rows}
+        notices = [str(row.get("NOTICE_DATE") or "")[:10] for row in rows
+                   if str(row.get("NOTICE_DATE") or "")[:10]]
+        if not notices:
+            continue
+        candidates = sorted(market_codes - forecasters)
+        want = min(len(candidates), sample)
+        for code in rng.sample(candidates, want):
+            market_events.append({
+                "SECURITY_CODE": code,
+                "NOTICE_DATE": rng.choice(notices),
+                "ADD_AMP_LOWER": 0,
+                "PREDICT_AMT_LOWER": 0,
+            })
+    if not market_events:
+        return None
+    codes = sorted({event["SECURITY_CODE"] for event in market_events})
+    series = {code: load_prices(code, start, end) for code in codes}
+    return simulate(market_events, series, trading_days, config,
+                    name="全市场随机组合", sort_key="random")

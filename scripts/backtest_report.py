@@ -99,42 +99,59 @@ def portfolio() -> list[str]:
         lines.append("")
     result = run_portfolio_test(periods=PERIODS, threshold=30.0, min_amount=5e7,
                                 sort_key="amount_desc", prefilter_affordability=True,
-                                config=CONFIG)
+                                config=CONFIG, market_baseline=True)
     if "error" in result:
         return lines + [f"（{result['error']}）"]
     event, base = result["event"], result["baseline"]
     lines += [f"事件 {result['events']} 个｜同期沪深300 {result['index_return'] * 100:+.2f}%", "",
               "| 组合 | 总收益 | 最差回撤 | 现金占比 | 交易 | 覆盖率 | 选中中位 | 全池中位 |",
               "|---|---|---|---|---|---|---|---|"]
-    for label, item in (("强预告组合", event), ("随机基线组合", base)):
+    for label, item in (("强预告组合", event), ("池内随机基线", base)):
         lines.append(f"| {label} | {item['total_return']:+.2f}% | {item['max_drawdown']:.2f}% | "
                      f"{item['cash_ratio']:.1f}% | {item['trades']} | {item['coverage']:.1f}% | "
                      f"{item['selection_median']}% | {item['pool_median']}% |")
+    market = result.get("market_baseline")
+    if market:
+        lines.append(f"| 全市场随机基线 | {market['total_return']:+.2f}% | "
+                     f"{market['max_drawdown']:.2f}% | {market['cash_ratio']:.1f}% | "
+                     f"{market['trades']} | {market['coverage']:.1f}% | "
+                     f"{market['selection_median']}% | {market['pool_median']}% |")
+    lines.append("")
+    lines.append("两条基线含义不同：**池内随机**是「发了预告但变动不达标」的公司，"
+                 "那批本身就是坏消息集合；**全市场随机**才是「有没有 alpha」该问的基线。")
     return lines
 
 
 def per_period() -> list[str]:
     lines = ["### 分期拆解（每期独立起算 10 万）", "",
-             "| 报告期 | 强预告 | 最差回撤 | 交易 | 随机基线 | 基线回撤 | 差 |",
-             "|---|---|---|---|---|---|---|"]
-    total_e = total_b = 0.0
-    wins = 0
+             "| 报告期 | 强预告 | 最差回撤 | 交易 | 池内随机 | 基线回撤 | 差 | 全市场随机 | 差 |",
+             "|---|---|---|---|---|---|---|---|---|"]
+    total_e = total_b = total_m = 0.0
+    wins = wins_m = 0
     for period in PERIODS:
         result = run_portfolio_test(periods=(period,), threshold=30.0, min_amount=5e7,
                                     sort_key="amount_desc", prefilter_affordability=True,
-                                    config=CONFIG)
+                                    config=CONFIG, market_baseline=True,
+                                    market_sample=300)
         if "error" in result:
             continue
         event, base = result["event"], result["baseline"]
+        market = result.get("market_baseline") or {}
         total_e += event["total_return"]
         total_b += base["total_return"]
+        total_m += market.get("total_return", 0.0)
         wins += 1 if event["total_return"] >= base["total_return"] else 0
+        wins_m += 1 if market and event["total_return"] >= market["total_return"] else 0
         lines.append(f"| {period} | {event['total_return']:+.2f}% | "
                      f"{event['max_drawdown']:.2f}% | {event['trades']} | "
                      f"{base['total_return']:+.2f}% | {base['max_drawdown']:.2f}% | "
-                     f"{event['total_return'] - base['total_return']:+.1f} |")
-    lines += ["", f"八期加总：强预告 {total_e:+.2f}%｜随机基线 {total_b:+.2f}%｜"
-                  f"差 {total_e - total_b:+.2f}｜不劣于基线的期数 {wins}/{len(PERIODS)}"]
+                     f"{event['total_return'] - base['total_return']:+.1f} | "
+                     f"{market.get('total_return', 0.0):+.2f}% | "
+                     f"{event['total_return'] - market.get('total_return', 0.0):+.1f} |")
+    lines += ["", f"八期加总：强预告 {total_e:+.2f}%｜池内随机 {total_b:+.2f}%"
+                  f"（差 {total_e - total_b:+.2f}，不劣于基线的期数 {wins}/{len(PERIODS)}）"
+                  f"｜全市场随机 {total_m:+.2f}%（差 {total_e - total_m:+.2f}，"
+                  f"不劣于基线的期数 {wins_m}/{len(PERIODS)}）"]
     return lines
 
 
