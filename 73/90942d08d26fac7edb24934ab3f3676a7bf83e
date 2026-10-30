@@ -1,0 +1,35 @@
+research/backtest.py
+  s_2be9ca1f77025c::t_a8fe2e7c0b57c4 37,95-100,104-106,124,129-131
+research/card.py
+  s_2be9ca1f77025c::t_e0920e2534a59c 182
+research/cli.py
+  s_2be9ca1f77025c::t_f5498ebb9e86e0 476-530,798-807
+research/events.py
+  s_2be9ca1f77025c::t_bcedda903022d1 184,187-194,196,198,203-228,232
+research/forecast_pool.py
+  s_2be9ca1f77025c::t_bb8a816a98f155 1-177
+research/recommend.py
+  s_2be9ca1f77025c::t_3edf064e8a6c1f 53-56,84-88,125-128
+research/workflow.py
+  s_2be9ca1f77025c::t_48fdea04d1f10a 163-184
+tests/test_forecast_pool.py
+  s_2be9ca1f77025c::t_d4fdfcdef10ffc 1-99
+tests/test_industry.py
+  s_2be9ca1f77025c::t_073657e29013bf 1-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7390942d08d26fac7edb24934ab3f3676a7bf83e",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
