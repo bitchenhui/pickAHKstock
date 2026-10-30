@@ -1,0 +1,45 @@
+cards/A_000626.json
+  s_2be9ca1f77025c::t_880b129a78becf 530-575
+cards/A_002044.json
+  s_2be9ca1f77025c::t_89f0a38c620e4b 545-590
+cards/A_002132.json
+  s_2be9ca1f77025c::t_be701767f56bac 524-569
+cards/A_603991.json
+  s_2be9ca1f77025c::t_662adfb8741681 610-655
+cards/A_605358.json
+  s_2be9ca1f77025c::t_d259c4bf02bed8 537-582
+cards/HK_03323.json
+  s_2be9ca1f77025c::t_ab921589cabdd9 154-199
+cards/HK_09696.json
+  s_2be9ca1f77025c::t_7adbf964d1194c 153-198
+docs/backtest-log.md
+  s_2be9ca1f77025c::t_6908a979da0f55 1-89
+research/card.py
+  s_2be9ca1f77025c::t_13fea873288aee 139-162,178,230
+research/cli.py
+  s_2be9ca1f77025c::t_3d211cefa51ebe 14,417-426,481-484,639-642
+research/tracking.py
+  s_2be9ca1f77025c::t_a1a041bbeef42e 117-128
+research/workflow.py
+  s_2be9ca1f77025c::t_1f4e48bb595542 122-128
+scripts/backtest_report.py
+  s_2be9ca1f77025c::t_0befd2e0fd7d56 1-139
+tests/test_tracking.py
+  s_2be9ca1f77025c::t_6d28de6a89f6e9 1-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6586e49ce76f605058b93a9bf59525e2ae6a4b3b",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
