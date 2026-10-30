@@ -42,6 +42,8 @@ python3 -m venv .venv
 2. **瓶颈是仓位不是选股**：集中持 5 只 × 20% 时最差回撤 26–31%、覆盖率只有 7%；改成 20 只 × 5% 后回撤降到 15%、覆盖率升到 28–32%，信号优势才显现。**回撤的第一道防线是仓位结构，不是止损规则**——「触及即平仓」锁死反弹还压不住回撤。
 3. **排序目前没有贡献**（随机顺序与最好的排序键打平），而且收益高度依赖单一市场环境。发现层不该把"排序"当价值主张。
 
+4. **扩到八期后结论更硬**：八期全部不劣于随机基线（相对优势 +0.1~+21.7 个百分点），事件研究 48 格里门槛 30% 的中位超额 +3.03（13/16 为正）——**温和优先**再次得到验证。但绝对收益仍集中在 2025-06-30 一期，且 2026-03-31 下跌期两组同亏（信号不提供下跌保护）。
+
 另外发现一个操作层面的硬约束：强预告候选股价偏高，**10 万本金有 122 次因整手买不进**（基线只有 23 次）——候选池与账户规模不匹配。
 
 数据接口字段参考 [AKShare A/H 股票接口](https://akshare.akfamily.xyz/data/stock/stock.html)；交易单位以 [上交所交易规则](https://www.sse.com.cn/lawandrules/sselawsrules2025/trade/) 和 [港交所证券市场交易机制](https://www.hkex.com.hk/Services/Trading/Securities/Overview/Trading-Mechanism?sc_lang=zh-HK) 为准。依赖外部免费数据服务，可能限流或中断；不要把缺失结果解释为没有机会。
@@ -87,6 +89,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli business HK 03323                            # 港股：经营回顾逐期对比
 .venv/bin/python -m research.cli show A 002132                              # 渲染卡片
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
+.venv/bin/python -m research.cli card-snapshot                       # 给卡片打快照（卡片检验集起点）
+.venv/bin/python -m research.cli card-score                          # 回看：卡片状态 vs 后续 20/60 日
 .venv/bin/python -m research.cli board                              # 研究看板：谁该被研究（按优先级）
 .venv/bin/python -m research.cli board --new                       # 附上发现层的新候选（待立项）
 .venv/bin/python -m research.cli backtest --period 2026-06-30 --sensitivity   # §51 事件研究

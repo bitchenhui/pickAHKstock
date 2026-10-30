@@ -413,6 +413,70 @@ def cmd_portfolio(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_card_snapshot(args: argparse.Namespace) -> int:
+    """给所有卡片打快照——卡片检验集的起点。
+
+    「卡片状态 vs 后续表现」是前瞻检验，卡片建了多久就有多少数据可评。
+    """
+    from datetime import date
+
+    from .backtest import load_prices
+    from .tracking import record
+
+    cards = _load_all_cards()
+    if not cards:
+        print("还没有卡片。")
+        return 0
+    today = date.today()
+
+    def price_lookup(code: str, market: str):
+        series = load_prices(code, today - __import__("datetime").timedelta(days=40),
+                             today + __import__("datetime").timedelta(days=10))
+        return series[-1]["close"] if series else None
+
+    snapshots = record(cards, today, price_lookup)
+    print(f"已记录 {len(snapshots)} 张卡片快照（{today.isoformat()}）→ cards/_snapshots/")
+    for snapshot in snapshots:
+        price = "—" if snapshot.price is None else f"{snapshot.price:.2f}"
+        print(f"  {snapshot.market} {snapshot.code} {snapshot.name:10s} [{snapshot.status}] "
+              f"价 {price} 证据 {snapshot.evidence_count} 条 哈希 {snapshot.card_hash}")
+    print("\n检验集从今天开始积累。到 60 个交易日后运行 card-score 即可回看"
+          "「标记为观察/降级的那些，后来表现如何」。")
+    return 0
+
+
+def cmd_card_score(args: argparse.Namespace) -> int:
+    """回看卡片检验集：快照时的状态 vs 后续 20/60 日表现。"""
+    from datetime import date, timedelta
+
+    from .backtest import load_prices
+    from .tracking import load_snapshots, score
+
+    snapshots = load_snapshots()
+    if not snapshots:
+        print("还没有快照。先运行 card-snapshot 开始积累。")
+        return 0
+    today = date.today()
+    price_series: dict[str, list] = {}
+    for snapshot in snapshots:
+        if snapshot.code not in price_series:
+            start = date.fromisoformat(snapshot.day) - timedelta(days=40)
+            price_series[snapshot.code] = load_prices(snapshot.code, start,
+                                                      today + timedelta(days=10))
+    result = score(snapshots, price_series)
+    print(f"快照 {len(result['rows'])} 个（快照日 {min(s.day for s in snapshots)} 起）\n")
+    print(f"{'状态':>8s} {'n':>4s} {'可评':>4s} {'60日中位':>9s} {'60日胜率':>9s}")
+    for status, item in result["summary"].items():
+        median = "—" if item["median_60"] is None else f"{item['median_60']}%"
+        win = "—" if item["win_rate_60"] is None else f"{item['win_rate_60']}%"
+        print(f"{status:>8s} {item['n']:>4d} {item['scored']:>4d} {median:>9s} {win:>9s}")
+    pending = [r for r in result["rows"] if r["return_60"] is None]
+    if pending:
+        print(f"\n尚有 {len(pending)} 个快照未满 60 个交易日——检验集还没长成。"
+              "这正是它需要时间的原因：卡片建了两天，就只能评两天。")
+    return 0
+
+
 def cmd_reference(args: argparse.Namespace) -> int:
     """用同花顺日线算 ATR 与 2ATR 参考失效线，写入卡片的市场数据段。
 
@@ -559,6 +623,12 @@ def main(argv: list[str] | None = None) -> int:
     p_fin.add_argument("--periods", type=int, default=8, help="保留最近几个报告期")
     p_fin.add_argument("--quarter-periods", type=int, default=8, help="保留最近几个单季度")
     p_fin.set_defaults(func=cmd_financials)
+
+    p_snap = sub.add_parser("card-snapshot", help="给所有卡片打快照（卡片检验集的起点）")
+    p_snap.set_defaults(func=cmd_card_snapshot)
+
+    p_score = sub.add_parser("card-score", help="回看卡片检验集：状态 vs 后续 20/60 日表现")
+    p_score.set_defaults(func=cmd_card_score)
 
     p_ref = sub.add_parser("reference", help="用日线算 ATR 与 2ATR 参考失效线")
     p_ref.add_argument("market")

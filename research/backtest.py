@@ -260,7 +260,13 @@ def load_prices(code: str, start: date, end: date, count: int = 400) -> list[dic
                 return cached
         except ValueError:
             pass
-    symbol = f"sh{code}" if code.startswith("6") else f"sz{code}"
+    # 6 位是 A 股（sh/sz 前缀），5 位是港股（hk 前缀）
+    if len(code) == 5:
+        symbol = f"hk{code}"
+    elif code.startswith("6"):
+        symbol = f"sh{code}"
+    else:
+        symbol = f"sz{code}"
     url = TENCENT_QFQ.format(symbol=symbol, start=start.isoformat(),
                              end=end.isoformat(), count=count)
     try:
