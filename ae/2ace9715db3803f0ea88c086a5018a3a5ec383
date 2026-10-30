@@ -1,0 +1,21 @@
+research/discover.py
+  s_2be9ca1f77025c::t_0657e3ffdf5360 345-355
+research/industry.py
+  s_2be9ca1f77025c::t_fb8cbe0ca625cf 12,15-19,38-45,186,189,191,194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae2ace9715db3803f0ea88c086a5018a3a5ec383",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
