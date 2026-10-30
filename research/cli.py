@@ -414,6 +414,47 @@ def cmd_portfolio(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_expectations(args: argparse.Namespace) -> int:
+    """把分析师预期写进卡片：与公司自述并排看。"""
+    from .analysts import fetch
+
+    card = Card.load(args.market, args.code)
+    expectation = fetch(card.code, card.name, card.market)
+    card.expectations = expectation.to_dict()
+    card.updated = date.today().isoformat()
+    card.save()
+    print(f"{card.name}（{card.market} {card.code}）分析师预期已更新")
+    print(f"  覆盖机构 {expectation.coverage} 家｜最新评级 {expectation.latest_rating or '—'}"
+          f"｜目标价 {expectation.target_price or '—'}")
+    for row in expectation.eps_forecast[:2]:
+        print(f"  {row.get('年度')} 年 EPS 均值 {row.get('均值')}（区间 {row.get('最小值')}–{row.get('最大值')}），"
+              f"行业平均 {row.get('行业平均数')}")
+    for row in expectation.ratings[:3]:
+        print(f"  研报 {row.get('日期')}：{row.get('标题')}")
+    for note in expectation.notes:
+        print(f"  ⚠ {note}")
+    return 0
+
+
+def cmd_recommend(args: argparse.Namespace) -> int:
+    """推荐清单：先看哪个、为什么、下一步做什么。"""
+    from .analysts import fetch as fetch_expectations
+    from .discover import discover
+    from .recommend import build, render
+
+    candidates, stats = discover(args.period, args.since_days, args.limit,
+                                capital=args.capital, position_pct=args.position_pct)
+    if not candidates:
+        print("没有符合条件的候选。缺失不等于没有机会——先核对数据源与筛选口径。")
+        return 0
+    recommendations = build(candidates, with_analysts=not args.no_analysts)
+    print(f"推荐清单 {len(recommendations)} 只（报告期 {args.period}）\n")
+    print(render(recommendations))
+    print("这是「先看哪个」的清单，不是买入名单。卡片状态、证据等级与账户检查才决定"
+          "能否进入持仓研究；无机构覆盖与买不进的候选已单独标出。")
+    return 0
+
+
 def cmd_backtest_report(args: argparse.Namespace) -> int:
     """定期回测报告：跑八期事件研究 + 组合层 + 分期拆解。"""
     import runpy
@@ -635,6 +676,20 @@ def main(argv: list[str] | None = None) -> int:
     p_fin.add_argument("--periods", type=int, default=8, help="保留最近几个报告期")
     p_fin.add_argument("--quarter-periods", type=int, default=8, help="保留最近几个单季度")
     p_fin.set_defaults(func=cmd_financials)
+
+    p_exp = sub.add_parser("expectations", help="把分析师预期写进卡片（第三方证据）")
+    p_exp.add_argument("market")
+    p_exp.add_argument("code")
+    p_exp.set_defaults(func=cmd_expectations)
+
+    p_rec = sub.add_parser("recommend", help="推荐清单：先看哪个、为什么、下一步做什么")
+    p_rec.add_argument("--period", default="2026-09-30", help="业绩预告的报告期")
+    p_rec.add_argument("--since-days", type=int, default=90)
+    p_rec.add_argument("--limit", type=int, default=10)
+    p_rec.add_argument("--capital", type=float, default=0.0, help="账户本金（用于算可买性）")
+    p_rec.add_argument("--position-pct", type=float, default=0.05, help="单只仓位上限")
+    p_rec.add_argument("--no-analysts", action="store_true", help="不取分析师预期（更快）")
+    p_rec.set_defaults(func=cmd_recommend)
 
     p_rep = sub.add_parser("backtest-report", help="生成定期回测报告（--append 追加进日志）")
     p_rep.add_argument("--append", action="store_true")

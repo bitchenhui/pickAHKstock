@@ -176,6 +176,7 @@ class Card:
     financials: FinancialTrack = field(default_factory=FinancialTrack)
     catalysts: list[Catalyst] = field(default_factory=list)
     judgments: list[Judgment] = field(default_factory=list)
+    expectations: dict = field(default_factory=dict)   # 分析师预期（第三方证据）
     risks: list[Risk] = field(default_factory=list)
     provenance: dict = field(default_factory=dict)   # 数据来源与快照哈希
     account_checks: list[AccountCheck] = field(default_factory=list)

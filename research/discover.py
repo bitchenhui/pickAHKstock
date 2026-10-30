@@ -10,7 +10,7 @@ import argparse
 import json
 from pathlib import Path
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from .events import (Announcement, Forecast, FORECAST_TITLES, fetch_announcements,
                      fetch_forecasts, metric_rank)
@@ -218,23 +218,62 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
         "small_amount": small_amount}
 
 
+def attach_documents(candidates: list[Candidate], report_period: str) -> None:
+    """给候选补上巨潮原文 PDF 链接（按个股查询）。
+
+    市场级检索在宽窗口下按日期倒序返回，页数不够就取不到窗口早期的公告——
+    业绩预告的公告日集中在报告期后 1–4 个月，正好落在被截断的那一段。
+    所以这里按个股查（带 orgId），只查清单里的这几只。
+    """
+    from .events import fetch_stock_announcements
+
+    period_end = datetime.strptime(report_period, "%Y-%m-%d").date()
+    start = period_end - timedelta(days=45)
+    end = min(date.today(), period_end + timedelta(days=150))
+    for candidate in candidates:
+        try:
+            items = fetch_stock_announcements(candidate.code, start, end)
+        except Exception:
+            continue
+        best = None
+        for item in items:
+            if not any(word in item.title for word in
+                       ("业绩预告", "业绩预增", "业绩预盈", "业绩预减", "业绩预亏", "预告")):
+                continue
+            if best is None or abs((item.published - candidate.notice_date).days) < \
+                    abs((best.published - candidate.notice_date).days):
+                best = item
+        if best is not None:
+            candidate.pdf_url = best.url
+            candidate.pdf_title = best.title
+            candidate.notes = [n for n in candidate.notes
+                               if "未取得巨潮原文链接" not in n]
+
+
 def discover(report_period: str, since_days: int = 90, limit: int = 15,
              min_amount: float = MIN_FORECAST_AMOUNT, capital: float = 0.0,
              position_pct: float = 0.05) -> tuple[list[Candidate], dict]:
     today = date.today()
-    start = today - timedelta(days=since_days)
     forecasts = fetch_forecasts(report_period)
     if not forecasts:
         raise DiscoveryError(f"{report_period} 没有取到业绩预告数据")
     codes = sorted({f.code for f in forecasts})
     snapshots = fetch_snapshots([("A", code) for code in codes])
+    # 原文窗口由**报告期**推导：业绩预告的公告日集中在报告期后 1–4 个月
+    # （年报预告在次年 1 月、中报预告在 7 月）。若按「今天往前 since_days 天」
+    # 取窗口，往期报告期的公告会整段落空——原文链接就再也匹配不上。
+    period_end = datetime.strptime(report_period, "%Y-%m-%d").date()
+    start = period_end - timedelta(days=45)
+    end = min(today, period_end + timedelta(days=150))
     # 巨潮按证券代码倒序返回，页数不够会漏掉后段代码的候选；这里取够页数再匹配原文
-    announcements = fetch_announcements("业绩", start, today,
+    announcements = fetch_announcements("业绩", start, end,
                                         max_pages=30, title_must=FORECAST_TITLES)
     candidates, stats = build_candidates(forecasts, snapshots, announcements,
                                          min_amount, capital, position_pct)
     stats["unaffordable"] = sum(1 for c in candidates if c.unaffordable)
-    return candidates[:limit], stats
+    candidates = candidates[:limit]
+    attach_documents(candidates, report_period)
+    return candidates, stats
 
 
 def main() -> None:

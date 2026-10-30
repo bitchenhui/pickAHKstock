@@ -54,6 +54,80 @@ class Forecast:
     amount_upper: float | None = None   # 预告金额上限（元）
 
 
+def load_org_ids() -> dict[str, str]:
+    """巨潮股票列表（代码 → orgId）。个股公告查询需要 orgId。"""
+    import json
+    from pathlib import Path
+
+    cache_dir = Path.home() / ".cache" / "pickahkstock"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / "cninfo_stock_list.json"
+    if cache_file.exists():
+        try:
+            cached = json.loads(cache_file.read_text(encoding="utf-8"))
+            if cached:
+                return cached
+        except ValueError:
+            pass
+    try:
+        response = requests.get("http://www.cninfo.com.cn/new/data/szse_stock.json",
+                                headers={"User-Agent": HEADERS["User-Agent"]}, timeout=30)
+        response.raise_for_status()
+        payload = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise EventError(f"巨潮股票列表获取失败：{exc}") from exc
+    items = payload.get("stockList") or payload.get("data") or []
+    mapping = {str(item.get("code")): str(item.get("orgId")) for item in items
+               if item.get("code") and item.get("orgId")}
+    cache_file.write_text(json.dumps(mapping, ensure_ascii=False), encoding="utf-8")
+    return mapping
+
+
+def fetch_stock_announcements(code: str, start: date, end: date,
+                              org_id: str | None = None) -> list[Announcement]:
+    """按**个股**取公告。
+
+    市场级检索（searchkey=业绩）在宽窗口下按日期倒序返回，页数不够就永远
+    取不到窗口早期的公告——业绩预告的公告日集中在报告期后 1–4 个月，正好
+    落在被截断的那一段。个股查询带上 orgId 就没有这个问题。
+    """
+    if org_id is None:
+        org_id = load_org_ids().get(code)
+    if not org_id:
+        return []
+    results: list[Announcement] = []
+    for page in range(1, 6):
+        params = {"pageNum": page, "pageSize": 30, "column": "szse", "tabName": "fulltext",
+                  "stock": f"{code},{org_id}", "searchkey": "", "secid": "", "plate": "",
+                  "category": "", "trade": "", "seDate": f"{start}~{end}",
+                  "sortName": "", "sortType": "", "isHLtitle": "false"}
+        try:
+            response = requests.post(CNINFO_QUERY, headers=HEADERS, params=params,
+                                     timeout=30)
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError) as exc:
+            raise EventError(f"个股公告获取失败 {code}：{exc}") from exc
+        items = payload.get("announcements") or []
+        if not items:
+            break
+        for item in items:
+            stamp = item.get("announcementTime")
+            if stamp is None:
+                continue
+            adjunct = item.get("adjunctUrl") or ""
+            results.append(Announcement(
+                code=str(item.get("secCode") or code).strip(),
+                name=str(item.get("secName") or "").strip(),
+                title=_clean(str(item.get("announcementTitle") or "")),
+                published=datetime.fromtimestamp(stamp / 1000, tz=timezone.utc).date(),
+                url=(CNINFO_PDF + adjunct) if adjunct else "",
+                category="个股公告"))
+        if len(items) < 30:
+            break
+    return results
+
+
 def fetch_announcements(searchkey: str, start: date, end: date, max_pages: int = 8,
                          title_must: tuple[str, ...] = (),
                          title_exclude: tuple[str, ...] = TITLE_NOISE) -> list[Announcement]:
@@ -105,17 +179,59 @@ def _clean(text: str) -> str:
     return text.replace("<em>", "").replace("</em>", "").replace("&nbsp;", " ").strip()
 
 
-def fetch_forecasts(report_period: str, page_size: int = 200) -> list[Forecast]:
+def fetch_forecast_rows(report_period: str, page_size: int = 500,
+                        max_pages: int = 16) -> list[dict]:
+    """按**报告期**取业绩预告原始行（服务端过滤 + 分页 + 落盘缓存）。
+
+    为什么必须服务端过滤：接口默认按公告日倒序，只取第一页就只覆盖最近
+    的一期预告，往期报告期会全部取空。回测模块（research/backtest.py）用的
+    是同一套取数，这里保持一致，两边口径才对得上。
+    """
+    import json
+    from pathlib import Path
+
+    cache_dir = Path.home() / ".cache" / "pickahkstock" / "forecasts"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / f"{report_period}.json"
+    if cache_file.exists():
+        try:
+            cached = json.loads(cache_file.read_text(encoding="utf-8"))
+            if cached:
+                return cached
+        except ValueError:
+            pass
+    rows: list[dict] = []
+    seen_pages: set[str] = set()
+    for page in range(1, max_pages + 1):
+        params = {"reportName": "RPT_PUBLIC_OP_NEWPREDICT", "columns": "ALL",
+                  "pageSize": str(page_size), "pageIndex": str(page), "client": "WEB",
+                  "sortColumns": "NOTICE_DATE", "sortTypes": "1",
+                  "filter": f"(REPORT_DATE='{report_period}')"}
+        try:
+            response = requests.get(EASTMONEY_DC, headers={"User-Agent": HEADERS["User-Agent"]},
+                                    params=params, timeout=200)
+            response.raise_for_status()
+            data = (response.json().get("result") or {}).get("data") or []
+        except (requests.RequestException, ValueError) as exc:
+            raise EventError(f"业绩预告获取失败：{exc}") from exc
+        if not data:
+            break
+        # 护栏：某些过滤组合下接口会忽略 pageIndex，重复页要停
+        fingerprint = f"{data[0].get('SECURITY_CODE')}|{data[0].get('NOTICE_DATE')}|{len(data)}"
+        if fingerprint in seen_pages:
+            break
+        seen_pages.add(fingerprint)
+        rows.extend(data)
+        if len(data) < page_size:
+            break
+    if rows:
+        cache_file.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    return rows
+
+
+def fetch_forecasts(report_period: str, page_size: int = 500) -> list[Forecast]:
     """东方财富数据中心业绩预告。report_period 形如 2026-09-30。"""
-    url = (f"{EASTMONEY_DC}?reportName=RPT_PUBLIC_OP_NEWPREDICT&columns=ALL"
-           f"&pageSize={page_size}&sortColumns=NOTICE_DATE&sortTypes=-1"
-           f"&source=WEB&client=WEB")
-    try:
-        response = requests.get(url, headers={"User-Agent": HEADERS["User-Agent"]}, timeout=25)
-        response.raise_for_status()
-        rows = (response.json().get("result") or {}).get("data") or []
-    except (requests.RequestException, ValueError) as exc:
-        raise EventError(f"业绩预告获取失败：{exc}") from exc
+    rows = fetch_forecast_rows(report_period, page_size)
     forecasts = []
     for row in rows:
         period = str(row.get("REPORT_DATE") or "")[:10]

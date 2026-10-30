@@ -119,6 +119,23 @@ def render_markdown(card: Card) -> str:
     lines += ["", "## 账户检查"]
     lines += [f"- {c.name}：{c.result} {c.note} {c.source}".rstrip()
               for c in card.account_checks] or ["- （未填写）"]
+    if card.expectations:
+        lines += ["", "## 分析师预期（独立于公司自述的第三方证据）"]
+        rows = card.expectations.get("eps_forecast") or []
+        if rows:
+            for row in rows[:2]:
+                lines.append(f"- {row.get('年度')} 年 EPS 预期：均值 {row.get('均值')}"
+                             f"（区间 {row.get('最小值')}–{row.get('最大值')}），"
+                             f"行业平均 {row.get('行业平均数')}，覆盖机构 {row.get('机构数')} 家")
+        lines.append("- ⚠ 口径提示：同花顺的「行业平均数」是全行业均值，与单只公司的可比性需自行判断"
+                     "（半导体等宽行业尤其容易失真）；同花顺盈利预测接口只覆盖 A 股")
+        coverage = card.expectations.get("coverage")
+        lines.append(f"- 覆盖机构 {coverage} 家｜最新评级 {card.expectations.get('latest_rating') or '—'}"
+                     f"｜目标价 {card.expectations.get('target_price') or '—'}")
+        for note in card.expectations.get("notes") or []:
+            lines.append(f"- ⚠ {note}")
+        for row in (card.expectations.get("ratings") or [])[:3]:
+            lines.append(f"- 研报 {row.get('日期')}：{row.get('标题')}")
     if card.judgments:
         lines += ["", "## 结构化判断（可回溯核对）"]
         for judgment in card.judgments:

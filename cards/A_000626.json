@@ -573,6 +573,21 @@
       "confidence": "高"
     }
   ],
+  "expectations": {
+    "code": "000626",
+    "name": "远大控股",
+    "market": "A",
+    "eps_forecast": [],
+    "report_count": 0,
+    "ratings": [],
+    "latest_rating": "",
+    "target_price": null,
+    "coverage": 0,
+    "source": "同花顺盈利预测 + 东方财富研报",
+    "notes": [
+      "无机构覆盖：预期这条证据缺失，不等于基本面差"
+    ]
+  },
   "risks": [
     {
       "category": "价格",
@@ -669,6 +684,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-10-29",
+  "updated": "2026-10-30",
   "derived_level": "证据充分"
 }
