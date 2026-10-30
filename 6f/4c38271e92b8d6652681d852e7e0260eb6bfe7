@@ -1,0 +1,21 @@
+README.md
+  s_2be9ca1f77025c::t_0782f34469b955 148-157
+docs/backtest-v4.md
+  s_2be9ca1f77025c::t_f9e5925a2b0721 143-163,166-174,180-186,202-203,210-213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6f4c38271e92b8d6652681d852e7e0260eb6bfe7",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
