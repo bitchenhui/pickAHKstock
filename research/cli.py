@@ -387,7 +387,8 @@ def cmd_portfolio(args: argparse.Namespace) -> int:
                   f"{base['max_drawdown']:>7}%")
         print()
     result = run_portfolio_test(periods=periods, threshold=args.threshold,
-                                min_amount=args.min_amount, config=config)
+                                min_amount=args.min_amount, config=config,
+                                market_baseline=args.market_baseline)
     if "error" in result:
         print(result["error"])
         return 1
@@ -400,7 +401,11 @@ def cmd_portfolio(args: argparse.Namespace) -> int:
     header = (f"{'组合':>12s} {'交易':>4s} {'总收益':>8s} {'最差回撤':>8s} {'现金占比':>8s} {'胜率':>6s} "
               f"{'费用':>9s} {'覆盖率':>7s} {'选中中位':>9s} {'全池中位':>9s}")
     print(header)
-    for label, item in (("强预告组合", event), ("随机基线组合", base)):
+    rows = [("强预告组合", event), ("池内随机基线", base)]
+    market = result.get("market_baseline")
+    if market:
+        rows.append(("全市场随机基线", market))
+    for label, item in rows:
         print(f"{label:>12s} {item['trades']:>4d} {item['total_return']:>7}% {item['max_drawdown']:>7}% "
               f"{item['cash_ratio']:>7}% {item['win_rate']:>5}% {item['fee_total']:>9,.0f} "
               f"{item['coverage']:>6}% {str(item['selection_median']):>9s} {str(item['pool_median']):>9s}")
@@ -408,6 +413,8 @@ def cmd_portfolio(args: argparse.Namespace) -> int:
         print(f"\n同期沪深300：{index_return * 100:+.2f}%")
     print(f"因整手或资金买不到的次数：强预告 {event['skipped_unaffordable']}｜"
           f"基线 {base['skipped_unaffordable']}")
+    print("\n两条基线含义不同：**池内随机**是「发了预告但变动不达标」的公司，那批本身"
+          "就是坏消息集合；**全市场随机**才是「有没有 alpha」该问的基线。")
     print("\n「覆盖率」= 买到的候选 / 候选总数（受最多持 5 只与资金约束限制）；"
           "「选中中位」= 买到的那些的持有期收益中位数，「全池中位」= 全体候选的中位数——"
           "两者的差才是「挑得准不准」。「现金占比」= 平均闲置现金占本金，小资金的真实约束会体现在这里。")
@@ -863,6 +870,8 @@ def main(argv: list[str] | None = None) -> int:
     p_pf.add_argument("--no-drawdown-rule", action="store_true", help="不启用回撤触发的停止新增")
     p_pf.add_argument("--force-exit", action="store_true", help="触及回撤边界时强制平仓")
     p_pf.add_argument("--per-period", action="store_true", help="附分期拆解（每期独立起算）")
+    p_pf.add_argument("--market-baseline", action="store_true",
+                      help="加一条全市场随机基线（当期没发预告的 A 股随机抽）")
     p_pf.set_defaults(func=cmd_portfolio)
 
     p_acc = sub.add_parser("account", help="账户层：查看账户状态或给出账户级动作")
