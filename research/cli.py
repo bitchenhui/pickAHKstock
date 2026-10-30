@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import json
 import sys
 from datetime import date
@@ -413,6 +414,16 @@ def cmd_portfolio(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_backtest_report(args: argparse.Namespace) -> int:
+    """定期回测报告：跑八期事件研究 + 组合层 + 分期拆解。"""
+    import runpy
+
+    script = Path(__file__).resolve().parent.parent / "scripts" / "backtest_report.py"
+    argv = ["backtest_report.py"] + (["--append"] if args.append else [])
+    runpy.run_path(str(script), run_name="__main__")
+    return 0
+
+
 def cmd_card_snapshot(args: argparse.Namespace) -> int:
     """给所有卡片打快照——卡片检验集的起点。
 
@@ -467,9 +478,10 @@ def cmd_card_score(args: argparse.Namespace) -> int:
     print(f"快照 {len(result['rows'])} 个（快照日 {min(s.day for s in snapshots)} 起）\n")
     print(f"{'状态':>8s} {'n':>4s} {'可评':>4s} {'60日中位':>9s} {'60日胜率':>9s}")
     for status, item in result["summary"].items():
-        median = "—" if item["median_60"] is None else f"{item['median_60']}%"
-        win = "—" if item["win_rate_60"] is None else f"{item['win_rate_60']}%"
-        print(f"{status:>8s} {item['n']:>4d} {item['scored']:>4d} {median:>9s} {win:>9s}")
+        median = "—" if item.get("median_60") is None else f"{item['median_60']}%"
+        win = "—" if item.get("win_rate_60") is None else f"{item['win_rate_60']}%"
+        scored = item.get("scored_60", 0)
+        print(f"{status:>8s} {item['n']:>4d} {scored:>4d} {median:>9s} {win:>9s}")
     pending = [r for r in result["rows"] if r["return_60"] is None]
     if pending:
         print(f"\n尚有 {len(pending)} 个快照未满 60 个交易日——检验集还没长成。"
@@ -623,6 +635,10 @@ def main(argv: list[str] | None = None) -> int:
     p_fin.add_argument("--periods", type=int, default=8, help="保留最近几个报告期")
     p_fin.add_argument("--quarter-periods", type=int, default=8, help="保留最近几个单季度")
     p_fin.set_defaults(func=cmd_financials)
+
+    p_rep = sub.add_parser("backtest-report", help="生成定期回测报告（--append 追加进日志）")
+    p_rep.add_argument("--append", action="store_true")
+    p_rep.set_defaults(func=cmd_backtest_report)
 
     p_snap = sub.add_parser("card-snapshot", help="给所有卡片打快照（卡片检验集的起点）")
     p_snap.set_defaults(func=cmd_card_snapshot)

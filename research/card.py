@@ -137,6 +137,30 @@ class FinancialTrack:
 
 
 @dataclass
+class Judgment:
+    """卡房里的一条可核对判断。
+
+    散文里的数字没法回测。把关键判断结构化记下来（说了什么、数值多少、
+    哪个期间、依据什么、什么时候核对的），以后才能回答两个问题：
+    - 我当时说的数字和后来披露的对不对
+    - 标记为「降级」的那些，后来是不是真的跑输
+    """
+
+    id: str
+    text: str                      # 一句话结论
+    metric: str = ""               # 指标名，便于核对
+    value: float | None = None     # 数值
+    unit: str = ""                 # 单位
+    period: str = ""               # 期间，如 2026Q3 / 2026H1
+    basis: str = ""                # 依据（哪份文件或哪个接口）
+    checked: str = ""              # 核对日期
+    confidence: str = "中"         # 高 / 中 / 低
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
 class Card:
     market: str
     code: str
@@ -151,6 +175,7 @@ class Card:
     market_context: dict = field(default_factory=dict)
     financials: FinancialTrack = field(default_factory=FinancialTrack)
     catalysts: list[Catalyst] = field(default_factory=list)
+    judgments: list[Judgment] = field(default_factory=list)
     risks: list[Risk] = field(default_factory=list)
     provenance: dict = field(default_factory=dict)   # 数据来源与快照哈希
     account_checks: list[AccountCheck] = field(default_factory=list)
@@ -202,6 +227,7 @@ class Card:
         data["counter"] = CounterCase(**data.get("counter", {}))
         data["financials"] = FinancialTrack(**data.get("financials", {}))
         data["catalysts"] = [Catalyst(**c) for c in data.get("catalysts", [])]
+        data["judgments"] = [Judgment(**j) for j in data.get("judgments", [])]
         data["risks"] = [Risk(**r) for r in data.get("risks", [])]
         data["account_checks"] = [AccountCheck(**c) for c in data.get("account_checks", [])]
         data["log"] = [LogEntry(**l) for l in data.get("log", [])]

@@ -119,6 +119,13 @@ def render_markdown(card: Card) -> str:
     lines += ["", "## 账户检查"]
     lines += [f"- {c.name}：{c.result} {c.note} {c.source}".rstrip()
               for c in card.account_checks] or ["- （未填写）"]
+    if card.judgments:
+        lines += ["", "## 结构化判断（可回溯核对）"]
+        for judgment in card.judgments:
+            value = "—" if judgment.value is None else f"{judgment.value:g} {judgment.unit}".strip()
+            lines.append(f"- **{judgment.id}** {judgment.text}")
+            lines.append(f"  - 指标 {judgment.metric}｜数值 {value}｜期间 {judgment.period}"
+                         f"｜依据 {judgment.basis}｜核对 {judgment.checked}｜置信 {judgment.confidence}")
     track = card.financials
     lines += ["", "## 财务轨迹"]
     lines.append(f"- 路径：**{track.path}**　来源：{track.source or '（未取得）'}")

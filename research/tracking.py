@@ -114,13 +114,16 @@ def score(snapshots: list[Snapshot], price_series: dict[str, list[dict]],
         groups.setdefault(row.status, []).append(row)
     summary = {}
     for status, items in groups.items():
-        values = [getattr(item, "return_60") for item in items
-                  if getattr(item, "return_60") is not None]
-        summary[status] = {
-            "n": len(items),
-            "scored": len(values),
-            "median_60": None if not values else round(sorted(values)[len(values) // 2] * 100, 2),
-            "win_rate_60": None if not values else
-            round(sum(1 for v in values if v > 0) / len(values) * 100, 1),
-        }
+        entry = {"n": len(items)}
+        for hold in holds:
+            values = [getattr(item, f"return_{hold}") for item in items
+                      if getattr(item, f"return_{hold}") is not None]
+            values = [v for v in values if v is not None]
+            entry[f"scored_{hold}"] = len(values)
+            entry[f"median_{hold}"] = (None if not values
+                                       else round(sorted(values)[len(values) // 2] * 100, 2))
+            entry[f"win_rate_{hold}"] = (None if not values
+                                         else round(sum(1 for v in values if v > 0)
+                                                    / len(values) * 100, 1))
+        summary[status] = entry
     return {"rows": [r.to_dict() for r in rows], "summary": summary}
