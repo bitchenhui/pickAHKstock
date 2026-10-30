@@ -14,14 +14,14 @@ from __future__ import annotations
 import argparse
 import statistics
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from research.backtest import (_compare, _prepare, forecasts_raw,  # noqa: E402
-                               price_coverage, primary_rows)
+                               prefetch_prices, price_coverage, primary_rows)
 from research.portfolio import PortfolioConfig, run_portfolio_test  # noqa: E402
 
 PERIODS = ("2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
@@ -47,9 +47,20 @@ def event_study() -> tuple[list[str], dict]:
             lines.append(f"| {period} | （数据缺失） | | | | |")
             continue
         primary = primary_rows(raw)
+        # 先并行把这一期需要的行情预取回来。串行取两千只股票要几小时，
+        # 并行（且限流友好的并发数）十几分钟就够。
+        codes = [str(row.get("SECURITY_CODE") or "").strip() for row in primary]
+        notices = [str(row.get("NOTICE_DATE") or "")[:10] for row in primary
+                   if str(row.get("NOTICE_DATE") or "")[:10]]
+        if notices:
+            window_start = date.fromisoformat(min(notices)) - timedelta(days=40)
+            window_end = date.fromisoformat(max(notices)) + timedelta(days=int(max(HOLDS) * 2.2) + 30)
+            got = prefetch_prices(codes, window_start, window_end)
+            lines.append(f"- {period}：池 {len(primary)} 家，预取行情 {got} 只"
+                         f"（窗口 {window_start} → {window_end}）")
         for hold in HOLDS:
-            # 取价只做一次：门槛不影响行情需求，重复取价只是白等
-            prepared, _, index = _prepare(primary, (hold,), SAMPLE, 20261029)
+            # 取价只做一次：门槛与持有期都不改变行情需求，重复取价只是白等
+            prepared, _, index = _prepare(primary, HOLDS, SAMPLE, 20261029)
             have, total = price_coverage(prepared)
             for threshold in THRESHOLDS:
                 stats, excess = _compare(prepared, threshold, hold, index)

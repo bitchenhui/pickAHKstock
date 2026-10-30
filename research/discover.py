@@ -342,12 +342,17 @@ def annotate_resonance(candidates: list[Candidate], rows: list[dict],
 
     if not candidates:
         return
-    try:
-        pairs = [(str(row.get("SECURITY_CODE") or "").strip(),
-                  float(row.get("ADD_AMP_LOWER")))
-                 for row in primary_rows(rows)
-                 if row.get("ADD_AMP_LOWER") is not None]
-    except (TypeError, ValueError):
+    pairs = []
+    for row in primary_rows(rows):
+        code = str(row.get("SECURITY_CODE") or "").strip()
+        raw = row.get("ADD_AMP_LOWER")
+        if not code or raw is None:
+            continue
+        try:
+            pairs.append((code, float(raw)))
+        except (TypeError, ValueError):
+            continue
+    if not pairs:
         return
     for candidate in candidates:
         try:

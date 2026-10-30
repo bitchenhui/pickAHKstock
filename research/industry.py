@@ -9,14 +9,17 @@
   选谁的区别变小，而且行业一旦反转，所有人一起跌
 
 数据口径（都是点对点可核对的）：
-- 行业分类：申万一级 / 申万二级（成分股接口，全市场约 5000 只）
+- 行业分类：申万一级 / 申万二级（成分股接口，全市场 5221 只）
 - 预告池：东方财富业绩预告按报告期取（与回测、发现层同一批数据同一口径）
+
+**比的是方向，不是幅度。** 池子里 85% 的行「|变动| ≥ 30%」——因为预告本来就只
+对大幅变动的公司披露，涨幅小的公司压根不在池子里，拿这个当指标等于没筛。
+真正能区分的是**业绩变动方向是否与同业一致**：同向说明行业在同向变（共振），
+逆向说明它是公司自己的事。
 
 分母的选择很关键：A 股业绩预告只对大幅变动者强制披露，所以「发预告」这件事
 本身已经是一次自选择。共振的分母用的是**同行业里发了预告的公司数**，不是行业
 全部公司数——否则会把「行业里大部分公司压根不需要发预告」错记成「行业很冷清」。
-
-判断用同号口径：一家发跌预告的公司，和同行业一起涨的公司不构成共振。
 """
 
 from __future__ import annotations
@@ -32,9 +35,14 @@ CACHE_DIR = Path.home() / ".cache" / "pickahkstock" / "industry"
 LEVELS = {"first": "一级", "second": "二级"}
 # 行业样本少于这个数就说不了话（一家公司没有「共振」可言）
 MIN_PEERS = 3
-# 共振/独到的判定倍数
-RESONANCE_LIFT = 2.0
-IDIOSYNCRATIC_LIFT = 0.5
+# 判定阈值：同向率达到这个比例就算行业共振
+RESONANCE_RATE = 0.85
+# 相对倍数（行业同向率 / 全市场同向率）达到这个值也算共振
+RESONANCE_LIFT = 1.5
+# 相对倍数低于这个值，且同向率不高，就是公司自己的事
+IDIOSYNCRATIC_LIFT = 0.67
+# 同向率这么低时，即使倍数不低也按「公司特有」处理
+LOW_RATE = 0.5
 
 
 class IndustryError(RuntimeError):
@@ -175,15 +183,15 @@ def _classify(rate: float, lift: float, peers: int, same_sign: int) -> tuple[str
         return ("单点不可辨", f"同行业只有 {peers} 家发预告，说不清是共振还是特有")
     if same_sign == 0:
         return ("公司特有", "同行业没有一家业绩变动方向相同，这是它自己的事")
-    if rate >= 0.85:
+    if rate >= RESONANCE_RATE:
         return ("行业共振", f"同行业 {same_sign}/{peers} 家同向，几乎一致，"
                             "更像行业 beta 而不是公司特有")
-    if rate <= 0.5 and lift <= 1.0:
+    if rate <= LOW_RATE and lift <= 1.0:
         return ("公司特有", f"同行业只有 {same_sign}/{peers} 家同向，明显弱于全市场平均")
-    if lift >= 1.5:
+    if lift >= RESONANCE_LIFT:
         return ("行业共振", f"同行业同向率 {rate * 100:.0f}%，明显高于全市场平均，"
                             "更像行业 beta")
-    if lift <= 0.67:
+    if lift <= IDIOSYNCRATIC_LIFT:
         return ("公司特有", f"同行业同向率 {rate * 100:.0f}%，明显低于全市场平均")
     return ("介于两者之间", f"同行业 {same_sign}/{peers} 家同向，共振度居中")
 

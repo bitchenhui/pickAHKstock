@@ -302,6 +302,37 @@ def _fetch_ths(code: str, start: date, end: date) -> list[dict]:
 _TENCENT_BLOCKED = False
 
 
+def prefetch_prices(codes, start: date, end: date, workers: int = 6) -> int:
+    """并行预取日线。串行取几千只股票要几小时，并行后十几分钟。
+
+    行情源都有限流，所以并发数要克制（默认 6），并且每个 worker 之间有间隔。
+    返回成功取到行情的代码数。
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    codes = sorted({str(code).strip() for code in codes if str(code).strip()})
+    if not codes:
+        return 0
+    ok = 0
+    lock = __import__("threading").Lock()
+
+    def one(code: str) -> bool:
+        nonlocal ok
+        try:
+            bars = load_prices(code, start, end)
+        except Exception:
+            return False
+        time.sleep(0.05)
+        with lock:
+            if bars:
+                ok += 1
+        return bool(bars)
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(one, codes))
+    return ok
+
+
 def _fetch_tencent(symbol: str, start: date, end: date, count: int):
     """腾讯前复权日线。被 WAF 拦时返回 None（交给东财兜底），不返回空列表。"""
     global _TENCENT_BLOCKED
