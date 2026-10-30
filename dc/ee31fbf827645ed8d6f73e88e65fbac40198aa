@@ -1,0 +1,21 @@
+cards/A_603991.json
+  s_2be9ca1f77025c::t_b89ac9f240d3a9 6
+cards/A_605358.json
+  s_2be9ca1f77025c::t_bb0902c8b1a7f0 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dcee31fbf827645ed8d6f73e88e65fbac40198aa",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
