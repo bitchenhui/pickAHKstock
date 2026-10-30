@@ -1,0 +1,25 @@
+docs/backtest-v3.md
+  s_2be9ca1f77025c::t_2b4ede383abb97 79-120,129-131,133-137,139
+research/discover.py
+  s_2be9ca1f77025c::t_e4a66c219281f4 10-11,45-46,76,128-130,180-187,202-203,206-217,222-223,234-236,247-258
+research/portfolio.py
+  s_2be9ca1f77025c::t_52931cb7a57d66 319-320,351-363
+tests/test_discover_filters.py
+  s_2be9ca1f77025c::t_aead31e6bdee2e 106-173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "37ac67063dec1ed2af44f3b1cbb754b87a6c4bfd",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
