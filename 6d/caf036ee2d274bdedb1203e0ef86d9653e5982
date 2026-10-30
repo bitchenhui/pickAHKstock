@@ -1,0 +1,25 @@
+research/backtest.py
+  s_2be9ca1f77025c::t_74d6ebc8e1c0ce 226,230-231,268-281,284,288,291-292
+research/cli.py
+  s_2be9ca1f77025c::t_9404321f12f232 47-48
+research/discover.py
+  s_2be9ca1f77025c::t_5f55905e693419 227-230
+scripts/prefetch_prices.py
+  s_2be9ca1f77025c::t_a162779ffc69b0 1-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6dcaf036ee2d274bdedb1203e0ef86d9653e5982",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
