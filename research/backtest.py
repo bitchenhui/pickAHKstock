@@ -212,6 +212,11 @@ def load_prices(code: str, start: date, end: date, count: int = 400) -> list[dic
     回测报告会把行情覆盖率一起打出来。
     """
     global _PRICE_MEM
+    # 未来日期取不到东西（分年文件只有到当年），夹到今天，
+    # 否则每年都会去下载尚不存在的年份文件，白等一轮超时。
+    end = min(end, date.today())
+    if end < start:
+        return []
     memory = _PRICE_MEM.get(code)
     if memory and _covers(memory, start, end):
         return memory
@@ -231,12 +236,12 @@ def load_prices(code: str, start: date, end: date, count: int = 400) -> list[dic
 
     bars = _fetch_tencent(symbol_for(code), start, end, count)
     if bars is None:
-        bars = _fetch_ths(code, start, end, skip_years=_covered_years(cached))
+        bars = _fetch_ths(code, start, end, skip_years=_covered_years(cached, start, end))
     merged = _merge(cached, bars)
     if not _covers(merged, start, end):
         # 腾讯只回一部分（窗口太长或区间怪），再用同花顺补齐
         merged = _merge(merged, _fetch_ths(code, start, end,
-                                           skip_years=_covered_years(merged)))
+                                           skip_years=_covered_years(merged, start, end)))
     merged = [bar for bar in merged if start.isoformat() <= bar["day"] <= end.isoformat()]
     if merged:
         cache_file.write_text(json.dumps(merged, ensure_ascii=False), encoding="utf-8")
@@ -274,15 +279,25 @@ def _merge(old: list[dict], new: list[dict]) -> list[dict]:
 THS_LINE = "https://d.10jqka.com.cn/v6/line/hs_{code}/01/{year}.js"
 
 
-def _covered_years(bars: list[dict]) -> set:
-    """缓存里已经完整覆盖的年份——这些年份文件不用再下一次。"""
+def _covered_years(bars: list[dict], start: date, end: date) -> set:
+    """缓存里已经覆盖到**所需区间**的年份——这些年份文件不用再下一次。
+
+    注意不能只看「整年都在缓存里」：窗口常常从三月份开始，
+    那么 2026 这一年的文件虽然只下了一半，也已经够用，再下一次就是白花时间。
+    """
     covered = set()
     if not bars:
         return covered
     days = [bar["day"] for bar in bars]
     first, last = min(days), max(days)
-    for year in range(int(first[:4]), int(last[:4]) + 1):
-        if first <= f"{year}-01-01" and last >= f"{year}-12-31":
+    # 留 7 天余量：缓存的起点是「起始日之后的第一个交易日」，
+    # 卡得太死会每次都判定成没覆盖，于是把同一年的文件反复下一遍。
+    slack = timedelta(days=7)
+    for year in range(start.year, end.year + 1):
+        need_start = max(start, date(year, 1, 1))
+        need_end = min(end, date(year, 12, 31))
+        if (date.fromisoformat(first) <= need_start + slack
+                and date.fromisoformat(last) >= need_end - slack):
             covered.add(year)
     return covered
 
@@ -290,7 +305,7 @@ def _covered_years(bars: list[dict]) -> set:
 def _fetch_ths(code: str, start: date, end: date, skip_years: set | None = None) -> list[dict]:
     """同花顺分年日线（01 = 前复权）。腾讯被限流时的兜底源。
 
-    一次取一年文件，跨年区间要取多个文件；已经缓存过的年份跳过（skip_years）。
+    一次取一年文件，跨年区间要取多个文件；已经缓存够用的年份跳过（skip_years）。
     """
     import re
 
@@ -553,14 +568,36 @@ def _bootstrap_median_diff(strong: list, control: list, rounds: int = 2000,
 
     小样本下中位数差的噪声极大——不给区间的话，一个 −7.6pct 的差很容易被
     读成结论，其实可能只是抽样噪声。
+
+    池子修好之后对照组动辄上千家，纯 Python 抽 2000 轮要几十秒，
+    这里用 numpy 向量化（同样的重抽样次数，秒级完成）。
     """
     if len(strong) < 5 or len(control) < 5:
         return None, None
+    try:
+        import numpy as np
+    except ImportError:
+        return _bootstrap_median_diff_py(strong, control, rounds, seed)
+    rng = np.random.default_rng(seed)
+    a = np.asarray(strong, dtype=float)
+    b = np.asarray(control, dtype=float)
+    idx_a = rng.integers(0, a.size, size=(rounds, a.size))
+    idx_b = rng.integers(0, b.size, size=(rounds, b.size))
+    diffs = np.median(a[idx_a], axis=1) - np.median(b[idx_b], axis=1)
+    diffs.sort()
+    low = diffs[int(len(diffs) * 0.025)]
+    high = diffs[int(len(diffs) * 0.975)]
+    return round(float(low) * 100, 2), round(float(high) * 100, 2)
+
+
+def _bootstrap_median_diff_py(strong: list, control: list, rounds: int,
+                               seed: int) -> tuple[float | None, float | None]:
+    """没有 numpy 时的兜底实现。"""
     rng = random.Random(seed)
     diffs: list[float] = []
     for _ in range(rounds):
-        a = [strong[rng.randrange(len(strong))] for _ in strong]
-        b = [control[rng.randrange(len(control))] for _ in control]
+        a = rng.choices(strong, k=len(strong))
+        b = rng.choices(control, k=len(control))
         diffs.append(statistics.median(a) - statistics.median(b))
     diffs.sort()
     low = diffs[int(len(diffs) * 0.025)]
@@ -667,9 +704,11 @@ def run_backtest(report_period: str = "2026-06-30", hold_days: int = HOLD_DAYS,
         result.notes.append(f"已按「公告前 {runup_filter * 100:.0f}% 涨幅」过滤，"
                             f"被过滤的 {stats.get('强预告但公告前已涨透', {}).get('n', 0)} 只单列一组")
     result.notes.append(
-        "局限：对照组是同报告期非强预告而非「完全无预告」（缺全市场代码池）；"
-        "池子按主板代码粗筛（前视）、退市与停牌样本缺失、未计费用与滑点、A 股 T+1、"
-        "业绩预告本身有选择性")
+        "局限：对照组是同报告期非强预告——这批公司**本身就是坏消息集合**"
+        "（小幅预减、首亏、续亏居多），拿它当基线测的是「挑强的比挑不强的强多少」，"
+        "不是「跟着预告买是否跑赢市场」；真市场基线见 scripts/market_baseline.py。"
+        "另外池子按主板代码粗筛（前视）、退市与停牌样本缺失、未计费用与滑点、"
+        "A 股 T+1、业绩预告本身有选择性")
     return result
 
 
