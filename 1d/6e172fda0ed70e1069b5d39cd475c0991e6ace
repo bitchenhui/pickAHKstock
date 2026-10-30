@@ -1,0 +1,27 @@
+cards/HK_03323.json
+  s_2be9ca1f77025c::t_ab437a5a5fb0b0 270,350-351,374
+cards/HK_09696.json
+  s_2be9ca1f77025c::t_85a0b0fbef96fd 269,343-344,367
+docs/backtest-v4.md
+  s_2be9ca1f77025c::t_df2d6da32d7ac9 1-78
+research/backtest.py
+  s_2be9ca1f77025c::t_a1b6bc12500294 215-219,239,244,282-287,293-300,308,571-573,577-595,599-600,707-711
+scripts/market_baseline.py
+  s_2be9ca1f77025c::t_619725b3c66af5 1-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1d6e172fda0ed70e1069b5d39cd475c0991e6ace",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
