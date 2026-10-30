@@ -1,0 +1,43 @@
+README.md
+  s_2be9ca1f77025c::t_cf1be4c2557968 103,143-147
+cards/A_000626.json
+  s_2be9ca1f77025c::t_30e9a88872f4f8 574-595,613-689,786
+cards/A_002044.json
+  s_2be9ca1f77025c::t_bb079a80b79ef5 589-610,668-744,836
+cards/A_002132.json
+  s_2be9ca1f77025c::t_043f86e27e4b6e 568-589,607-683,779
+cards/A_603991.json
+  s_2be9ca1f77025c::t_4fe46f2f12dd2d 654-675,693-769,885
+cards/A_605358.json
+  s_2be9ca1f77025c::t_29fef44201ef94 581-602,660-736,834
+cards/HK_03323.json
+  s_2be9ca1f77025c::t_586eba5dbebd20 198-208,227-269,348-349,372
+cards/HK_09696.json
+  s_2be9ca1f77025c::t_4d96709d4cabd0 197-207,226-268,341-342,365
+research/analysts.py
+  s_2be9ca1f77025c::t_053f42cc17c646 23,110-178
+research/card.py
+  s_2be9ca1f77025c::t_401da8d4a76650 180-181
+research/context.py
+  s_2be9ca1f77025c::t_e1b3ab7bb7e8fd 1-203
+research/workflow.py
+  s_2be9ca1f77025c::t_784cdf1a2f7856 139-162
+tests/test_context.py
+  s_2be9ca1f77025c::t_1a7bc14169f643 1-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "79f8f76cb84ad49e88d2702d185e99e5040be179",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
