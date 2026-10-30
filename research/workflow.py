@@ -72,11 +72,29 @@ def scaffold(candidate: Candidate, source: str = "发现层") -> Card:
         market_context={
             "price": candidate.price, "turnover": candidate.turnover,
             "market_cap": candidate.market_cap, "pe": candidate.pe, "pb": candidate.pb,
-            "as_of": candidate.as_of, "role": "市场确认与执行参考，不是业务证据"},
+            "as_of": candidate.as_of, "role": "市场确认与执行参考，不是业务证据",
+            "industry": candidate.industry, "resonance": candidate.resonance,
+            "resonance_peers": candidate.resonance_peers,
+            "resonance_same_sign": candidate.resonance_same_sign},
         account_checks=[],
         gaps=list(candidate.notes),
         log=[LogEntry(at=today, event=f"由{source}生成草稿", from_status="", to_status="观察")],
         created=today, updated=today)
+    if candidate.resonance:
+        # 发现层已经算过的行业共振，结论要带进卡片——否则这一层证据在交接处丢了
+        card.evidence.append(Evidence(
+            id="E2",
+            claim=f"同业共振（{candidate.resonance}）：{candidate.industry} 行业同报告期 "
+                  f"{candidate.resonance_peers} 家发预告，其中 {candidate.resonance_same_sign} 家"
+                  "与本公司业绩变动同向",
+            kind="第三方数据", publisher="申万二级行业成分股 + 东方财富业绩预告",
+            title=f"行业共振判定：{candidate.resonance}",
+            published=candidate.notice_date.isoformat() if candidate.notice_date else "",
+            url="", observed=today,
+            alternative="方向一致不等于因果：可能同受行业景气、补贴或订单影响",
+            next_check="行业景气与公司单独因素要分开验证，别把行业给的当成公司挣的",
+            status="已核实" if candidate.resonance_peers >= 3 else "待核实",
+            note="行业共振高说明这个「好」是行业给的；低才说明是公司自己的事"))
     return card
 
 

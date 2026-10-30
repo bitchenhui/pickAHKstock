@@ -372,10 +372,11 @@ def _fetch_tencent(symbol: str, start: date, end: date, count: int):
     bars = block.get("qfqday") or block.get("day") or []
     out = []
     for bar in bars:
-        if len(bar) < 6:
+        if len(bar) < 5:
             continue
         try:
-            out.append([bar[0], bar[1], bar[2], bar[3], bar[4]])
+            out.append({"day": str(bar[0]), "open": float(bar[1]), "close": float(bar[2]),
+                        "high": float(bar[3]), "low": float(bar[4])})
         except (TypeError, ValueError):
             continue
     return out
