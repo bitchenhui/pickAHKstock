@@ -50,6 +50,10 @@ class Recommendation:
                 "unaffordable": self.candidate.unaffordable,
                 "one_off": self.candidate.one_off,
                 "small_amount": self.candidate.small_amount,
+                "industry": self.candidate.industry,
+                "resonance": self.candidate.resonance,
+                "resonance_peers": self.candidate.resonance_peers,
+                "resonance_same_sign": self.candidate.resonance_same_sign,
                 "coverage": self.coverage, "eps_forecast": self.eps_forecast,
                 "latest_rating": self.latest_rating,
                 "pdf_url": self.candidate.pdf_url,
@@ -77,6 +81,11 @@ def _next_actions(candidate: Candidate, coverage: int) -> list[str]:
     if candidate.unaffordable:
         actions.append(f"一手约 {candidate.price * 100:,.0f} 元占本金 "
                        f"{candidate.lot_cost_pct:.1%}，超过单只上限：当前账户规模建不了仓")
+    if candidate.resonance == "行业共振":
+        actions.append("同行业集体改善：这个「好」多半是行业给的，"
+                       "先问自己若行业反转还剩多少 alpha")
+    elif candidate.resonance == "公司特有":
+        actions.append("同行业没有同向变化：若属实，这是公司自己的经营变化，重点追这条")
     if coverage == 0:
         actions.append("无机构覆盖：缺少第三方预期这条证据，需自行补")
     else:
@@ -113,6 +122,10 @@ def render(recommendations: list[Recommendation]) -> str:
                      f"｜价 {candidate.price:.2f}"
                      f"｜覆盖 {item.coverage} 家"
                      f"｜{item.latest_rating or '—'}")
+        if candidate.industry:
+            lines.append(f"   行业共振：{candidate.industry}｜{candidate.resonance or '—'}"
+                         f"（同行业 {candidate.resonance_peers} 家发预告，"
+                         f"同向 {candidate.resonance_same_sign} 家）")
         if item.eps_forecast:
             row = item.eps_forecast[0]
             mean = row.get("均值")

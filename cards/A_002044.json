@@ -608,6 +608,17 @@
       "basis": "东方财富 估值比较（同业）",
       "checked": "2026-10-29",
       "confidence": "中"
+    },
+    {
+      "id": "J7",
+      "text": "2026-09-30 同行业 1 家发预告，其中 1 家与本公司业绩变动同向（同向率 100%，全市场 85%，相对倍数 1.18）——判定：单点不可辨；2026-06-30 该行业 16 家发预告，改善率 62%（全市场 57%），相对倍数 1.09",
+      "metric": "行业同向率",
+      "value": 100.0,
+      "unit": "%",
+      "period": "2026-09-30",
+      "basis": "申万二级行业成分股 + 东方财富业绩预告",
+      "checked": "2026-10-30",
+      "confidence": "低"
     }
   ],
   "expectations": {
@@ -742,6 +753,35 @@
     "source": "东方财富 A股估值比较",
     "notes": []
   },
+  "industry_context": {
+    "code": "002044",
+    "name": "美年健康",
+    "industry": "医疗服务",
+    "level": "second",
+    "report_period": "2026-09-30",
+    "industry_members": 51,
+    "peers_with_forecast": 1,
+    "peers_same_sign": 1,
+    "peers_strong": 1,
+    "peers_up": 1,
+    "peers_down": 0,
+    "same_sign_rate": 1.0,
+    "market_same_sign_rate": 0.8469387755102041,
+    "lift": 1.180722891566265,
+    "penetration": 0.0196078431372549,
+    "market_penetration": 0.0375407010151312,
+    "median_change_industry": 75.5,
+    "median_change_market": 80.3,
+    "same_sign_peers": [],
+    "background_period": "2026-06-30",
+    "background_up_rate": 0.625,
+    "background_market_up_rate": 0.5715778474399164,
+    "background_lift": 1.0934643510054847,
+    "background_note": "2026-06-30 该行业 16 家发预告，改善率 62%（全市场 57%），相对倍数 1.09",
+    "verdict": "单点不可辨",
+    "note": "同行业只有 1 家发预告，说不清是共振还是特有",
+    "source": "申万二级行业成分股 + 东方财富业绩预告"
+  },
   "risks": [
     {
       "category": "需求",
@@ -833,6 +873,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-10-29",
+  "updated": "2026-10-30",
   "derived_level": "证据充分"
 }

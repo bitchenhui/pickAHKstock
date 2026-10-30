@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
 from .events import (Announcement, Forecast, FORECAST_TITLES, fetch_announcements,
-                     fetch_forecasts, metric_rank)
+                     fetch_forecast_rows, metric_rank, rows_to_forecasts)
 from .quotes import Snapshot, fetch_snapshots
 
 MAIN_BOARD = ("00", "60")
@@ -57,6 +57,11 @@ class Candidate:
     pe: float | None = None
     pb: float | None = None
     as_of: str = ""
+    industry: str = ""                 # 申万二级行业
+    resonance: str = ""                # 行业共振 / 公司特有 / 单点不可辨
+    resonance_note: str = ""           # 一句话说明
+    resonance_peers: int = 0           # 同行业发预告家数
+    resonance_same_sign: int = 0       # 其中与本公司同向的
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -77,6 +82,10 @@ class Candidate:
             "notice_date": self.notice_date.isoformat() if self.notice_date else None,
             "reason": self.reason, "source_url": self.source_url,
             "pdf_url": self.pdf_url, "pdf_title": self.pdf_title,
+            "industry": self.industry, "resonance": self.resonance,
+            "resonance_note": self.resonance_note,
+            "resonance_peers": self.resonance_peers,
+            "resonance_same_sign": self.resonance_same_sign,
             "price": self.price, "turnover": self.turnover, "market_cap": self.market_cap,
             "pe": self.pe, "pb": self.pb, "as_of": self.as_of, "notes": self.notes,
         }
@@ -254,7 +263,8 @@ def discover(report_period: str, since_days: int = 90, limit: int = 15,
              min_amount: float = MIN_FORECAST_AMOUNT, capital: float = 0.0,
              position_pct: float = 0.05) -> tuple[list[Candidate], dict]:
     today = date.today()
-    forecasts = fetch_forecasts(report_period)
+    rows = fetch_forecast_rows(report_period)
+    forecasts = rows_to_forecasts(rows, report_period)
     if not forecasts:
         raise DiscoveryError(f"{report_period} 没有取到业绩预告数据")
     codes = sorted({f.code for f in forecasts})
@@ -271,6 +281,7 @@ def discover(report_period: str, since_days: int = 90, limit: int = 15,
     candidates, stats = build_candidates(forecasts, snapshots, announcements,
                                          min_amount, capital, position_pct)
     stats["unaffordable"] = sum(1 for c in candidates if c.unaffordable)
+    annotate_resonance(candidates, rows, report_period)
     candidates = candidates[:limit]
     attach_documents(candidates, report_period)
     return candidates, stats
@@ -317,3 +328,37 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def annotate_resonance(candidates: list[Candidate], rows: list[dict],
+                       report_period: str) -> None:
+    """给候选标注行业共振：这是行业 beta，还是公司自己的事。
+
+    这一层直接回答 §30 的核心问题。共振高说明「变好」是行业给的，
+    选谁的区别变小，而且行业反转时一起跌；共振低才说明这是个股逻辑。
+    """
+    from .events import primary_rows
+    from .industry import resonance_from_pairs
+
+    if not candidates:
+        return
+    try:
+        pairs = [(str(row.get("SECURITY_CODE") or "").strip(),
+                  float(row.get("ADD_AMP_LOWER")))
+                 for row in primary_rows(rows)
+                 if row.get("ADD_AMP_LOWER") is not None]
+    except (TypeError, ValueError):
+        return
+    for candidate in candidates:
+        try:
+            res = resonance_from_pairs(candidate.code, pairs,
+                                       report_period=report_period,
+                                       name=candidate.name,
+                                       company_change=candidate.change_lower)
+        except Exception:
+            continue
+        candidate.industry = res.industry
+        candidate.resonance = res.verdict
+        candidate.resonance_note = res.note
+        candidate.resonance_peers = res.peers_with_forecast
+        candidate.resonance_same_sign = res.peers_same_sign

@@ -587,6 +587,17 @@
       "basis": "东方财富 估值比较（同业）",
       "checked": "2026-10-29",
       "confidence": "中"
+    },
+    {
+      "id": "J7",
+      "text": "2026-09-30 同行业 7 家发预告，其中 5 家与本公司业绩变动同向（同向率 71%，全市场 85%，相对倍数 0.84）——判定：介于两者之间；2026-06-30 该行业 53 家发预告，改善率 51%（全市场 57%），相对倍数 0.89",
+      "metric": "行业同向率",
+      "value": 71.4,
+      "unit": "%",
+      "period": "2026-09-30",
+      "basis": "申万二级行业成分股 + 东方财富业绩预告",
+      "checked": "2026-10-30",
+      "confidence": "中"
     }
   ],
   "expectations": {
@@ -680,6 +691,52 @@
     },
     "source": "东方财富 A股估值比较",
     "notes": []
+  },
+  "industry_context": {
+    "code": "002132",
+    "name": "恒星科技",
+    "industry": "通用设备",
+    "level": "second",
+    "report_period": "2026-09-30",
+    "industry_members": 220,
+    "peers_with_forecast": 7,
+    "peers_same_sign": 5,
+    "peers_strong": 6,
+    "peers_up": 5,
+    "peers_down": 2,
+    "same_sign_rate": 0.7142857142857143,
+    "market_same_sign_rate": 0.8469387755102041,
+    "lift": 0.8433734939759036,
+    "penetration": 0.031818181818181815,
+    "market_penetration": 0.0375407010151312,
+    "median_change_industry": 118.3,
+    "median_change_market": 80.3,
+    "same_sign_peers": [
+      {
+        "code": "688808",
+        "change": 1866.0
+      },
+      {
+        "code": "688257",
+        "change": 318.0
+      },
+      {
+        "code": "688059",
+        "change": 118.27
+      },
+      {
+        "code": "000811",
+        "change": 30.0
+      }
+    ],
+    "background_period": "2026-06-30",
+    "background_up_rate": 0.5094339622641509,
+    "background_market_up_rate": 0.5715778474399164,
+    "background_lift": 0.8912766030837157,
+    "background_note": "2026-06-30 该行业 53 家发预告，改善率 51%（全市场 57%），相对倍数 0.89",
+    "verdict": "介于两者之间",
+    "note": "同行业 5/7 家同向，共振度居中",
+    "source": "申万二级行业成分股 + 东方财富业绩预告"
   },
   "risks": [
     {
@@ -776,6 +833,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-10-29",
+  "updated": "2026-10-30",
   "derived_level": "证据充分"
 }

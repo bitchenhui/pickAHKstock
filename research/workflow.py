@@ -160,6 +160,28 @@ def render_markdown(card: Card) -> str:
         lines.append("- 远期 PE 基于分析师一致预期：把「分析师预期」换算成「市场为它付几倍」")
         for note in card.peers.get("notes") or []:
             lines.append(f"- ⚠ {note}")
+    if card.industry_context:
+        lines += ["", "## 同业共振（行业 beta 还是公司特有）"]
+        ctx = card.industry_context
+        lines.append(f"- 申万{'一级' if ctx.get('level') == 'first' else '二级'}行业："
+                     f"{ctx.get('industry') or '—'}（行业 {ctx.get('industry_members')} 家，"
+                     f"本报告期 {ctx.get('peers_with_forecast')} 家发预告）")
+        lines.append(f"- 同向 {ctx.get('peers_same_sign')} 家｜同向率 "
+                     f"{(ctx.get('same_sign_rate') or 0) * 100:.1f}%｜全市场同向率 "
+                     f"{(ctx.get('market_same_sign_rate') or 0) * 100:.1f}%"
+                     f"｜相对倍数 {ctx.get('lift'):.2f}"
+                     if ctx.get("lift") is not None else "- 同向率不可得")
+        lines.append(f"- 行业预告渗透率 {(ctx.get('penetration') or 0) * 100:.1f}%"
+                     f"｜全市场 {(ctx.get('market_penetration') or 0) * 100:.1f}%"
+                     f"｜行业同向幅度中位 {ctx.get('median_change_industry')}"
+                     f"／全市场 {ctx.get('median_change_market')}")
+        lines.append(f"- 判定：**{ctx.get('verdict') or '—'}**　{ctx.get('note') or ''}")
+        peers = ctx.get("same_sign_peers") or []
+        if peers:
+            lines.append("- 同向同业：" + "、".join(
+                f"{p.get('code')}({p.get('change'):+.0f}%)" for p in peers[:8]))
+        lines.append("- 口径：业绩预告只对大幅变动的公司强制披露，池内每家都已是一次自选择；"
+                     "这里比的是**方向是否一致**，不是幅度大小")
     if card.judgments:
         lines += ["", "## 结构化判断（可回溯核对）"]
         for judgment in card.judgments:

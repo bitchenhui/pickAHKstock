@@ -473,6 +473,61 @@ def cmd_expectations(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_industry(args: argparse.Namespace) -> int:
+    """同业共振：判断这是行业性变化还是公司自己的变化。
+
+    --map 只看某报告期全池子的行业共振地图；给了 --code 则算这只票的共振并写进卡片。
+    """
+    from datetime import date as _date
+
+    from .backtest import forecasts_by_report_period, primary_rows
+    from .industry import co_occurrence, resonance_report
+
+    period = _date.fromisoformat(args.period)
+    rows = primary_rows(forecasts_by_report_period(period))
+    if not rows:
+        print(f"{period} 报告期没有取到预告数据")
+        return 1
+
+    if args.map:
+        report = resonance_report(period, rows, threshold=args.threshold)
+        print(f"报告期 {period}｜预告池 {report['pool']} 家"
+              f"｜业绩改善 {report['up_pool']} 家（占 {report['market_up_rate']}%）"
+              f"｜全市场预告渗透率 {report['market_penetration']}%\n")
+        print("行业改善共振（相对倍数 = 行业改善率 / 全市场改善率）")
+        print(f"{'行业':<14}{'发预告':>6}{'行业家数':>8}{'改善':>6}{'恶化':>6}"
+              f"{'改善率%':>9}{'相对倍数':>9}{'渗透率%':>9}")
+        for item in report["industries"][:15]:
+            print(f"{item['industry']:<14}{item['with_forecast']:>6}{item['members']:>8}"
+                  f"{item['up']:>6}{item['down']:>6}{item['up_rate']:>9}"
+                  f"{item['lift']:>9}{item['penetration']:>9}")
+        print(f"\n口径：业绩预告只对大幅变动的公司强制披露，所以池子里的每一家都已是一次自选择；"
+              f"这里比较的是**方向是否一致**，不是幅度大小。"
+              f"来源：{report['source']}")
+        return 0
+
+    card = Card.load(args.market, args.code)
+    resonance = co_occurrence(card.code, rows, report_period=period.isoformat(),
+                              threshold=args.threshold, level=args.level, name=card.name)
+    card.industry_context = resonance.to_dict()
+    card.updated = date.today().isoformat()
+    card.save()
+    print(f"{card.name}（{card.market} {card.code}）同业共振已更新")
+    print(f"  报告期 {period}｜申万{ {'first': '一级', 'second': '二级'}[args.level] }行业：{resonance.industry or '—'}"
+          f"（行业 {resonance.industry_members} 家）")
+    print(f"  同行业发预告 {resonance.peers_with_forecast} 家，其中同向 "
+          f"{resonance.peers_same_sign} 家（改善 {resonance.peers_up}／恶化 {resonance.peers_down}）")
+    print(f"  同向率 {resonance.same_sign_rate * 100:.1f}%｜全市场同向率 "
+          f"{resonance.market_same_sign_rate * 100:.1f}%｜相对倍数 {resonance.lift:.2f}")
+    print(f"  行业预告渗透率 {resonance.penetration * 100:.1f}%｜全市场 {resonance.market_penetration * 100:.1f}%"
+          f"｜行业同向幅度中位 {resonance.median_change_industry}%／全市场 {resonance.median_change_market}%")
+    print(f"  判定：**{resonance.verdict}**　{resonance.note}")
+    if resonance.same_sign_peers:
+        print("  同向的同业：" + "、".join(
+            f"{p['code']}({p['change']:+.0f}%)" for p in resonance.same_sign_peers[:8]))
+    return 0
+
+
 def cmd_recommend(args: argparse.Namespace) -> int:
     """推荐清单：先看哪个、为什么、下一步做什么。"""
     from .analysts import fetch as fetch_expectations
@@ -739,6 +794,16 @@ def main(argv: list[str] | None = None) -> int:
     p_rec.add_argument("--position-pct", type=float, default=0.05, help="单只仓位上限")
     p_rec.add_argument("--no-analysts", action="store_true", help="不取分析师预期（更快）")
     p_rec.set_defaults(func=cmd_recommend)
+
+    p_ind = sub.add_parser("industry", help="同业共振：行业 beta 还是公司特有")
+    p_ind.add_argument("--map", action="store_true", help="看整个报告期的行业共振地图")
+    p_ind.add_argument("market", nargs="?", default="A")
+    p_ind.add_argument("code", nargs="?")
+    p_ind.add_argument("--period", default="2026-06-30", help="报告期")
+    p_ind.add_argument("--threshold", type=float, default=30.0, help="强预告门槛（%%）")
+    p_ind.add_argument("--level", choices=["first", "second"], default="second",
+                       help="行业层级：申万一级／二级")
+    p_ind.set_defaults(func=cmd_industry)
 
     p_rep = sub.add_parser("backtest-report", help="生成定期回测报告（--append 追加进日志）")
     p_rep.add_argument("--append", action="store_true")

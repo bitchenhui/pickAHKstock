@@ -181,61 +181,55 @@ def _clean(text: str) -> str:
 
 def fetch_forecast_rows(report_period: str, page_size: int = 500,
                         max_pages: int = 16) -> list[dict]:
-    """按**报告期**取业绩预告原始行（服务端过滤 + 分页 + 落盘缓存）。
+    """按**报告期**取业绩预告原始行（服务端过滤 + 切分取全 + 落盘缓存）。
 
     为什么必须服务端过滤：接口默认按公告日倒序，只取第一页就只覆盖最近
-    的一期预告，往期报告期会全部取空。回测模块（research/backtest.py）用的
-    是同一套取数，这里保持一致，两边口径才对得上。
-    """
-    import json
-    from pathlib import Path
+    的一期预告，往期报告期会全部取空。
 
-    cache_dir = Path.home() / ".cache" / "pickahkstock" / "forecasts"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_file = cache_dir / f"{report_period}.json"
-    if cache_file.exists():
-        try:
-            cached = json.loads(cache_file.read_text(encoding="utf-8"))
-            if cached:
-                return cached
-        except ValueError:
-            pass
-    rows: list[dict] = []
-    seen_pages: set[str] = set()
-    for page in range(1, max_pages + 1):
-        params = {"reportName": "RPT_PUBLIC_OP_NEWPREDICT", "columns": "ALL",
-                  "pageSize": str(page_size), "pageIndex": str(page), "client": "WEB",
-                  "sortColumns": "NOTICE_DATE", "sortTypes": "1",
-                  "filter": f"(REPORT_DATE='{report_period}')"}
-        try:
-            response = requests.get(EASTMONEY_DC, headers={"User-Agent": HEADERS["User-Agent"]},
-                                    params=params, timeout=200)
-            response.raise_for_status()
-            data = (response.json().get("result") or {}).get("data") or []
-        except (requests.RequestException, ValueError) as exc:
-            raise EventError(f"业绩预告获取失败：{exc}") from exc
-        if not data:
-            break
-        # 护栏：某些过滤组合下接口会忽略 pageIndex，重复页要停
-        fingerprint = f"{data[0].get('SECURITY_CODE')}|{data[0].get('NOTICE_DATE')}|{len(data)}"
-        if fingerprint in seen_pages:
-            break
-        seen_pages.add(fingerprint)
-        rows.extend(data)
-        if len(data) < page_size:
-            break
-    if rows:
-        cache_file.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
-    return rows
+    为什么不是翻页而是切分：接口忽略 pageIndex（翻页拿到的永远是同一批），
+    早先的实现每期只取到第一页 500 行——**全量的约 7%**。发现层的候选池与
+    回测的样本都建立在那个 7% 上面。现在交给 forecast_pool 用数值区间
+    递归切分取全（覆盖 100%，每期约 45 秒）。
+
+    回测模块（research/backtest.py）用的是同一套取数，两边口径才对得上。
+    """
+    from .forecast_pool import fetch_pool
+
+    return fetch_pool(report_period)
 
 
 def fetch_forecasts(report_period: str, page_size: int = 500) -> list[Forecast]:
     """东方财富数据中心业绩预告。report_period 形如 2026-09-30。"""
-    rows = fetch_forecast_rows(report_period, page_size)
+    return rows_to_forecasts(fetch_forecast_rows(report_period, page_size), report_period)
+
+
+def primary_rows(rows: list[dict]) -> list[dict]:
+    """从多指标行里挑出**主指标**行：归母 > 扣非 > 营收，口径固定。
+
+    发现层、回测层、共振层必须用同一套口径，否则对照无效。
+    """
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for row in rows:
+        code = str(row.get("SECURITY_CODE") or "").strip()
+        key = (code, str(row.get("REPORT_DATE") or "")[:10])
+        grouped.setdefault(key, []).append(row)
+    out: list[dict] = []
+    for items in grouped.values():
+        try:
+            chosen = min(items, key=lambda r: (metric_rank(str(r.get("PREDICT_FINANCE") or "")),
+                                              -abs(float(r.get("ADD_AMP_LOWER") or 0))))
+        except (TypeError, ValueError):
+            chosen = items[0]
+        out.append(chosen)
+    return out
+
+
+def rows_to_forecasts(rows: list[dict], report_period: str = "") -> list[Forecast]:
+    """原始行 → Forecast 列表。发现层与共振层共用同一批行，口径才不会分叉。"""
     forecasts = []
     for row in rows:
         period = str(row.get("REPORT_DATE") or "")[:10]
-        if period and period != report_period:
+        if report_period and period and period != report_period:
             continue
         notice = str(row.get("NOTICE_DATE") or "")[:10]
         forecasts.append(Forecast(

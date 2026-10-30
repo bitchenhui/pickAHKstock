@@ -673,6 +673,17 @@
       "basis": "东方财富 估值比较（同业）",
       "checked": "2026-10-29",
       "confidence": "中"
+    },
+    {
+      "id": "J7",
+      "text": "2026-09-30 同行业 24 家发预告，其中 24 家与本公司业绩变动同向（同向率 100%，全市场 85%，相对倍数 1.18）——判定：行业共振；2026-06-30 该行业 62 家发预告，改善率 89%（全市场 57%），相对倍数 1.55",
+      "metric": "行业同向率",
+      "value": 100.0,
+      "unit": "%",
+      "period": "2026-09-30",
+      "basis": "申万二级行业成分股 + 东方财富业绩预告",
+      "checked": "2026-10-30",
+      "confidence": "中"
     }
   ],
   "expectations": {
@@ -766,6 +777,84 @@
     },
     "source": "东方财富 A股估值比较",
     "notes": []
+  },
+  "industry_context": {
+    "code": "603991",
+    "name": "领先股份",
+    "industry": "半导体",
+    "level": "second",
+    "report_period": "2026-09-30",
+    "industry_members": 183,
+    "peers_with_forecast": 24,
+    "peers_same_sign": 24,
+    "peers_strong": 21,
+    "peers_up": 24,
+    "peers_down": 0,
+    "same_sign_rate": 1.0,
+    "market_same_sign_rate": 0.8469387755102041,
+    "lift": 1.180722891566265,
+    "penetration": 0.13114754098360656,
+    "market_penetration": 0.0375407010151312,
+    "median_change_industry": 138.9,
+    "median_change_market": 80.3,
+    "same_sign_peers": [
+      {
+        "code": "001309",
+        "change": 32046.52
+      },
+      {
+        "code": "688825",
+        "change": 2581.06
+      },
+      {
+        "code": "301308",
+        "change": 1864.55
+      },
+      {
+        "code": "301536",
+        "change": 663.13
+      },
+      {
+        "code": "688802",
+        "change": 269.84
+      },
+      {
+        "code": "605358",
+        "change": 261.31
+      },
+      {
+        "code": "688469",
+        "change": 247.08
+      },
+      {
+        "code": "688002",
+        "change": 218.0
+      },
+      {
+        "code": "688385",
+        "change": 187.63
+      },
+      {
+        "code": "688620",
+        "change": 179.04
+      },
+      {
+        "code": "603061",
+        "change": 148.04
+      },
+      {
+        "code": "300458",
+        "change": 129.85
+      }
+    ],
+    "background_period": "2026-06-30",
+    "background_up_rate": 0.8870967741935484,
+    "background_market_up_rate": 0.5715778474399164,
+    "background_lift": 1.5520139175561716,
+    "background_note": "2026-06-30 该行业 62 家发预告，改善率 89%（全市场 57%），相对倍数 1.55",
+    "verdict": "行业共振",
+    "note": "同行业 24/24 家同向，几乎一致，更像行业 beta 而不是公司特有",
+    "source": "申万二级行业成分股 + 东方财富业绩预告"
   },
   "risks": [
     {
@@ -882,6 +971,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-10-29",
+  "updated": "2026-10-30",
   "derived_level": "证据充分"
 }

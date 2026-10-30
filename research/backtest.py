@@ -34,7 +34,7 @@ from pathlib import Path
 
 import requests
 
-from .events import metric_rank
+from .events import metric_rank, primary_rows
 
 DC = "https://datacenter-web.eastmoney.com/api/data/v1/get"
 TENCENT_QFQ = ("https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
@@ -92,45 +92,18 @@ def forecasts_by_report_period(report_period: date, page_size: int = 500,
                                max_pages: int = 16) -> list[dict]:
     """按**报告期**取一批业绩预告（含每条的公告日 NOTICE_DATE）。
 
-    为什么按报告期取、而不是按公告日取：
-    - 按 NOTICE_DATE 过滤时，接口会**忽略 pageIndex**（第 1、2 页返回同样的行），
-      靠翻页取全量会拿到重复数据
-    - 按 REPORT_DATE 取分页正常，而且每条自带公告日，于是可以在客户端按公告日
-      切出任意历史时点的候选集——这才是 point-in-time 该有的做法
+    取数交给 forecast_pool：接口**忽略 pageIndex**，翻页拿到的永远是同一批行，
+    早先的实现每期只取到第一页 500 行——**全量的约 7%**。现在是按数值区间递归
+    切分，覆盖 100%（每期约 45 秒，落盘缓存）。
+
+    每条自带公告日，于是可以在客户端按公告日切出任意历史时点的候选集——
+    这才是 point-in-time 该有的做法。
 
     同一公司同一报告期有多条（归母、扣非、营收各一条），保留变动幅度最大的那条。
-    结果按报告期落盘缓存：这个接口每次 90 秒，敏感性分析要反复用同一批数据。
     """
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    cache_file = CACHE_DIR / f"forecasts_{report_period.isoformat()}.json"
-    if cache_file.exists():
-        try:
-            return json.loads(cache_file.read_text(encoding="utf-8"))
-        except ValueError:
-            pass
-    rows: list[dict] = []
-    seen_pages: set[str] = set()
-    for page in range(1, max_pages + 1):
-        params = {"reportName": "RPT_PUBLIC_OP_NEWPREDICT", "columns": "ALL",
-                  "pageSize": str(page_size), "pageIndex": str(page), "client": "WEB",
-                  "sortColumns": "NOTICE_DATE", "sortTypes": "1",
-                  "filter": f"(REPORT_DATE='{report_period.isoformat()}')"}
-        try:
-            response = requests.get(DC, headers=HEADERS, params=params, timeout=200)
-            response.raise_for_status()
-            data = (response.json().get("result") or {}).get("data") or []
-        except (requests.RequestException, ValueError) as exc:
-            raise BacktestError(f"业绩预告获取失败：{exc}") from exc
-        if not data:
-            break
-        # 护栏：接口在某些过滤组合下会忽略 pageIndex，重复页要停
-        fingerprint = f"{data[0].get('SECURITY_CODE')}|{data[0].get('NOTICE_DATE')}|{len(data)}"
-        if fingerprint in seen_pages:
-            break
-        seen_pages.add(fingerprint)
-        rows.extend(data)
-        if len(data) < page_size:
-            break
+    from .forecast_pool import fetch_pool
+
+    rows = fetch_pool(report_period.isoformat())
     best: dict[tuple[str, str, str], dict] = {}
     for row in rows:
         code = str(row.get("SECURITY_CODE") or "").strip()
@@ -148,20 +121,14 @@ def forecasts_by_report_period(report_period: date, page_size: int = 500,
             except (TypeError, ValueError):
                 pass
         best[key] = row
-    result = list(best.values())
-    cache_file.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
-    return primary_rows(result)
+    return primary_rows(list(best.values()))
 
 
 def forecasts_raw(report_period: date) -> list[dict]:
     """读取缓存里的**多指标**原始行（不挑主指标），用于离线比较不同口径。"""
-    cache_file = CACHE_DIR / f"forecasts_{report_period.isoformat()}.json"
-    if not cache_file.exists():
-        forecasts_by_report_period(report_period)
-    try:
-        return json.loads(cache_file.read_text(encoding="utf-8"))
-    except ValueError:
-        return []
+    from .forecast_pool import fetch_pool
+
+    return fetch_pool(report_period.isoformat())
 
 
 def legacy_primary_rows(rows: list[dict]) -> list[dict]:
@@ -179,27 +146,6 @@ def legacy_primary_rows(rows: list[dict]) -> list[dict]:
     for items in grouped.values():
         try:
             chosen = max(items, key=lambda r: abs(float(r.get("ADD_AMP_LOWER") or 0)))
-        except (TypeError, ValueError):
-            chosen = items[0]
-        out.append(chosen)
-    return out
-
-
-def primary_rows(rows: list[dict]) -> list[dict]:
-    """从缓存的多指标行里挑出主指标行：归母 > 扣非 > 营收，口径固定。
-
-    发现层与回测必须同一口径，否则对照无效。
-    """
-    grouped: dict[tuple[str, str], list[dict]] = {}
-    for row in rows:
-        code = str(row.get("SECURITY_CODE") or "").strip()
-        key = (code, str(row.get("REPORT_DATE") or "")[:10])
-        grouped.setdefault(key, []).append(row)
-    out: list[dict] = []
-    for items in grouped.values():
-        try:
-            chosen = min(items, key=lambda r: (metric_rank(str(r.get("PREDICT_FINANCE") or "")),
-                                                  -abs(float(r.get("ADD_AMP_LOWER") or 0))))
         except (TypeError, ValueError):
             chosen = items[0]
         out.append(chosen)

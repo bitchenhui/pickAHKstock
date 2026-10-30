@@ -179,6 +179,7 @@ class Card:
     expectations: dict = field(default_factory=dict)   # 分析师预期（第三方证据）
     capital: dict = field(default_factory=dict)         # 资本轨迹（资本开支/经营现金流/在建工程）
     peers: dict = field(default_factory=dict)           # 同业对照（估值分位与远期 PE）
+    industry_context: dict = field(default_factory=dict)  # 同业共振（行业 beta vs 公司特有）
     risks: list[Risk] = field(default_factory=list)
     provenance: dict = field(default_factory=dict)   # 数据来源与快照哈希
     account_checks: list[AccountCheck] = field(default_factory=list)
