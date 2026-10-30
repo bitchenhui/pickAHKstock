@@ -100,6 +100,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
 .venv/bin/python -m research.cli recommend --period 2026-06-30      # 推荐清单：先看哪个、为什么、下一步
 .venv/bin/python -m research.cli expectations A 002044                    # 分析师预期写进卡片（第三方证据）
+.venv/bin/python -m research.cli context A 002044                          # 资本轨迹与同业对照写进卡片
 .venv/bin/python -m research.cli card-snapshot                       # 给卡片打快照（卡片检验集起点）
 .venv/bin/python -m research.cli card-score                          # 回看：卡片状态 vs 后续 20/60 日
 .venv/bin/python -m research.cli board                              # 研究看板：谁该被研究（按优先级）
@@ -138,6 +139,11 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 **研究对象由谁定：三段式。** 规则定优先级（到期必看）、日期定复核节奏（临近复核与观察池）、机器提议而人裁决（待立项）。只由人定会陷入确认偏误——你只会研究自己已经喜欢的那几只；只由机器定又会漏掉你真正关心的。卡片里的催化剂日期与「下一验证节点」就是排期依据，`board` 命令把它们变成待办清单。
 
 **风险公告要单独扫。** 业绩预告挑出来的候选，身上可能还挂着仲裁、账户冻结、监管问询、商誉减值、重组终止。`risks` 命令按标题关键词扫九类风险；关键词会误报（例：立昂微「终止信用评级」实为可转债摘牌而非信用恶化），所以每条都要回原文确认。
+
+**卡片里有两块"利润之外"的输入**，都是这轮补上的：
+
+- **资本轨迹**：资本开支、经营现金流、自由现金流（= 经营 − 资本开支）、在建工程、固定资产。利润在涨不等于生意在变好——立昂微经营现金流 +6.05 亿但资本开支 7.09 亿，自由现金流是 **−1.04 亿**；美年健康降本改善的是利润表，现金流仍是 **−5.38 亿**。
+- **同业对照**：该股在同业中的排名与分位、PE-TTM 与远期 PE（25E/26E/27E 基于分析师一致预期）、PB/PS/PCE、PEG。远期 PE 那串等于把"分析师预期"换算成"市场为它付几倍"。
 
 **治理数据比标题扫描有用。** `governance` 命令给出的是硬数字：股东户数与增减（筹码集中还是分散）、对外担保笔数与**占归母净资产比例**、诉讼次数与金额、质押占股本比例。首轮就发现五只候选的对外担保占净资产从 30.88% 到 885.49% 不等——这类数字比「有担保公告」重要得多。
 

@@ -414,6 +414,43 @@ def cmd_portfolio(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_context(args: argparse.Namespace) -> int:
+    """把资本轨迹与同业对照写进卡片。"""
+    from .context import fetch_capital, fetch_peers
+
+    card = Card.load(args.market, args.code)
+    capital = fetch_capital(card.code)
+    peers = fetch_peers(card.code, args.market)
+    capital_data = capital.to_dict()
+    capital_data["capex_label"] = _amount_label(capital.capex_at())
+    capital_data["operating_cf_label"] = _amount_label(capital.operating_cf_at())
+    free_cash = capital.fcf_at()
+    capital_data["fcf_label"] = _amount_label(free_cash)
+    capital_data["construction_label"] = (capital.construction[0] if capital.construction else "—")
+    capital_data["fixed_assets_label"] = (capital.fixed_assets[0] if capital.fixed_assets else "—")
+    card.capital = capital_data
+    card.peers = peers.to_dict()
+    card.updated = date.today().isoformat()
+    card.save()
+    print(f"{card.name}（{card.market} {card.code}）资本轨迹与同业对照已更新")
+    print(f"  报告期 {capital.periods[0] if capital.periods else '—'}"
+          f"｜资本开支 {capital_data['capex_label']}"
+          f"｜经营现金流 {capital_data['operating_cf_label']}"
+          f"｜自由现金流 {capital_data['fcf_label']}")
+    print(f"  在建工程 {capital_data['construction_label']}｜固定资产 {capital_data['fixed_assets_label']}")
+    print(f"  同业排名 {peers.rank or '—'}｜PE-TTM {peers.rows.get('市盈率-TTM') or '—'}"
+          f"｜26E {peers.rows.get('市盈率-26E') or '—'}｜PB {peers.rows.get('市净率-MRQ') or '—'}")
+    for note in capital.notes + peers.notes:
+        print(f"  ⚠ {note}")
+    return 0
+
+
+def _amount_label(value) -> str:
+    if value is None:
+        return "—"
+    return f"{value / 1e8:+.2f} 亿"
+
+
 def cmd_expectations(args: argparse.Namespace) -> int:
     """把分析师预期写进卡片：与公司自述并排看。"""
     from .analysts import fetch
@@ -488,6 +525,13 @@ def cmd_card_snapshot(args: argparse.Namespace) -> int:
 
     snapshots = record(cards, today, price_lookup)
     print(f"已记录 {len(snapshots)} 张卡片快照（{today.isoformat()}）→ cards/_snapshots/")
+    from .analysts import snapshot as expectation_snapshot
+    for card in cards:
+        try:
+            expectation_snapshot(card.code, card.name, card.market)
+        except Exception:
+            continue
+    print("已同时记录分析师预期快照（预期变化要靠积累，快照不足两份时不会硬算）")
     for snapshot in snapshots:
         price = "—" if snapshot.price is None else f"{snapshot.price:.2f}"
         print(f"  {snapshot.market} {snapshot.code} {snapshot.name:10s} [{snapshot.status}] "
@@ -676,6 +720,11 @@ def main(argv: list[str] | None = None) -> int:
     p_fin.add_argument("--periods", type=int, default=8, help="保留最近几个报告期")
     p_fin.add_argument("--quarter-periods", type=int, default=8, help="保留最近几个单季度")
     p_fin.set_defaults(func=cmd_financials)
+
+    p_ctx = sub.add_parser("context", help="把资本轨迹与同业对照写进卡片")
+    p_ctx.add_argument("market")
+    p_ctx.add_argument("code")
+    p_ctx.set_defaults(func=cmd_context)
 
     p_exp = sub.add_parser("expectations", help="把分析师预期写进卡片（第三方证据）")
     p_exp.add_argument("market")

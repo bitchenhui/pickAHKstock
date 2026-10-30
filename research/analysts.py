@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
 import requests
@@ -104,6 +105,75 @@ def fetch_reports(code: str, begin: str = "2026-01-01", end: str = "2026-12-31",
             "标题": item.get("title"),
         })
     return rows
+
+
+HISTORY_DIR = CACHE_DIR / "history"
+
+
+def snapshot(code: str, name: str = "", market: str = "A",
+             day: str | None = None) -> dict:
+    """给分析师预期打一个历史快照。
+
+    预期变化是**独立于业绩预告**的事件源：公司说好是一件事，分析师上修/下修
+    是另一件事。但接口只给当前值，要看变化只能自己积累——所以每次复核时打一个
+    快照，快照攒够了就能算「预期修正」。
+    """
+    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    expectation = fetch(code, name, market)
+    day = day or date.today().isoformat()
+    payload = {"day": day, "code": code, "name": expectation.name or name,
+               "coverage": expectation.coverage,
+               "eps_forecast": expectation.eps_forecast,
+               "latest_rating": expectation.latest_rating,
+               "target_price": expectation.target_price}
+    path = HISTORY_DIR / f"{market}_{code}_{day}.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return payload
+
+
+def history(code: str, market: str = "A") -> list[dict]:
+    """该标的的预期历史快照，按日期升序。"""
+    if not HISTORY_DIR.exists():
+        return []
+    out = []
+    for path in sorted(HISTORY_DIR.glob(f"{market}_{code}_*.json")):
+        try:
+            out.append(json.loads(path.read_text(encoding="utf-8")))
+        except ValueError:
+            continue
+    return sorted(out, key=lambda item: item.get("day", ""))
+
+
+def change(code: str, market: str = "A") -> dict:
+    """预期变化：最早快照 → 最新快照。
+
+    快照不足两份时返回空——**不要用一份快照说"预期上修"**。
+    """
+    snaps = history(code, market)
+    if len(snaps) < 2:
+        return {"available": False, "snapshots": len(snaps),
+                "note": "快照不足两份，算不出变化"}
+    first, last = snaps[0], snaps[-1]
+
+    def mean_of(snapshot):
+        rows = snapshot.get("eps_forecast") or []
+        for row in rows:
+            try:
+                return float(row.get("均值"))
+            except (TypeError, ValueError):
+                continue
+        return None
+
+    old_mean, new_mean = mean_of(first), mean_of(last)
+    delta = None
+    if old_mean and new_mean and old_mean != 0:
+        delta = (new_mean - old_mean) / abs(old_mean) * 100
+    return {"available": True, "snapshots": len(snaps),
+            "from_day": first.get("day"), "to_day": last.get("day"),
+            "eps_mean_before": old_mean, "eps_mean_after": new_mean,
+            "eps_mean_change_pct": None if delta is None else round(delta, 2),
+            "coverage_before": first.get("coverage"), "coverage_after": last.get("coverage"),
+            "rating_before": first.get("latest_rating"), "rating_after": last.get("latest_rating")}
 
 
 def fetch(code: str, name: str = "", market: str = "A") -> Expectation:

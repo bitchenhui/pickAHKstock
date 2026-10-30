@@ -136,6 +136,30 @@ def render_markdown(card: Card) -> str:
             lines.append(f"- ⚠ {note}")
         for row in (card.expectations.get("ratings") or [])[:3]:
             lines.append(f"- 研报 {row.get('日期')}：{row.get('标题')}")
+    if card.capital:
+        lines += ["", "## 资本轨迹（利润之外的第三只眼）"]
+        periods = card.capital.get("periods") or []
+        if periods:
+            lines.append(f"- 报告期：{periods[0]}")
+        lines.append(f"- 资本开支：{card.capital.get('capex_label') or '—'}"
+                     f"｜经营活动现金流：{card.capital.get('operating_cf_label') or '—'}"
+                     f"｜自由现金流：{card.capital.get('fcf_label') or '—'}")
+        lines.append(f"- 在建工程：{card.capital.get('construction_label') or '—'}"
+                     f"｜固定资产：{card.capital.get('fixed_assets_label') or '—'}")
+    if card.peers:
+        lines += ["", "## 同业对照"]
+        lines.append(f"- 同业排名：{card.peers.get('rank') or '—'}"
+                     f"｜PEG {card.peers.get('PEG') or '—'}")
+        lines.append(f"- 市盈率 TTM {card.peers.get('市盈率-TTM') or '—'}"
+                     f"｜25E {card.peers.get('市盈率-25E') or '—'}"
+                     f"｜26E {card.peers.get('市盈率-26E') or '—'}"
+                     f"｜27E {card.peers.get('市盈率-27E') or '—'}")
+        lines.append(f"- 市净率 MRQ {card.peers.get('市净率-MRQ') or '—'}"
+                     f"｜市销率 TTM {card.peers.get('市销率-TTM') or '—'}"
+                     f"｜市现率 TTM {card.peers.get('市现率1-TTM') or '—'}")
+        lines.append("- 远期 PE 基于分析师一致预期：把「分析师预期」换算成「市场为它付几倍」")
+        for note in card.peers.get("notes") or []:
+            lines.append(f"- ⚠ {note}")
     if card.judgments:
         lines += ["", "## 结构化判断（可回溯核对）"]
         for judgment in card.judgments:
