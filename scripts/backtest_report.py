@@ -21,13 +21,16 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from research.backtest import (_compare, _prepare, forecasts_raw,  # noqa: E402
-                               primary_rows)
+                               price_coverage, primary_rows)
 from research.portfolio import PortfolioConfig, run_portfolio_test  # noqa: E402
 
 PERIODS = ("2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
            "2025-06-30", "2025-12-31", "2026-03-31", "2026-06-30")
 LOG = ROOT / "docs" / "backtest-log.md"
 THRESHOLDS = (30.0, 50.0, 100.0)
+# 抽样上限（×3）。预告池修好之后每期有两三千家，取 1500 相当于全取；
+# 调小只是为了让快速检查跑得更快，不是方法上的选择。
+SAMPLE = 1500
 HOLDS = (20, 60)
 CONFIG = PortfolioConfig(initial_capital=100000.0, max_positions=20, position_pct=0.05,
                         cash_floor_pct=0.2, hold_days=60)
@@ -35,7 +38,8 @@ CONFIG = PortfolioConfig(initial_capital=100000.0, max_positions=20, position_pc
 
 def event_study() -> tuple[list[str], dict]:
     lines = ["### 事件研究（相对沪深300超额中位数 %）", "",
-             "| 报告期 | 门槛 | 持有 | 超额 | n | 95% 区间 |", "|---|---|---|---|---|---|"]
+             "| 报告期 | 门槛 | 持有 | 超额 | n | 95% 区间 | 行情覆盖 |",
+             "|---|---|---|---|---|---|---|"]
     values: dict[float, list] = {t: [] for t in THRESHOLDS}
     for period in PERIODS:
         raw = forecasts_raw(date(*map(int, period.split("-"))))
@@ -44,8 +48,10 @@ def event_study() -> tuple[list[str], dict]:
             continue
         primary = primary_rows(raw)
         for hold in HOLDS:
+            # 取价只做一次：门槛不影响行情需求，重复取价只是白等
+            prepared, _, index = _prepare(primary, (hold,), SAMPLE, 20261029)
+            have, total = price_coverage(prepared)
             for threshold in THRESHOLDS:
-                prepared, _, index = _prepare(primary, (hold,), 150, 20261029)
                 stats, excess = _compare(prepared, threshold, hold, index)
                 value = excess.get("相对沪深300超额（中位数）")
                 if value is not None:
@@ -53,7 +59,8 @@ def event_study() -> tuple[list[str], dict]:
                 lines.append(f"| {period} | {threshold:.0f}% | {hold} | "
                              f"{'—' if value is None else f'{value:+.2f}'} | "
                              f"{stats.get('强预告组', {}).get('n', '—')} | "
-                             f"{excess.get('超额 95% 区间', '—')} |")
+                             f"{excess.get('超额 95% 区间', '—')} | "
+                             f"{have}/{total} |")
     lines.append("")
     for threshold, items in values.items():
         if items:

@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import random
 import statistics
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -86,6 +87,9 @@ class BacktestResult:
 
 
 CACHE_DIR = Path.home() / ".cache" / "pickahkstock" / "backtest"
+
+# 取价失败的代码（接口限流时会静默返回空，必须能被看见）
+PRICE_MISSES = []
 
 
 def forecasts_by_report_period(report_period: date, page_size: int = 500,
@@ -192,49 +196,174 @@ def is_strong(row: dict, threshold: float = MIN_CHANGE,
 
 
 def load_prices(code: str, start: date, end: date, count: int = 400) -> list[dict]:
-    """腾讯前复权日线。返回 [{day, open, close, high, low}]，已按日期排序。
+    """前复权日线。返回 [{day, open, close, high, low}]，已按日期排序。
 
     注意腾讯的字段顺序是 [日期, 开, 收, 高, 低, 量]，不是常见的 OHLC。
-    按代码落盘缓存：一只股票一次请求，敏感性分析要反复用。
+
+    **缓存必须带窗口**：同一只股票在不同报告期需要的区间不同，只按代码存一份
+    会让后一次取到前一次的窗口——数据看着有，日期却不对，持有期收益就算不出来。
+    这里存合并后的并集，并在缓存覆盖不了请求区间时重新取。
+
+    **取价失败必须看得见**：行情源限流时会返回空，空价格会让"无收益"混进
+    中位数——那不是结论，是数据缺失。所以失败的代码记在 PRICE_MISSES 里，
+    回测报告会把行情覆盖率一起打出来。
     """
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file = CACHE_DIR / f"prices_{code}.json"
+    cached: list[dict] = []
     if cache_file.exists():
         try:
-            cached = json.loads(cache_file.read_text(encoding="utf-8"))
-            if cached:
-                return cached
+            data = json.loads(cache_file.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                cached = data
         except ValueError:
-            pass
+            cached = []
+    if _covers(cached, start, end):
+        return cached
+
+    bars = _fetch_tencent(symbol_for(code), start, end, count)
+    if bars is None:
+        bars = _fetch_ths(code, start, end)
+    merged = _merge(cached, bars)
+    if not _covers(merged, start, end):
+        # 腾讯只回一部分（窗口太长或区间怪），再用同花顺补齐
+        merged = _merge(merged, _fetch_ths(code, start, end))
+    merged = [bar for bar in merged if start.isoformat() <= bar["day"] <= end.isoformat()]
+    if merged:
+        cache_file.write_text(json.dumps(merged, ensure_ascii=False), encoding="utf-8")
+    else:
+        PRICE_MISSES.append(code)
+    time.sleep(0.15)   # 行情源都有限流，别把请求打太快
+    return merged
+
+
+def symbol_for(code: str) -> str:
     # 6 位是 A 股（sh/sz 前缀），5 位是港股（hk 前缀）
     if len(code) == 5:
-        symbol = f"hk{code}"
-    elif code.startswith("6"):
-        symbol = f"sh{code}"
-    else:
-        symbol = f"sz{code}"
+        return f"hk{code}"
+    if code.startswith("6"):
+        return f"sh{code}"
+    return f"sz{code}"
+
+
+def _covers(bars: list[dict], start: date, end: date) -> bool:
+    """缓存是否覆盖请求区间（按首尾日期判断，中间停牌不算缺）。"""
+    if not bars:
+        return False
+    days = [bar["day"] for bar in bars]
+    return min(days) <= start.isoformat() and max(days) >= end.isoformat()
+
+
+def _merge(old: list[dict], new: list[dict]) -> list[dict]:
+    seen = {bar["day"]: bar for bar in old}
+    for bar in new:
+        seen[bar["day"]] = bar
+    return [seen[day] for day in sorted(seen)]
+
+
+THS_LINE = "https://d.10jqka.com.cn/v6/line/hs_{code}/01/{year}.js"
+
+
+def _fetch_ths(code: str, start: date, end: date) -> list[dict]:
+    """同花顺分年日线（01 = 前复权）。腾讯被限流时的兜底源。
+
+    一次取一年文件，跨年区间要取多个文件。
+    """
+    import re
+
+    out: list[dict] = []
+    for year in range(start.year, end.year + 1):
+        url = THS_LINE.format(code=code, year=year)
+        try:
+            response = requests.get(url, headers=HEADERS, timeout=20)
+            response.raise_for_status()
+            text = response.text
+        except requests.RequestException:
+            continue
+        match = re.search(r'"data"\s*:\s*"([^"]+)"', text)
+        if not match:
+            continue
+        for line in match.group(1).split(";"):
+            parts = line.split(",")
+            if len(parts) < 6:
+                continue
+            try:
+                out.append({"day": f"{parts[0][:4]}-{parts[0][4:6]}-{parts[0][6:8]}",
+                            "open": float(parts[1]), "close": float(parts[4]),
+                            "high": float(parts[2]), "low": float(parts[3])})
+            except ValueError:
+                continue
+        time.sleep(0.05)
+    return out
+
+
+# 腾讯的 WAF 会在请求量上来后返回 501（HTML 跳转页）。记住这个状态，
+# 免得每只股票都去撞一次墙。
+_TENCENT_BLOCKED = False
+
+
+def _fetch_tencent(symbol: str, start: date, end: date, count: int):
+    """腾讯前复权日线。被 WAF 拦时返回 None（交给东财兜底），不返回空列表。"""
+    global _TENCENT_BLOCKED
+    if _TENCENT_BLOCKED:
+        return None
     url = TENCENT_QFQ.format(symbol=symbol, start=start.isoformat(),
                              end=end.isoformat(), count=count)
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=25)
+    except requests.RequestException:
+        return []
+    if response.status_code == 501:
+        _TENCENT_BLOCKED = True
+        return None
+    try:
+        payload = response.json()
+    except ValueError:
+        return []
+    block = (payload.get("data") or {}).get(symbol) or {}
+    bars = block.get("qfqday") or block.get("day") or []
+    out = []
+    for bar in bars:
+        if len(bar) < 6:
+            continue
+        try:
+            out.append([bar[0], bar[1], bar[2], bar[3], bar[4]])
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+EM_KLINE = ("https://push2his.eastmoney.com/api/qt/stock/kline/get"
+            "?secid={secid}&fields1=f1,f2,f3,f4,f5,f6"
+            "&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"
+            "&klt=101&fqt=1&beg={beg}&end={end}")
+
+
+def _em_secid(code: str) -> str:
+    """东财 secid：1 = 沪市，0 = 深市／北交所。"""
+    if code.startswith("6") or code.startswith("9"):
+        return f"1.{code}"
+    return f"0.{code}"
+
+
+def _fetch_em(code: str, start: date, end: date):
+    """东方财富前复权日线（push2his）。字段序：日期,开,收,高,低,量,额…。"""
+    url = EM_KLINE.format(secid=_em_secid(code), beg=start.strftime("%Y%m%d"),
+                           end=end.strftime("%Y%m%d"))
     try:
         response = requests.get(url, headers=HEADERS, timeout=25)
         response.raise_for_status()
         payload = response.json()
     except (requests.RequestException, ValueError):
         return []
-    block = (payload.get("data") or {}).get(symbol) or {}
-    bars = block.get("qfqday") or block.get("day") or []
-    out: list[dict] = []
-    for bar in bars:
-        if len(bar) < 6:
+    klines = ((payload.get("data") or {}).get("klines") or [])
+    out = []
+    for line in klines:
+        parts = str(line).split(",")
+        if len(parts) < 5:
             continue
-        try:
-            out.append({"day": bar[0], "open": float(bar[1]), "close": float(bar[2]),
-                        "high": float(bar[3]), "low": float(bar[4])})
-        except (TypeError, ValueError):
-            continue
-    out.sort(key=lambda b: b["day"])
-    if out:
-        cache_file.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+        out.append(parts[:5])
+    time.sleep(0.12)   # 别把人家接口打出限流
     return out
 
 
@@ -283,6 +412,14 @@ def _prepare(forecasts: list[dict], holds: tuple[int, ...], sample: int,
         prepared.append((row, notice, load_prices(code, price_start, price_end)))
     index = index_bars(price_start, price_end)
     return prepared, len({str(r.get("SECURITY_CODE")) for r in forecasts}), index
+
+
+def price_coverage(prepared) -> tuple:
+    # 取价覆盖率：有多少只股票真的拿到了日线。
+    # 这个数字必须报出来。行情接口被限流时会返回空，而空价格会让「无收益」
+    # 混进中位数——那不是结论，是数据缺失。
+    have = sum(1 for _, _, bars in prepared if bars)
+    return have, len(prepared)
 
 
 def index_bars(start: date, end: date) -> list[dict]:

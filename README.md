@@ -77,6 +77,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - `research/hk.py` 港股发现层，三条事件源：`alerts` 盈警/盈喜/业绩预告（最像 A 股业绩预告，60 天实测 80 个，多为流动性好的中大盘）、`results` 业绩公告（强制披露、覆盖全市场）、`financials` 财务同比变化（结构化接口，覆盖全市场且给出变化量级）。**每手股数从腾讯行情取到，不必手填**
 - `research/hk_business.py` 港股**经营回顾正文**逐期对比：港股没有可程序化取得的分部数字，但经营回顾是中文可读的，里面常有行业量价与分部描述
 - `research/board.py` 研究看板：把「谁该被研究」变成可执行的排序——到期必看 > 临近复核 > 观察池 > 待立项
+- `research/forecast_pool.py` 业绩预告**全量**取数：接口忽略 pageIndex，改用数值区间递归切分代替翻页（原来每期只拿到全量的 7%）
+- `research/industry.py` 同业共振：申万二级行业映射（全市场 5221 只）+ 行业方向比较，回答「这是行业 beta 还是公司自己的变化」
 - `research/backtest.py` §51 基线检验：按**各自公告日**做事件研究，比较强预告组与对照组的持有期收益，并做参数敏感性
 - `research/account.py` L3 账户层：账户配置、回撤状态、按整手与风险预算的仓位估算、账户级动作（加仓/不加仓/减仓/清仓）
 - `research/card.py` 研究卡片 schema 与校验器：**结论等级由证据推导**，证据不足只能停在「观察」；财务路径（§30 已盈利 / §34 未盈利）没写完也不算数
@@ -101,6 +103,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli recommend --period 2026-06-30      # 推荐清单：先看哪个、为什么、下一步
 .venv/bin/python -m research.cli expectations A 002044                    # 分析师预期写进卡片（第三方证据）
 .venv/bin/python -m research.cli context A 002044                          # 资本轨迹与同业对照写进卡片
+.venv/bin/python -m research.cli industry --map --period 2026-06-30               # 行业共振地图：谁在集体变
+.venv/bin/python -m research.cli industry A 603991 --period 2026-09-30            # 单只票的行业共振写进卡片
 .venv/bin/python -m research.cli card-snapshot                       # 给卡片打快照（卡片检验集起点）
 .venv/bin/python -m research.cli card-score                          # 回看：卡片状态 vs 后续 20/60 日
 .venv/bin/python -m research.cli board                              # 研究看板：谁该被研究（按优先级）
@@ -123,6 +127,10 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 **港股的预告标题不能当结论。** 首两张港股卡片就是反例：盈利预喜的天齐锂业，Q3 单季归母环比 −42%（预喜讲的是前三季累计）；盈利预警的中国建材，Q3 单季已扭亏且现金流单季回正 44 亿（预警讲的也是累计）。两个方向的标题都只覆盖累计口径，**必须做单季拆解**。这也是 A 股那边同一个教训在港股的复现。
 
 **港股的量价证据来自经营回顾，不是分部数字。** 港股没有可程序化取得的分部收入表，但东方财富把报告里的经营回顾文字抽了出来（RPT_HKF10_ORG_BUSSINESS），中文可读。中国建材 2026 年中期报告里写着固投 −5.7%、基建由正转负、水泥产量近 17 年同期最低、「行业已由存量竞合阶段进入减量博弈、效益转亏」——这是 A 股接口里拿不到的行业级证据。反过来，天齐锂业的经营回顾与去年同期几乎逐字相同且无任何经营数据，**信息不披露本身就是负面信号**。
+
+**预告池之前只拿到 7%，已修。** 东财业绩预告接口忽略 `pageIndex`、`pageSize` 封顶 500，早先每期只取第一页 500 行——2026-06-30 真实 4928 行。**发现层的候选池和回测的样本都建在这个 7% 上**，所以前三版回测结论（`docs/backtest-v1/v2/v3.md`）都要重跑。修法是用数值区间递归切分代替翻页（`research/forecast_pool.py`），9 个报告期覆盖率 97.5%–100%，2026-06-30 的池子从 115 家变成 1914 家。
+
+**同业共振：这是行业 beta 还是公司自己的变化。** 卡片里最容易出错的一句话是「业绩大幅改善」——它说明的是这家公司变好了，还是整个行业变好了？申万二级行业映射（全市场 5221 只）加行业方向比较能回答它：比较的是**业绩变动方向是否与同业一致**（池内「|变动|≥30%」几乎恒真，方向才区分得开）。实测：领先股份与立昂微同属半导体，同期 24 家发预告的半导体公司**全部同向**（中报期 62 家改善率 89%，全市场 57%）→ 判为**行业共振**，它们的「好」里有多少是行业给的、这个行业反转时会不会一起跌，都写在卡片里。详见 `docs/industry-resonance.md`。
 
 **发现层挑候选的三条口径**（都是基线检验逼出来的）：
 
