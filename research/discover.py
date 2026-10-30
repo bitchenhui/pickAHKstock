@@ -224,7 +224,10 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
     return sorted(candidates, key=lambda c: (c.unaffordable, c.one_off, c.small_amount,
                                            c.change_lower if c.change_lower is not None else 0.0,
                                            -(c.forecast_amount or 0))), {
-        "small_amount": small_amount}
+        "small_amount": small_amount,
+        "pool": len({f.code for f in forecasts}),
+        "strong": len(grouped),
+        "passed": len(candidates)}
 
 
 def attach_documents(candidates: list[Candidate], report_period: str) -> None:

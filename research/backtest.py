@@ -223,11 +223,12 @@ def load_prices(code: str, start: date, end: date, count: int = 400) -> list[dic
 
     bars = _fetch_tencent(symbol_for(code), start, end, count)
     if bars is None:
-        bars = _fetch_ths(code, start, end)
+        bars = _fetch_ths(code, start, end, skip_years=_covered_years(cached))
     merged = _merge(cached, bars)
     if not _covers(merged, start, end):
         # 腾讯只回一部分（窗口太长或区间怪），再用同花顺补齐
-        merged = _merge(merged, _fetch_ths(code, start, end))
+        merged = _merge(merged, _fetch_ths(code, start, end,
+                                           skip_years=_covered_years(merged)))
     merged = [bar for bar in merged if start.isoformat() <= bar["day"] <= end.isoformat()]
     if merged:
         cache_file.write_text(json.dumps(merged, ensure_ascii=False), encoding="utf-8")
@@ -264,15 +265,31 @@ def _merge(old: list[dict], new: list[dict]) -> list[dict]:
 THS_LINE = "https://d.10jqka.com.cn/v6/line/hs_{code}/01/{year}.js"
 
 
-def _fetch_ths(code: str, start: date, end: date) -> list[dict]:
+def _covered_years(bars: list[dict]) -> set:
+    """缓存里已经完整覆盖的年份——这些年份文件不用再下一次。"""
+    covered = set()
+    if not bars:
+        return covered
+    days = [bar["day"] for bar in bars]
+    first, last = min(days), max(days)
+    for year in range(int(first[:4]), int(last[:4]) + 1):
+        if first <= f"{year}-01-01" and last >= f"{year}-12-31":
+            covered.add(year)
+    return covered
+
+
+def _fetch_ths(code: str, start: date, end: date, skip_years: set | None = None) -> list[dict]:
     """同花顺分年日线（01 = 前复权）。腾讯被限流时的兜底源。
 
-    一次取一年文件，跨年区间要取多个文件。
+    一次取一年文件，跨年区间要取多个文件；已经缓存过的年份跳过（skip_years）。
     """
     import re
 
+    skip = skip_years or set()
     out: list[dict] = []
     for year in range(start.year, end.year + 1):
+        if year in skip:
+            continue
         url = THS_LINE.format(code=code, year=year)
         try:
             response = requests.get(url, headers=HEADERS, timeout=20)

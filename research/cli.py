@@ -44,6 +44,8 @@ def _print_candidates(candidates: list[Candidate]) -> None:
 def cmd_discover(args: argparse.Namespace) -> int:
     candidates, stats = discover(args.period, args.since_days, args.limit)
     _print_candidates(candidates)
+    print(f"预告池 {stats.get('pool', '—')} 家｜其中幅度达标 {stats.get('strong', '—')} 家"
+          f"｜通过可研究性筛选 {stats.get('passed', '—')} 只")
     print(f"低基数噪音标记（已降权不剔除）：{stats.get('small_amount', 0)} 条")
     return 0
 
