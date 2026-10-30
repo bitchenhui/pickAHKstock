@@ -90,6 +90,9 @@ CACHE_DIR = Path.home() / ".cache" / "pickahkstock" / "backtest"
 
 # 取价失败的代码（接口限流时会静默返回空，必须能被看见）
 PRICE_MISSES = []
+# 进程内缓存：回测要在多期之间反复用同一批日线，
+# 每次都去读几千个 JSON 文件会把时间全花在解析上。
+_PRICE_MEM: dict = {}
 
 
 def forecasts_by_report_period(report_period: date, page_size: int = 500,
@@ -208,6 +211,10 @@ def load_prices(code: str, start: date, end: date, count: int = 400) -> list[dic
     中位数——那不是结论，是数据缺失。所以失败的代码记在 PRICE_MISSES 里，
     回测报告会把行情覆盖率一起打出来。
     """
+    global _PRICE_MEM
+    memory = _PRICE_MEM.get(code)
+    if memory and _covers(memory, start, end):
+        return memory
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file = CACHE_DIR / f"prices_{code}.json"
     cached: list[dict] = []
@@ -219,6 +226,7 @@ def load_prices(code: str, start: date, end: date, count: int = 400) -> list[dic
         except ValueError:
             cached = []
     if _covers(cached, start, end):
+        _PRICE_MEM[code] = cached
         return cached
 
     bars = _fetch_tencent(symbol_for(code), start, end, count)
@@ -232,6 +240,7 @@ def load_prices(code: str, start: date, end: date, count: int = 400) -> list[dic
     merged = [bar for bar in merged if start.isoformat() <= bar["day"] <= end.isoformat()]
     if merged:
         cache_file.write_text(json.dumps(merged, ensure_ascii=False), encoding="utf-8")
+        _PRICE_MEM[code] = merged
     else:
         PRICE_MISSES.append(code)
     time.sleep(0.15)   # 行情源都有限流，别把请求打太快
