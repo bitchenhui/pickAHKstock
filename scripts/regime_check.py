@@ -35,7 +35,10 @@ from research.backtest import (forecasts_by_report_period,  # noqa: E402
 PERIODS = ("2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
            "2025-06-30", "2025-12-31", "2026-03-31", "2026-06-30")
 HOLDS = (20, 60)
-MARKET_SAMPLE = 400
+# 与 scripts/market_baseline.py 用同一个种子与样本量：抽到的是同一批股票，
+# 行情缓存能直接复用，不用重拉一遍。
+MARKET_SAMPLE = 500
+MARKET_SEED = 20261030
 
 
 def _daily_returns(bars: list[dict]) -> dict[str, float]:
@@ -75,7 +78,7 @@ def run(period: str) -> dict:
 
     forecasters = {str(row.get("SECURITY_CODE") or "").strip() for row in rows}
     candidates = sorted(set(industry_map("second").keys()) - forecasters)
-    rng = random.Random(20261031)
+    rng = random.Random(MARKET_SEED)
     picked = rng.sample(candidates, min(MARKET_SAMPLE, len(candidates)))
 
     start = date.fromisoformat(notices[0]) - timedelta(days=40)
