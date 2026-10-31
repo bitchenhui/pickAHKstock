@@ -62,13 +62,30 @@ class BoardTests(unittest.TestCase):
 
     def test_new_candidates_filter_blocked(self):
         class Fake:
+            def __init__(self, code, notes, unaffordable=False):
+                self.code, self.notes = code, notes
+                self.name, self.market = code, "A"
+                self.headline = "h"
+                self.unaffordable = unaffordable
+        # 建不了仓、买不进（流动性）的挡掉
+        items = new_candidates([Fake("000001", []), Fake("000002", ["成交额不足"])])
+        self.assertEqual([i.code for i in items], ["000001"])
+        self.assertEqual(items[0].bucket, "待立项")
+        items = new_candidates([Fake("000001", []), Fake("000003", [], unaffordable=True)])
+        self.assertEqual([i.code for i in items], ["000001"])
+
+    def test_soft_notes_do_not_hide_candidates(self):
+        """软提示（口径提醒、极端幅度）不该让候选整条消失。"""
+        class Fake:
             def __init__(self, code, notes):
                 self.code, self.notes = code, notes
                 self.name, self.market = code, "A"
                 self.headline = "h"
-        items = new_candidates([Fake("000001", []), Fake("000002", ["成交额不足"])])
-        self.assertEqual([i.code for i in items], ["000001"])
-        self.assertEqual(items[0].bucket, "待立项")
+                self.unaffordable = False
+        items = new_candidates([Fake("000001", ["主指标为「扣除非经常性损益后的净利润」"]),
+                                Fake("000002", ["同比幅度 320% 属极端值，多为低基数所致"])])
+        self.assertEqual([i.code for i in items], ["000001", "000002"])
+        self.assertIn("主指标", items[0].reason)
 
 
 if __name__ == "__main__":

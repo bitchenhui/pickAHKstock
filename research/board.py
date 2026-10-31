@@ -127,21 +127,43 @@ def _state_change_reason(card: Card) -> str:
     return f"状态为{card.status}，需处置"
 
 
+# 硬挡：建不了仓或买不进——这些候选进了清单也是噪音
+BLOCKING_MARKERS = ("超过单只上限", "成交额不足", "买不进")
+
+
+def _blocked(candidate) -> bool:
+    """这条候选是不是「真该挡掉」。
+
+    挡的只有一种：当前账户规模建不了仓（整手金额超过单只仓位上限）。
+    以前是把**任何**提示都当挡掉的理由——「主指标是扣非口径」「幅度属极端值」
+    这类软提示也会让候选整条消失，结果好候选在看板上看都看不到。
+    """
+    if getattr(candidate, "unaffordable", False):
+        return True
+    notes = getattr(candidate, "notes", [])
+    return any(any(marker in note for marker in BLOCKING_MARKERS) for note in notes)
+
+
 def new_candidates(a_candidates=None, hk_candidates=None,
                    include_blocked: bool = False) -> list[BoardItem]:
     """把发现层的新候选转成看板条目（待立项）。
 
-    可投资性不合格的默认不进清单——除非显式要求，否则只是噪音。
+    建不了仓的默认不进清单——除非显式要求，否则只是噪音。软提示不挡条目，
+    只作为原因附在条目上。
     """
     items: list[BoardItem] = []
     for candidate in (a_candidates or []) + (hk_candidates or []):
-        notes = getattr(candidate, "notes", [])
-        if notes and not include_blocked:
+        if not include_blocked and _blocked(candidate):
             continue
+        reason = getattr(candidate, "headline", "") or getattr(candidate, "event", "")
+        cautions = [note for note in getattr(candidate, "notes", [])
+                    if not any(marker in note for marker in BLOCKING_MARKERS)]
+        if cautions:
+            reason = f"{reason}｜{cautions[0]}"
         items.append(BoardItem(
             market=getattr(candidate, "market", "A"),
             code=candidate.code, name=candidate.name,
             bucket="待立项",
-            reason=getattr(candidate, "headline", "") or getattr(candidate, "event", ""),
+            reason=reason,
             due="", status="未立项", card_status=""))
     return items

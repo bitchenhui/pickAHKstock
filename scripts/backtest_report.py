@@ -24,7 +24,10 @@ from research.backtest import (_compare, _prepare, forecasts_raw,  # noqa: E402
                                prefetch_prices, price_coverage, primary_rows)
 from research.portfolio import PortfolioConfig, run_portfolio_test  # noqa: E402
 
-PERIODS = ("2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
+# 十三期：2022 年报期到 2026 中报期。扩到 13 期是为了压低「恰好碰上单一时点」
+# 的可能性——八期时的跨期一致性只有 4/8，样本太小时结论不稳。
+PERIODS = ("2022-12-31", "2023-03-31", "2023-06-30", "2023-09-30", "2023-12-31",
+           "2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
            "2025-06-30", "2025-12-31", "2026-03-31", "2026-06-30")
 LOG = ROOT / "docs" / "backtest-log.md"
 THRESHOLDS = (30.0, 50.0, 100.0)
@@ -82,7 +85,7 @@ def event_study() -> tuple[list[str], dict]:
 
 
 def portfolio() -> list[str]:
-    lines = ["### 组合层（八期合并，20 只 × 5%，含可买性过滤）", ""]
+    lines = ["### 组合层（十三期合并，20 只 × 5%，含可买性过滤）", ""]
     # 合并口径的窗口跨八期，比单期宽得多——先把这段窗口的行情预取回来，
     # 否则每只股票都要重新下一遍年份文件。
     codes, notices = [], []
@@ -148,7 +151,7 @@ def per_period() -> list[str]:
                      f"{event['total_return'] - base['total_return']:+.1f} | "
                      f"{market.get('total_return', 0.0):+.2f}% | "
                      f"{event['total_return'] - market.get('total_return', 0.0):+.1f} |")
-    lines += ["", f"八期加总：强预告 {total_e:+.2f}%｜池内随机 {total_b:+.2f}%"
+    lines += ["", f"十三期加总：强预告 {total_e:+.2f}%｜池内随机 {total_b:+.2f}%"
                   f"（差 {total_e - total_b:+.2f}，不劣于基线的期数 {wins}/{len(PERIODS)}）"
                   f"｜全市场随机 {total_m:+.2f}%（差 {total_e - total_m:+.2f}，"
                   f"不劣于基线的期数 {wins_m}/{len(PERIODS)}）"]
