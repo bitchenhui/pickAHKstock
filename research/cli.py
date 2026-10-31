@@ -569,8 +569,11 @@ def cmd_recommend(args: argparse.Namespace) -> int:
     scope = f"账户本金 {capital:,.0f} 元、单只上限 {position_pct:.0%}" if capital else "未设账户"
     print(f"推荐清单 {len(recommendations)} 只（报告期 {args.period}｜{scope}）\n")
     print(render(recommendations))
-    print("这是「先看哪个」的清单，不是买入名单。卡片状态、证据等级与账户检查才决定"
-          "能否进入持仓研究；无机构覆盖与买不进的候选已单独标出。")
+    print("这是「该看哪几张卡片」的清单，不是买入名单，也不是「先买哪个」的排序——"
+          "完整池上的检验里，候选内部的四种排序**随机反而最好**"
+          "（见 docs/backtest-v5.md），排序只是可读性安排。")
+    print("卡片状态、证据等级与账户检查才决定能否进入持仓研究；"
+          "无机构覆盖与买不进的候选已单独标出。")
     return 0
 
 

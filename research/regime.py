@@ -49,6 +49,33 @@ class MarketRegime:
         return 0.5 if self.down else 1.0
 
 
+def regime_at(bars: list[dict], day: str) -> MarketRegime:
+    """**事件当日**的市场状态（只用 day 当天及之前的数据）。
+
+    回测里必须用 point-in-time 的状态：拿今天的市场状态去解释两年前的事，
+    等于用了未来信息。传进来的 bars 要覆盖 day 之前至少 60 个交易日。
+    """
+    result = MarketRegime(day=day)
+    visible = [bar for bar in bars if str(bar.get("day")) <= str(day)]
+    closes = [bar["close"] for bar in visible if bar.get("close")]
+    if len(closes) < CHANGE_WINDOW + 2:
+        result.note = "指数日线不足，状态未知"
+        return result
+    result.day = str(visible[-1]["day"])
+    result.close = closes[-1]
+    window = closes[-MA_WINDOW:] if len(closes) >= MA_WINDOW else closes
+    result.ma60 = sum(window) / len(window)
+    result.change_20d = closes[-1] / closes[-CHANGE_WINDOW - 1] - 1
+    if (result.change_20d <= DOWN_MOVE
+            or (result.ma60 and result.close < result.ma60 and result.change_20d < 0)):
+        result.state = "下行"
+    elif result.change_20d >= UP_MOVE:
+        result.state = "上行"
+    else:
+        result.state = "震荡"
+    return result
+
+
 def market_regime(as_of: date | None = None) -> MarketRegime:
     """沪深300 的市场状态。取不到数据就说「未知」，不猜。"""
     as_of = as_of or date.today()
