@@ -96,6 +96,7 @@ class PortfolioResult:
     halted_state: str = ""            # 触发时的回撤状态
     blocked_by_drawdown: int = 0      # 因回撤规则被拒的新增次数
     skipped_unaffordable: int = 0     # 因整手/资金买不到的次数
+    blocked_by_limit: int = 0         # 因跌停收盘卖不掉、顺延的次数
     notes: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -127,6 +128,38 @@ def _fee(notional: float, config: PortfolioConfig, side: str) -> float:
     return commission + duty
 
 
+def limit_pct(code: str) -> float:
+    """该股的涨跌停幅度（近似）。
+
+    主板 10%、创业板/科创板 20%、北交所 30%。ST 股是 5%，但我们没有
+    ST 标记，会把 ST 股按 10% 判定——这只会**少**判几次跌停，
+    不会多判，方向是保守的。
+    """
+    if code.startswith(("300", "301", "688", "689")):
+        return 20.0
+    if code.startswith(("4", "8", "9")):
+        return 30.0
+    return 10.0
+
+
+def limit_down_days(series: list[dict], code: str, tolerance: float = 0.3) -> set:
+    """收在跌停的交易日：这些天卖不掉（没有买盘）。
+
+    判据：当日跌幅达到停板幅度，且收盘价就是当日最低价（收盘封在跌停）。
+    跌停开盘但盘中打开、当日没封住的，按能卖处理——那说明有成交。
+    """
+    limit = limit_pct(code)
+    out = set()
+    for previous, current in zip(series, series[1:]):
+        base = previous.get("close")
+        if not base:
+            continue
+        change = (current["close"] / base - 1) * 100
+        if change <= -(limit - tolerance) and current.get("low") == current.get("close"):
+            out.add(current["day"])
+    return out
+
+
 def simulate(events: list[dict], price_series: dict[str, list[dict]],
              trading_days: list[str], config: PortfolioConfig,
              name: str = "组合", sort_key: str = "amount_desc") -> PortfolioResult:
@@ -136,6 +169,9 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
         result.notes.append("没有事件或没有交易日")
         return result
     closes = {code: _price_map(series) for code, series in price_series.items()}
+    # 跌停收盘的交易日：卖不掉，只能顺延到下一个能卖的日子
+    locked = {code: limit_down_days(series, code)
+              for code, series in price_series.items()}
     day_index = {day: index for index, day in enumerate(trading_days)}
     rng = random.Random(20261029)
     events_by_day: dict[str, list[dict]] = {}
@@ -183,6 +219,10 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
                         # 否则持仓会凭空消失、权益虚降、回撤被算成假的
                         remaining.append(trade)
                         continue
+                    if day in locked.get(trade.code, ()):
+                        result.blocked_by_limit += 1
+                        remaining.append(trade)
+                        continue
                     sell_price = sell * (1 - config.slippage)
                     notional = sell_price * trade.shares
                     fee = _fee(notional, config, "sell")
@@ -203,7 +243,11 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
         for trade in holdings:
             if index - day_index.get(trade.buy_day, index) >= config.hold_days:
                 sell = closes.get(trade.code, {}).get(day)
-                if sell:
+                if sell and day in locked.get(trade.code, ()):
+                    # 跌停收盘：卖不掉，顺延到下一个交易日
+                    result.blocked_by_limit += 1
+                    still_open.append(trade)
+                elif sell:
                     sell_price = sell * (1 - config.slippage)
                     notional = sell_price * trade.shares
                     fee = _fee(notional, config, "sell")
