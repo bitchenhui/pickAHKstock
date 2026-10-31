@@ -24,10 +24,13 @@ from research.portfolio import PortfolioConfig, run_portfolio_test  # noqa: E402
 
 PERIODS = ("2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
            "2025-06-30", "2025-12-31", "2026-03-31", "2026-06-30")
+PERIODS_13 = ("2022-12-31", "2023-03-31", "2023-06-30", "2023-09-30", "2023-12-31",
+              "2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31",
+              "2025-06-30", "2025-12-31", "2026-03-31", "2026-06-30")
 FACTORS = (1.0, 0.7, 0.5, 0.3)
 
 
-def run(factor: float) -> dict:
+def run(factor: float, periods=PERIODS) -> dict:
     config = PortfolioConfig(initial_capital=100000.0, max_positions=20,
                              position_pct=0.05, cash_floor_pct=0.2, hold_days=60,
                              regime_factor=factor)
@@ -35,7 +38,7 @@ def run(factor: float) -> dict:
     drawdown = 0.0
     worst = 0.0
     scaled = 0
-    for period in PERIODS:
+    for period in periods:
         result = run_portfolio_test(periods=(period,), threshold=30.0, min_amount=5e7,
                                     config=config, sort_key="amount_desc",
                                     prefilter_affordability=True,
@@ -49,18 +52,28 @@ def run(factor: float) -> dict:
 
 
 def main() -> int:
-    print(f"{'折算系数':>10s} | {'八期加总收益':>12s} | {'回撤合计':>9s} | "
+    import argparse
+
+    parser = argparse.ArgumentParser(description="下行市仓位折算系数扫描")
+    parser.add_argument("--13", action="store_true", help="用十三期（含 2022 年报期）")
+    parser.add_argument("--factors", default="1.0,0.7,0.5,0.3",
+                        help="要测的折算系数，逗号分隔")
+    args = parser.parse_args()
+    periods = PERIODS_13 if args.__dict__.get("13") else PERIODS
+    factors = tuple(float(x) for x in args.factors.split(","))
+    label = "十三期" if periods is PERIODS_13 else "八期"
+    print(f"{'折算系数':>10s} | {label + '加总收益':>12s} | {'回撤合计':>9s} | "
           f"{'最差单期回撤':>12s} | {'打折笔数':>8s}")
     rows = {}
-    for factor in FACTORS:
-        result = run(factor)
+    for factor in factors:
+        result = run(factor, periods)
         rows[factor] = result
         label = "不打折" if factor >= 1.0 else f"{factor:.1f}×"
         print(f"{label:>10s} | {result['total']:>11.2f}% | {result['drawdown']:>8.2f}% | "
               f"{result['worst']:>11.2f}% | {result['scaled']:>8}")
-    base = rows[1.0]
+    base = rows.get(1.0) or rows[factors[0]]
     print("\n相对不打折：")
-    for factor in FACTORS:
+    for factor in factors:
         if factor >= 1.0:
             continue
         result = rows[factor]
