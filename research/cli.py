@@ -314,6 +314,10 @@ def cmd_board(args: argparse.Namespace) -> int:
             print(f"港股发现层未取到候选：{exc}")
             hk_candidates = []
         fresh = new_candidates(a_candidates, hk_candidates)
+        # 已经有卡片的票不该再出现在「待立项」里——它是待复核项，不是新对象
+        existing = {(card.market, card.code) for card in cards}
+        fresh = [item for item in fresh
+                 if (item.market, item.code) not in existing]
     if not items and not fresh:
         print("看板是空的。没有卡片，也没有新候选。")
         return 0

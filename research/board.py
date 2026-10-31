@@ -160,6 +160,11 @@ def new_candidates(a_candidates=None, hk_candidates=None,
                     if not any(marker in note for marker in BLOCKING_MARKERS)]
         if cautions:
             reason = f"{reason}｜{cautions[0]}"
+        industry = getattr(candidate, "industry", "")
+        resonance = getattr(candidate, "resonance", "")
+        if industry and resonance:
+            # 同业共振是发现层已经算出来的结论，带进看板省得重算
+            reason = f"{reason}｜{industry}·{resonance}"
         items.append(BoardItem(
             market=getattr(candidate, "market", "A"),
             code=candidate.code, name=candidate.name,
