@@ -253,11 +253,29 @@ def plan_for(card: Card, account: Account) -> Plan:
     holding = account.holding_in(card.market, card.code)
     if holding:
         plan.reasons.append(f"已持有 {holding.shares} 股，本次为加仓上限")
+    # 市场状态：下行市里这类高 beta 标的的下跌日弹性是随机的 1.1–1.3 倍。
+    # 这里**只提示不自动改**——仓位规则是使用者自己的参数（account.json），
+    # 工具不替他改；要生效可以自己把单只上限调低，或在策略里写死这条。
+    factor = _regime_factor()
+    if factor < 1.0:
+        plan.reasons.append(f"市场在下行，建议仓位按 {factor:.1f}× 折算"
+                            f"（约 {int(lots * factor)} 手）——高 beta 标的在下跌市里"
+                            "是放大器不是信号；本次未自动修改账户参数")
     plan.action = "可加仓"
     plan.lots = lots
     plan.shares = lots * lot
     plan.notional = round(plan.shares * price, 2)
     return plan
+
+
+def _regime_factor() -> float:
+    """市场状态给出的仓位折算系数（下行 0.5，其余 1.0）。取不到就 1.0。"""
+    try:
+        from .regime import market_regime
+
+        return market_regime().position_factor()
+    except Exception:
+        return 1.0
 
 
 def portfolio_plan(cards: list[Card], account: Account) -> list[Plan]:

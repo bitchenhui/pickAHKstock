@@ -750,7 +750,18 @@ def cmd_account_plan(args: argparse.Namespace) -> int:
     summary = account_summary(cards, account)
     print(f"账户状态：回撤 {summary['drawdown'] * 100:.1f}% → {summary['drawdown_state']}；"
           f"A 股可用现金 {summary['cash_cny']:,.0f} CNY｜港股可用现金 {summary['cash_hkd']:,.0f} HKD")
-    print(f"卡片状态分布：{summary['card_states']}｜本轮计划新增名义金额 {summary['planned_additions']:,.0f}\n")
+    print(f"卡片状态分布：{summary['card_states']}｜本轮计划新增名义金额 {summary['planned_additions']:,.0f}")
+    try:
+        from .regime import market_regime
+
+        regime = market_regime()
+        print(f"市场状态：**{regime.state}**（{regime.note}）")
+        if regime.down:
+            print("  ⚠ 下行市里高 beta 标的的下跌日弹性是随机的 1.1–1.3 倍，"
+                  "仓位建议按 0.5× 折算（工具不自动改账户参数）")
+    except Exception:
+        pass
+    print()
     plans = portfolio_plan(cards, account)
     for plan in plans:
         print(f"{plan.code} {plan.name:8s} → {plan.action}")
