@@ -12,8 +12,9 @@ def snapshot(code="002132", price=10.0, turnover=5e8, cap=8e9):
 
 
 def forecast(code="002132", metric="归属于上市公司股东的净利润", change=60.0,
-            amount=5e8, kind="预增"):
-    return Forecast(code=code, name="测试", notice_date=__import__("datetime").date(2026, 7, 15),
+            amount=5e8, kind="预增", day=15):
+    return Forecast(code=code, name="测试",
+                    notice_date=__import__("datetime").date(2026, 7, day),
                     report_period="2026-06-30", metric=metric, forecast_type=kind,
                     change_lower=change, change_upper=change + 10, reason="",
                     source_url="", amount_lower=amount, amount_upper=amount)
@@ -62,10 +63,16 @@ class DiscoveryFilterTests(unittest.TestCase):
         self.assertFalse(candidates[0].small_amount)
         self.assertEqual(stats["small_amount"], 0)
 
-    def test_sorting_is_by_forecast_amount_not_by_change(self):
+    def test_same_tier_is_ordered_by_recency_not_by_amount(self):
+        """同档之内按**公告日新的先看**（工作流顺序，不是收益预测）。
+
+        早先这里按「预告绝对额降序」排，理由是 v3 的检验支持；完整池的对照
+        把那条否掉了——四种排序里随机反而最好（docs/backtest-v5.md），
+        所以不该再用收益的语言包装排序规则。
+        """
         forecasts = [
-            forecast(code="002132", change=800.0, amount=1e8),   # 幅度大但金额小
-            forecast(code="002044", change=35.0, amount=9e8),    # 幅度小但金额大
+            forecast(code="002132", change=800.0, amount=1e8, day=10),  # 早公告、金额小
+            forecast(code="002044", change=35.0, amount=9e8, day=20),   # 晚公告、金额大
         ]
         quotes = {"002132": snapshot("002132"), "002044": snapshot("002044")}
         candidates, _stats = build_candidates(forecasts, quotes, [])
@@ -140,17 +147,23 @@ class AffordabilityTests(unittest.TestCase):
 
 class SortingTests(unittest.TestCase):
     def test_mild_change_candidates_come_first(self):
-        """温和优先：幅度小的排前面（极端幅度是低基数噪音，不是信号）。"""
+        """同档之内按公告日新的先看（工作流顺序）。
+
+        早先这里是「温和优先」（幅度小的排前面）。那条规则来自 v3 的事件研究，
+        完整池的排序对照把它否掉了：四种排序里随机反而最好
+        （docs/backtest-v5.md），所以不再用收益的语言排工作流。
+        """
         from research.events import Forecast
         import datetime
 
-        def make(code, change):
-            return Forecast(code=code, name="测试", notice_date=datetime.date(2026, 7, 15),
+        def make(code, change, day):
+            return Forecast(code=code, name="测试", notice_date=datetime.date(2026, 7, day),
                             report_period="2026-06-30", metric="归属于上市公司股东的净利润",
                             forecast_type="预增", change_lower=change, change_upper=change + 5,
                             reason="", source_url="", amount_lower=2e8, amount_upper=2e8)
 
-        forecasts = [make("002132", 900.0), make("002044", 35.0), make("600519", 120.0)]
+        forecasts = [make("002132", 900.0, 10), make("002044", 35.0, 20),
+                     make("600519", 120.0, 15)]
         quotes = {c: snapshot(c, price=10.0) for c in ("002132", "002044", "600519")}
         candidates, _stats = build_candidates(forecasts, quotes, [], capital=1000000.0)
         self.assertEqual([c.code for c in candidates], ["002044", "600519", "002132"])

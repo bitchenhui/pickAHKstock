@@ -230,9 +230,14 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
     # 5. 同幅度按预告绝对额降序（金额大的信息量更大）
     #
     # 清单的用途是「该看哪几张卡片」，不是「先买哪个」。
-    return sorted(candidates, key=lambda c: (c.unaffordable, c.one_off, c.small_amount,
-                                           c.change_lower if c.change_lower is not None else 0.0,
-                                           -(c.forecast_amount or 0))), {
+    # 同档之内按**公告日新的先看**——这是工作流顺序（信息最新的先处理），
+    # 不是收益预测。原来的「幅度小的优先 → 同幅度按绝对额降序」被完整池的
+    # 对照否掉了：四种排序里**随机反而最好**（docs/backtest-v5.md），
+    # 既然没有证据支持任何收益排序，就不该用收益的语言包装一个工作流顺序。
+    return sorted(candidates, key=lambda c: (
+        c.unaffordable, c.one_off, c.small_amount,
+        -(c.notice_date.toordinal() if c.notice_date else 0),
+        -(c.forecast_amount or 0))), {
         "small_amount": small_amount,
         "pool": len({f.code for f in forecasts}),
         "strong": len(grouped),
