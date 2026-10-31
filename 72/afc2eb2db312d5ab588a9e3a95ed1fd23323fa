@@ -1,0 +1,14 @@
+docs/backtest-v4.md
+  h_69a2bad0f475d9 245-249,253-256,258,260-266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "72afc2eb2db312d5ab588a9e3a95ed1fd23323fa",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
