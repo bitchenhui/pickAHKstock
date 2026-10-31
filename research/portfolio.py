@@ -37,7 +37,8 @@ class PortfolioConfig:
     stamp_duty: float = 0.001          # 印花税 千1（卖出侧）
     slippage: float = 0.002            # 单边滑点
     lot_size: int = 100
-    max_drawdown: float = 0.20         # 账户回撤边界（策略稿 §44）
+    max_drawdown: float = 0.20        # 账户回撤边界（策略稿 §44）
+    regime_factor: float = 0.5        # 下行市里单笔仓位的折算系数
     apply_drawdown_rule: bool = True   # 是否按回撤状态限制新增仓位
     force_exit_on_drawdown: bool = False  # 触及边界时是否强制平掉现有持仓
 
@@ -310,7 +311,7 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
 
                 state = regime_at(index_bars, day)
                 if state.down:
-                    budget *= state.position_factor()
+                    budget *= config.regime_factor
                     result.scaled_by_regime += 1
             price = bar["close"] * (1 + config.slippage)
             shares = int(budget // (price * config.lot_size)) * config.lot_size

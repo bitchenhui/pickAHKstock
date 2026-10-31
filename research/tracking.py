@@ -82,6 +82,32 @@ def record(cards, day: date, price_lookup=None) -> list[Snapshot]:
     return snapshots
 
 
+def record_snapshot(card, day: str, price: float | None = None) -> Snapshot:
+    """给一张卡片记一个快照（不联网取价，价格由 card-snapshot 命令补）。"""
+    snapshot = Snapshot(
+        market=card.market, code=card.code, name=card.name, status=card.status,
+        card_hash=card_hash(card), day=day, price=price,
+        evidence_count=len(card.evidence), level=card.derived_level())
+    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    path = SNAPSHOT_DIR / f"{day}_{card.market}_{card.code}.json"
+    path.write_text(json.dumps(snapshot.to_dict(), ensure_ascii=False, indent=2),
+                    encoding="utf-8")
+    return snapshot
+
+
+def latest_snapshot(market: str, code: str) -> Snapshot | None:
+    """某张卡片最近的一个快照（没有则 None）。"""
+    if not SNAPSHOT_DIR.exists():
+        return None
+    candidates = sorted(SNAPSHOT_DIR.glob(f"*_{market}_{code}.json"))
+    if not candidates:
+        return None
+    try:
+        return Snapshot(**json.loads(candidates[-1].read_text(encoding="utf-8")))
+    except (ValueError, OSError, TypeError):
+        return None
+
+
 def load_snapshots() -> list[Snapshot]:
     if not SNAPSHOT_DIR.exists():
         return []

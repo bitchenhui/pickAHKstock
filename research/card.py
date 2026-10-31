@@ -245,6 +245,7 @@ class Card:
         CARD_DIR.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(self.to_dict(), ensure_ascii=False, indent=2),
                              encoding="utf-8")
+        _snapshot_if_status_changed(self)
         return self.path
 
     @classmethod
@@ -263,6 +264,27 @@ class Finding:
 
     def __str__(self) -> str:
         return f"[{self.severity}] {self.field}：{self.message}"
+
+
+def _snapshot_if_status_changed(card: "Card") -> None:
+    """卡片状态变了就自动记一个快照。
+
+    卡片检验集（「卡片状态 vs 后续表现」）要能自己长大，靠人记得跑
+    `card-snapshot` 是长不起来的。状态变更是研究结论更新的时刻，也正是
+    最该被检验的时刻——所以在这里自动记。
+
+    只记状态变化的那些（同一个状态反复补证据不算新信息）；不联网取价，
+    价格由 card-snapshot 命令补。
+    """
+    try:
+        from .tracking import latest_snapshot, record_snapshot
+
+        previous = latest_snapshot(card.market, card.code)
+        if previous and previous.status == card.status:
+            return
+        record_snapshot(card, day=date.today().isoformat())
+    except Exception:
+        pass  # 快照失败不该影响卡片保存
 
 
 def validate(card: Card) -> list[Finding]:
