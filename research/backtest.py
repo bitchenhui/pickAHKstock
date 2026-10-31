@@ -242,14 +242,17 @@ def load_prices(code: str, start: date, end: date, count: int = 400) -> list[dic
         # 腾讯只回一部分（窗口太长或区间怪），再用同花顺补齐
         merged = _merge(merged, _fetch_ths(code, start, end,
                                            skip_years=_covered_years(merged, start, end)))
-    merged = [bar for bar in merged if start.isoformat() <= bar["day"] <= end.isoformat()]
+    # 缓存存**并集**，不截断：截掉区间外的数据后，下一次要更宽的窗口时
+    # 又得重下一遍（组合层与事件研究的窗口宽窄不同，来回覆盖）
+    window = [bar for bar in merged
+              if start.isoformat() <= bar["day"] <= end.isoformat()]
     if merged:
         cache_file.write_text(json.dumps(merged, ensure_ascii=False), encoding="utf-8")
         _PRICE_MEM[code] = merged
     else:
         PRICE_MISSES.append(code)
     time.sleep(0.15)   # 行情源都有限流，别把请求打太快
-    return merged
+    return window
 
 
 def symbol_for(code: str) -> str:
