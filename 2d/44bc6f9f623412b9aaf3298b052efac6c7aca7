@@ -1,0 +1,21 @@
+research/portfolio.py
+  s_2be9ca1f77025c::t_582727a09825fd 99,131-162,172-174,222-225,246-250
+tests/test_portfolio_limits.py
+  s_2be9ca1f77025c::t_5581d5c4770bde 1-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2d44bc6f9f623412b9aaf3298b052efac6c7aca7",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
