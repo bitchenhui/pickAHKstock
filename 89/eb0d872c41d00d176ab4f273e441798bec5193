@@ -1,0 +1,25 @@
+docs/backtest-v4.md
+  s_2be9ca1f77025c::t_3c7d40ff336573 190-224
+research/regime.py
+  s_2be9ca1f77025c::t_4de8cfc846c442 1-79
+research/workflow.py
+  s_2be9ca1f77025c::t_7674f2bf78eab1 44-58,93-94,281-286
+tests/test_regime.py
+  s_2be9ca1f77025c::t_aa01916673941a 1-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "89eb0d872c41d00d176ab4f273e441798bec5193",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
