@@ -1,0 +1,25 @@
+cards/HK_03323.json
+  s_2be9ca1f77025c::t_a76ca86fc01ee4 112-114,117
+cards/HK_09696.json
+  s_2be9ca1f77025c::t_4d2c9e36f1d96c 111-113,116
+research/account.py
+  s_2be9ca1f77025c::t_20b36db3aec269 178-188
+tests/test_account.py
+  s_2be9ca1f77025c::t_6c99ef418d0898 6-7,125-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a45e84b3609dfa64e93d7a09609e7053ca1ace3",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
