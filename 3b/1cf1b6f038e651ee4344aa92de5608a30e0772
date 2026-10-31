@@ -1,0 +1,14 @@
+docs/strategy-v1.md
+  h_69a2bad0f475d9 3-18,66-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3b1cf1b6f038e651ee4344aa92de5608a30e0772",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
