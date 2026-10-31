@@ -469,6 +469,21 @@ HK_METRICS = ("OPERATE_INCOME", "OPERATE_INCOME_YOY", "HOLDER_PROFIT", "HOLDER_P
               "TOTAL_PARENT_EQUITY", "TOTAL_MARKET_CAP", "PE_TTM", "PB_TTM",
               "ACCOUNTS_RECE_TDAYS", "INVENTORY_TDAYS", "DIVIDEND_RATE")
 
+# 卡片与渲染都按中文科目名取，港股接口给的是英文字段，这里做一层映射
+HK_METRIC_LABELS = {
+    "OPERATE_INCOME": "营业总收入", "OPERATE_INCOME_YOY": "营业总收入同比",
+    "HOLDER_PROFIT": "归母净利润", "HOLDER_PROFIT_YOY": "归母净利润同比",
+    "GROSS_PROFIT_RATIO": "销售毛利率", "NET_PROFIT_RATIO": "净利率",
+    "ROE_AVG": "净资产收益率", "ROA": "总资产收益率",
+    "DEBT_ASSET_RATIO": "资产负债率", "NETCASH_OPERATE": "经营活动现金流净额",
+    "BASIC_EPS": "每股收益", "BPS": "每股净资产",
+    "TOTAL_ASSETS": "总资产", "TOTAL_LIABILITIES": "总负债",
+    "TOTAL_PARENT_EQUITY": "归母净资产", "TOTAL_MARKET_CAP": "总市值",
+    "PE_TTM": "市盈率TTM", "PB_TTM": "市净率",
+    "ACCOUNTS_RECE_TDAYS": "应收账款周转天数", "INVENTORY_TDAYS": "存货周转天数",
+    "DIVIDEND_RATE": "股息率",
+}
+
 
 def fetch_stock_financials(code: str, periods: int = 8) -> dict:
     """单只港股的财务序列（东方财富数据中心）。

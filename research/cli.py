@@ -112,11 +112,15 @@ def cmd_financials(args: argparse.Namespace) -> int:
     if args.market == "HK":
         from .hk import fetch_stock_financials
 
+        from .hk import HK_METRIC_LABELS
+
         data = fetch_stock_financials(args.code)
         track = card.financials
         track.source = data["source"]
         track.periods = data["periods"]
-        track.metrics = data["metrics"]
+        # 卡片里一律用中文科目名，渲染与判断才有一致的口径
+        track.metrics = {HK_METRIC_LABELS.get(name, name): series
+                         for name, series in data["metrics"].items()}
         track.quarter_metrics = {}
     else:
         from .ths import fetch_financials, key_series

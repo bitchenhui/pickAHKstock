@@ -98,6 +98,31 @@ def scaffold(candidate: Candidate, source: str = "发现层") -> Card:
     return card
 
 
+def _format_value(value):
+    """把接口给的原始值变成人能读的数。
+
+    港股接口给的是元（如 129985038097.51），直接印出来没法读；
+    A 股 F10 给的常是带「亿」字的字符串，原样保留。
+    """
+    if value is None:
+        return "-"
+    if isinstance(value, str):
+        return value
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if abs(number) >= 1e8:
+        return f"{number / 1e8:.2f} 亿"
+    if abs(number) >= 1e4:
+        return f"{number / 1e4:.2f} 万"
+    return f"{number:.2f}"
+
+
+def _metric_cells(series: dict, periods: list[str]) -> list[str]:
+    return [f"{period}:{_format_value(series.get(period))}" for period in periods]
+
+
 def render_markdown(card: Card) -> str:
     level = card.derived_level()
     lines = [f"# {card.name}（{card.market} {card.code}）",
@@ -212,11 +237,18 @@ def render_markdown(card: Card) -> str:
     lines.append(f"- 路径：**{track.path}**　来源：{track.source or '（未取得）'}")
     if track.periods:
         lines.append(f"- 报告期：{' | '.join(track.periods)}")
+    # 先画五个标准科目，其余（港股的经营现金流、周转天数等）也画出来——
+    # 只画五个会让港股卡片看起来什么财务序列都没有
+    shown = []
     for name in ("营业总收入", "净利润", "扣非净利润", "销售毛利率", "净资产收益率"):
         series = track.metrics.get(name)
         if series:
-            cells = [f"{period}:{series.get(period, '-')}" for period in track.periods]
-            lines.append(f"- {name}：" + " | ".join(cells))
+            shown.append(name)
+            lines.append(f"- {name}：" + " | ".join(_metric_cells(series, track.periods)))
+    for name, series in track.metrics.items():
+        if name in shown:
+            continue
+        lines.append(f"- {name}：" + " | ".join(_metric_cells(series, track.periods)))
     lines.append(f"- 经常性判断：{track.recurring_judgment or '（未填写）'}")
     lines.append(f"- 周期性判断：{track.cyclical_judgment or '（未填写）'}")
     if track.working_capital_note:
