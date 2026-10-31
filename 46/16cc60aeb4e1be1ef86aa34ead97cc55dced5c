@@ -1,0 +1,23 @@
+research/cli.py
+  s_2be9ca1f77025c::t_208465ea48784a 115-116,121-123
+research/hk.py
+  s_2be9ca1f77025c::t_e563d09a2d68d1 472-486
+research/workflow.py
+  s_2be9ca1f77025c::t_5a6fec7d7908f4 101-125,240-242,246-251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4616cc60aeb4e1be1ef86aa34ead97cc55dced5c",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
