@@ -1,0 +1,31 @@
+cards/A_000626.json
+  s_2be9ca1f77025c::t_97c1c839cd377c 184-185
+cards/A_002044.json
+  s_2be9ca1f77025c::t_16ee4f00400275 199-200
+cards/A_002132.json
+  s_2be9ca1f77025c::t_0c7f42e245d837 171-172
+cards/A_603991.json
+  s_2be9ca1f77025c::t_a3a9e077360ac9 264-265
+cards/A_605358.json
+  s_2be9ca1f77025c::t_7209eca0c887d2 191-192
+research/account.py
+  s_2be9ca1f77025c::t_fae58b5cb5641a 241-244
+tests/test_account.py
+  s_2be9ca1f77025c::t_9fc06012d34479 110-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f409ed017ba835e163962396416a24bb7d1d46c1",
+  "prompts": {},
+  "sessions": {
+    "s_2be9ca1f77025c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "538b18bd-4ea0-4499-920e-532891f2a80b",
+        "model": "unknown"
+      },
+      "human_author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
