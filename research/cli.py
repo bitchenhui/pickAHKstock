@@ -609,7 +609,7 @@ def cmd_card_score(args: argparse.Namespace) -> int:
     """回看卡片检验集：快照时的状态 vs 后续 20/60 日表现。"""
     from datetime import date, timedelta
 
-    from .backtest import load_prices
+    from .backtest import index_bars, load_prices
     from .tracking import load_snapshots, score
 
     snapshots = load_snapshots()
@@ -623,14 +623,35 @@ def cmd_card_score(args: argparse.Namespace) -> int:
             start = date.fromisoformat(snapshot.day) - timedelta(days=40)
             price_series[snapshot.code] = load_prices(snapshot.code, start,
                                                       today + timedelta(days=10))
-    result = score(snapshots, price_series)
-    print(f"快照 {len(result['rows'])} 个（快照日 {min(s.day for s in snapshots)} 起）\n")
-    print(f"{'状态':>8s} {'n':>4s} {'可评':>4s} {'60日中位':>9s} {'60日胜率':>9s}")
+    # 基准：同期沪深300。没有基准，「后续跌 3%」这件事没法判断好坏。
+    first_day = min(date.fromisoformat(s.day) for s in snapshots)
+    index_series = index_bars(first_day - timedelta(days=40), today + timedelta(days=10))
+    result = score(snapshots, price_series, index_series=index_series)
+    print(f"快照 {len(result['rows'])} 个（快照日 {min(s.day for s in snapshots)} 起）"
+          f"｜基准：沪深300\n")
+    print(f"{'状态':>8s} {'n':>4s} {'可评':>4s} {'60日中位':>9s} {'60日胜率':>9s} "
+          f"{'超额中位':>9s} {'跑赢':>6s}")
     for status, item in result["summary"].items():
         median = "—" if item.get("median_60") is None else f"{item['median_60']}%"
         win = "—" if item.get("win_rate_60") is None else f"{item['win_rate_60']}%"
+        excess = "—" if item.get("excess_60") is None else f"{item['excess_60']}%"
+        beat = item.get("beat_market_60")
         scored = item.get("scored_60", 0)
-        print(f"{status:>8s} {item['n']:>4d} {scored:>4d} {median:>9s} {win:>9s}")
+        print(f"{status:>8s} {item['n']:>4d} {scored:>4d} {median:>9s} {win:>9s} "
+              f"{excess:>9s} {'—' if beat is None else f'{beat}/{scored}':>6s}")
+    if index_series:
+        print("\n「超额中位」= 相对同期沪深300；「跑赢」= 跑赢基准的卡片数/可评卡片数。"
+              "\n样本极小，这里给的是可数的读数，不是统计结论——检验集要靠卡片自己长大。")
+    print("\n逐张卡片（样本小的时候，逐条比分组有意义）：")
+    print(f"{'卡片':>16s} {'快照日':>12s} {'状态':>6s} {'20日':>8s} {'超额':>8s} "
+          f"{'60日':>8s} {'超额':>8s}")
+    for row in sorted(result["rows"], key=lambda r: (r["day"], r["code"])):
+        def fmt(key):
+            value = row.get(key)
+            return "—" if value is None else f"{value:+.2f}%"
+        print(f"{row['name'][:15]:>16s} {row['day']:>12s} {row['status']:>6s} "
+              f"{fmt('return_20'):>8s} {fmt('excess_20'):>8s} "
+              f"{fmt('return_60'):>8s} {fmt('excess_60'):>8s}")
     pending = [r for r in result["rows"] if r["return_60"] is None]
     if pending:
         print(f"\n尚有 {len(pending)} 个快照未满 60 个交易日——检验集还没长成。"

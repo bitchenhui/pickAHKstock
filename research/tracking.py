@@ -45,10 +45,12 @@ class ScoreRow:
     day: str
     return_60: float | None = None
     return_20: float | None = None
+    excess_60: float | None = None      # 相对同期沪深300
+    excess_20: float | None = None
 
     def to_dict(self) -> dict:
         data = asdict(self)
-        for key in ("return_60", "return_20"):
+        for key in ("return_60", "return_20", "excess_60", "excess_20"):
             data[key] = None if data[key] is None else round(data[key] * 100, 2)
         return data
 
@@ -93,10 +95,15 @@ def load_snapshots() -> list[Snapshot]:
 
 
 def score(snapshots: list[Snapshot], price_series: dict[str, list[dict]],
-          holds=(20, 60)) -> dict:
+          holds=(20, 60), index_series: list[dict] | None = None) -> dict:
     """按快照时的状态分组，回看后续表现。
 
     price_series: {code: [{day, close, ...}]}，用前复权日线。
+    index_series: 同期沪深300日线。**给了才算得清「跑赢还是跑输」**——
+    没有基准，卡片后续跌 3% 这件事本身没有意义（同期市场可能跌 8%）。
+
+    这条不是形式：v4 的回测里就是因为对照组选错，结论直接读反过
+    （见 docs/backtest-v4.md）。卡片检验集也会犯同样的错，所以基线是必需品。
     """
     from .backtest import forward_return
 
@@ -108,6 +115,10 @@ def score(snapshots: list[Snapshot], price_series: dict[str, list[dict]],
         for hold in holds:
             value = forward_return(series, snapshot.day, hold)
             setattr(row, f"return_{hold}", value)
+            if value is not None and index_series:
+                benchmark = forward_return(index_series, snapshot.day, hold)
+                setattr(row, f"excess_{hold}",
+                        None if benchmark is None else value - benchmark)
         rows.append(row)
     groups: dict[str, list] = {}
     for row in rows:
@@ -125,5 +136,13 @@ def score(snapshots: list[Snapshot], price_series: dict[str, list[dict]],
             entry[f"win_rate_{hold}"] = (None if not values
                                          else round(sum(1 for v in values if v > 0)
                                                     / len(values) * 100, 1))
+            # 相对基准：同期沪深300。样本极小（卡片检验集还没长成），
+            # 所以给的是「跑赢几只」这种可数的读数，不是统计结论。
+            excess = [getattr(item, f"excess_{hold}", None) for item in items]
+            excess = [v for v in excess if v is not None]
+            entry[f"excess_{hold}"] = (None if not excess
+                                       else round(sorted(excess)[len(excess) // 2] * 100, 2))
+            entry[f"beat_market_{hold}"] = (None if not excess else
+                                            sum(1 for v in excess if v > 0))
         summary[status] = entry
     return {"rows": [r.to_dict() for r in rows], "summary": summary}
