@@ -67,7 +67,10 @@ def market_regime(as_of: date | None = None) -> MarketRegime:
     window = closes[-MA_WINDOW:] if len(closes) >= MA_WINDOW else closes
     result.ma60 = sum(window) / len(window)
     result.change_20d = closes[-1] / closes[-CHANGE_WINDOW - 1] - 1
-    if result.change_20d <= DOWN_MOVE or (result.ma60 and result.close < result.ma60):
+    # 判下行要两个条件之一：20 日跌幅超过 8%，或者已经跌破 60 日均线且在走弱。
+    # 只看「收盘低于均线」太松——正常回调也会被报成下行，仓位折算就误触发了。
+    if (result.change_20d <= DOWN_MOVE
+            or (result.ma60 and result.close < result.ma60 and result.change_20d < 0)):
         result.state = "下行"
     elif result.change_20d >= UP_MOVE:
         result.state = "上行"
