@@ -111,36 +111,58 @@ def build(candidates: list[Candidate], with_analysts: bool = True) -> list[Recom
 
 
 def render(recommendations: list[Recommendation]) -> str:
+    """推荐清单分两段：**当前账户规模买得进的**在前，买不进的单列。
+
+    为什么分两段：账户规模是这个工具的一等输入。一手金额超过单只仓位上限的
+    候选，无论信号多好都建不了仓——把它们和能买的混在一张清单里，
+    「先看哪个」这个问题就没有答案了。买不进的不扔掉（资金变大、股价跌下来
+    都可能买进），但要单独放，别占着推荐位。
+    """
+    buyable = [item for item in recommendations if not item.candidate.unaffordable]
+    blocked = [item for item in recommendations if item.candidate.unaffordable]
     lines = []
-    for index, item in enumerate(recommendations, start=1):
-        candidate = item.candidate
-        amount = f"{(candidate.forecast_amount or 0) / 1e8:.2f} 亿"
-        lines.append(f"{index}. {candidate.code} {candidate.name}"
-                     f"［{item.direction or '方向待判'}］ {candidate.forecast_type}"
-                     f"（{candidate.change_lower:+.0f}%）"
-                     f"｜预告额 {amount}"
-                     f"｜价 {candidate.price:.2f}"
-                     f"｜覆盖 {item.coverage} 家"
-                     f"｜{item.latest_rating or '—'}")
-        if candidate.industry:
-            lines.append(f"   行业共振：{candidate.industry}｜{candidate.resonance or '—'}"
-                         f"（同行业 {candidate.resonance_peers} 家发预告，"
-                         f"同向 {candidate.resonance_same_sign} 家）")
-        if item.eps_forecast:
-            row = item.eps_forecast[0]
-            mean = row.get("均值")
-            industry = row.get("行业平均数")
-            try:
-                comparison = f"（行业均值 {industry}）"
-            except (TypeError, ValueError):
-                comparison = ""
-            lines.append(f"   预期：{row.get('年度')} 年 EPS 均值 {mean}{comparison}"
-                         f"，机构 {row.get('机构数')} 家")
-        if candidate.pdf_url:
-            lines.append(f"   原文：{candidate.pdf_url}")
-        for note in item.notes:
-            lines.append(f"   ⚠ {note}")
-        for action in item.next_actions:
-            lines.append(f"   → {action}")
-        lines.append("")
+    if blocked:
+        lines.append(f"（按当前账户规模，{len(blocked)} 只因整手金额超过单只仓位上限"
+                     "买不进，单列在后面）")
+    for index, item in enumerate(buyable, start=1):
+        lines.extend(_render_one(item, index))
+    if blocked:
+        lines.append("--- 买不进的（资金变大或股价下来才可能） ---")
+        for index, item in enumerate(blocked, start=1):
+            lines.extend(_render_one(item, index))
     return "\n".join(lines)
+
+
+def _render_one(item: Recommendation, index: int) -> list[str]:
+    lines = []
+    candidate = item.candidate
+    amount = f"{(candidate.forecast_amount or 0) / 1e8:.2f} 亿"
+    lines.append(f"{index}. {candidate.code} {candidate.name}"
+                 f"［{item.direction or '方向待判'}］ {candidate.forecast_type}"
+                 f"（{candidate.change_lower:+.0f}%）"
+                 f"｜预告额 {amount}"
+                 f"｜价 {candidate.price:.2f}"
+                 f"｜覆盖 {item.coverage} 家"
+                 f"｜{item.latest_rating or '—'}")
+    if candidate.industry:
+        lines.append(f"   行业共振：{candidate.industry}｜{candidate.resonance or '—'}"
+                     f"（同行业 {candidate.resonance_peers} 家发预告，"
+                     f"同向 {candidate.resonance_same_sign} 家）")
+    if item.eps_forecast:
+        row = item.eps_forecast[0]
+        mean = row.get("均值")
+        industry = row.get("行业平均数")
+        try:
+            comparison = f"（行业均值 {industry}）"
+        except (TypeError, ValueError):
+            comparison = ""
+        lines.append(f"   预期：{row.get('年度')} 年 EPS 均值 {mean}{comparison}"
+                     f"，机构 {row.get('机构数')} 家")
+    if candidate.pdf_url:
+        lines.append(f"   原文：{candidate.pdf_url}")
+    for note in item.notes:
+        lines.append(f"   ⚠ {note}")
+    for action in item.next_actions:
+        lines.append(f"   → {action}")
+    lines.append("")
+    return lines

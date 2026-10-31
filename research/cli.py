@@ -547,13 +547,27 @@ def cmd_recommend(args: argparse.Namespace) -> int:
     from .discover import discover
     from .recommend import build, render
 
+    capital = args.capital
+    position_pct = args.position_pct
+    if not capital:
+        # 账户规模是发现层的一等输入：不给数字就按 account.json 里的算，
+        # 否则「买不买得进」这一栏永远是空的，等于没做
+        account_file = Path(__file__).resolve().parent.parent / "account.json"
+        if account_file.exists():
+            try:
+                account = json.loads(account_file.read_text(encoding="utf-8"))
+                capital = float(account.get("capital_cny") or 0)
+                position_pct = float(account.get("max_position_pct") or position_pct)
+            except (ValueError, OSError):
+                pass
     candidates, stats = discover(args.period, args.since_days, args.limit,
-                                capital=args.capital, position_pct=args.position_pct)
+                                capital=capital, position_pct=position_pct)
     if not candidates:
         print("没有符合条件的候选。缺失不等于没有机会——先核对数据源与筛选口径。")
         return 0
     recommendations = build(candidates, with_analysts=not args.no_analysts)
-    print(f"推荐清单 {len(recommendations)} 只（报告期 {args.period}）\n")
+    scope = f"账户本金 {capital:,.0f} 元、单只上限 {position_pct:.0%}" if capital else "未设账户"
+    print(f"推荐清单 {len(recommendations)} 只（报告期 {args.period}｜{scope}）\n")
     print(render(recommendations))
     print("这是「先看哪个」的清单，不是买入名单。卡片状态、证据等级与账户检查才决定"
           "能否进入持仓研究；无机构覆盖与买不进的候选已单独标出。")
@@ -824,7 +838,8 @@ def main(argv: list[str] | None = None) -> int:
     p_rec.add_argument("--period", default="2026-09-30", help="业绩预告的报告期")
     p_rec.add_argument("--since-days", type=int, default=90)
     p_rec.add_argument("--limit", type=int, default=10)
-    p_rec.add_argument("--capital", type=float, default=0.0, help="账户本金（用于算可买性）")
+    p_rec.add_argument("--capital", type=float, default=0.0,
+                       help="账户本金（用于算可买性）；不给则读 account.json")
     p_rec.add_argument("--position-pct", type=float, default=0.05, help="单只仓位上限")
     p_rec.add_argument("--no-analysts", action="store_true", help="不取分析师预期（更快）")
     p_rec.set_defaults(func=cmd_recommend)
