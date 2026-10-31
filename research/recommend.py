@@ -19,6 +19,7 @@ from datetime import date
 
 from .analysts import Expectation, fetch as fetch_expectations
 from .discover import Candidate
+from .regime import market_regime
 
 
 @dataclass
@@ -70,9 +71,12 @@ def _direction(candidate: Candidate) -> str:
     return ""
 
 
-def _next_actions(candidate: Candidate, coverage: int) -> list[str]:
+def _next_actions(candidate: Candidate, coverage: int, regime=None) -> list[str]:
     """给每个候选一条「下一步该做什么」——推荐清单必须可执行。"""
     actions = ["读巨潮公告原文（业绩变动原因），核对是经营性还是一次性"]
+    if regime is not None and regime.down:
+        actions.append(f"市场在下行（{regime.note}）：这类票的下跌日弹性是随机的 "
+                       "1.1–1.3 倍，信号没失效但仓位要打折（按 0.5× 算）")
     if candidate.one_off:
         actions.append("含重组/处置/补助等一次性因素：与重组前口径不可比，先确认可比性")
     if candidate.small_amount:
@@ -94,7 +98,10 @@ def _next_actions(candidate: Candidate, coverage: int) -> list[str]:
     return actions
 
 
-def build(candidates: list[Candidate], with_analysts: bool = True) -> list[Recommendation]:
+def build(candidates: list[Candidate], with_analysts: bool = True,
+          regime=None) -> list[Recommendation]:
+    if regime is None:
+        regime = market_regime()
     recommendations: list[Recommendation] = []
     for candidate in candidates:
         recommendation = Recommendation(candidate=candidate, direction=_direction(candidate))
@@ -105,7 +112,7 @@ def build(candidates: list[Candidate], with_analysts: bool = True) -> list[Recom
             recommendation.latest_rating = expectation.latest_rating
             recommendation.notes.extend(expectation.notes)
         recommendation.notes.extend(candidate.notes)
-        recommendation.next_actions = _next_actions(candidate, recommendation.coverage)
+        recommendation.next_actions = _next_actions(candidate, recommendation.coverage, regime)
         recommendations.append(recommendation)
     return recommendations
 
@@ -121,6 +128,13 @@ def render(recommendations: list[Recommendation]) -> str:
     buyable = [item for item in recommendations if not item.candidate.unaffordable]
     blocked = [item for item in recommendations if item.candidate.unaffordable]
     lines = []
+    regime = market_regime()
+    lines.append(f"市场状态：**{regime.state}**（{regime.note}）")
+    if regime.down:
+        lines.append("  ⚠ 下行市里这类票是放大器不是信号：v4 诊断的两期下跌市里，"
+                     "强预告组在下跌日的平均日收益是随机的 1.08–1.33 倍。"
+                     "信号本身没失效，但仓位要打折（按 0.5× 算）。")
+    lines.append("")
     if blocked:
         lines.append(f"（按当前账户规模，{len(blocked)} 只因整手金额超过单只仓位上限"
                      "买不进，单列在后面）")

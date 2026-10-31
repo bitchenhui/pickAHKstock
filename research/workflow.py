@@ -41,6 +41,21 @@ def scaffold_hk(candidate, source: str = "港股发现层") -> Card:
     return card
 
 
+def _regime_note() -> dict:
+    """市场状态快照：写进卡片的市场数据段。
+
+    这类高 beta 标的在下跌市里是放大器（v4 诊断：下跌日平均日收益是随机的
+    1.08–1.33 倍），仓位决策要知道现在处在哪种市场状态。
+    """
+    try:
+        from .regime import market_regime
+
+        regime = market_regime()
+        return regime.to_dict()
+    except Exception:
+        return {}
+
+
 def scaffold(candidate: Candidate, source: str = "发现层") -> Card:
     """按 §22 五要素把一条披露事件变成卡片草稿：变化、公开时间、原始出处、可替代解释、下一验证节点。"""
     today = date.today().isoformat()
@@ -75,7 +90,8 @@ def scaffold(candidate: Candidate, source: str = "发现层") -> Card:
             "as_of": candidate.as_of, "role": "市场确认与执行参考，不是业务证据",
             "industry": candidate.industry, "resonance": candidate.resonance,
             "resonance_peers": candidate.resonance_peers,
-            "resonance_same_sign": candidate.resonance_same_sign},
+            "resonance_same_sign": candidate.resonance_same_sign,
+            "market_regime": _regime_note()},
         account_checks=[],
         gaps=list(candidate.notes),
         log=[LogEntry(at=today, event=f"由{source}生成草稿", from_status="", to_status="观察")],
@@ -262,4 +278,10 @@ def render_markdown(card: Card) -> str:
         lines += ["", "## 市场数据（仅供执行参考）",
                   f"- 最新价 {context.get('price')}｜成交额 {context.get('turnover')}｜"
                   f"市值 {context.get('market_cap')}｜时间 {context.get('as_of')}"]
+        regime = context.get("market_regime") or {}
+        if regime.get("state"):
+            lines.append(f"- 市场状态：**{regime.get('state')}**（{regime.get('note')}）")
+            if regime.get("state") == "下行":
+                lines.append("  - 下行市里这类高 beta 标的的下跌日弹性是随机的 1.1–1.3 倍，"
+                             "仓位按 0.5× 折算")
     return "\n".join(lines)
