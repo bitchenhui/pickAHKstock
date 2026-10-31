@@ -97,6 +97,7 @@ class PortfolioResult:
     blocked_by_drawdown: int = 0      # 因回撤规则被拒的新增次数
     skipped_unaffordable: int = 0     # 因整手/资金买不到的次数
     blocked_by_limit: int = 0         # 因跌停收盘卖不掉、顺延的次数
+    scaled_by_regime: int = 0         # 因市场在下行而打了折的建仓次数
     notes: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -114,6 +115,8 @@ class PortfolioResult:
                 "turnover": round(self.turnover, 2),
                 "missed_top_share": round(self.missed_top_share * 100, 1),
                 "skipped_unaffordable": self.skipped_unaffordable,
+                "blocked_by_limit": self.blocked_by_limit,
+                "scaled_by_regime": self.scaled_by_regime,
                 "halted_day": self.halted_day, "halted_state": self.halted_state,
                 "blocked_by_drawdown": self.blocked_by_drawdown}
 
@@ -162,8 +165,15 @@ def limit_down_days(series: list[dict], code: str, tolerance: float = 0.3) -> se
 
 def simulate(events: list[dict], price_series: dict[str, list[dict]],
              trading_days: list[str], config: PortfolioConfig,
-             name: str = "组合", sort_key: str = "amount_desc") -> PortfolioResult:
-    """按公告日逐日建仓、到期卖出的事件驱动组合模拟。"""
+             name: str = "组合", sort_key: str = "amount_desc",
+             index_bars: list[dict] | None = None,
+             regime_scaling: bool = False) -> PortfolioResult:
+    """按公告日逐日建仓、到期卖出的事件驱动组合模拟。
+
+    regime_scaling=True 时启用「下行市仓位减半」：按**建仓当日**的市场状态
+    决定该笔仓位打折多少（只用当日之前的数据，point-in-time）。
+    依据是 v4 的诊断：这类高 beta 标的在下跌市里跌得比随机股多 1.08–1.33 倍。
+    """
     result = PortfolioResult(name=name)
     if not events or not trading_days:
         result.notes.append("没有事件或没有交易日")
@@ -294,6 +304,14 @@ def simulate(events: list[dict], price_series: dict[str, list[dict]],
             # 两个约束取小：单只占权益上限；买完仍要留够现金下限
             budget = min(equity * config.position_pct,
                          cash - equity * config.cash_floor_pct)
+            if regime_scaling and index_bars:
+                # 建仓当日的市场状态（只用到当日之前的数据）
+                from .regime import regime_at
+
+                state = regime_at(index_bars, day)
+                if state.down:
+                    budget *= state.position_factor()
+                    result.scaled_by_regime += 1
             price = bar["close"] * (1 + config.slippage)
             shares = int(budget // (price * config.lot_size)) * config.lot_size
             if shares <= 0:
@@ -363,7 +381,8 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
                        sort_key: str = "amount_desc",
                        prefilter_affordability: bool = False,
                        market_baseline: bool = False,
-                       market_sample: int = 400) -> dict:
+                       market_sample: int = 400,
+                       regime_scaling: bool = False) -> dict:
     """组合层检验：事件组 vs 随机基线，报告净值、最差回撤、现金占比、错过率与费用。
 
     基线有两条，含义不同，别混：
@@ -418,7 +437,8 @@ def run_portfolio_test(periods=("2025-06-30", "2025-12-31", "2026-03-31", "2026-
         events = [e for e in events if affordable(e)]
 
     event_result = simulate(events, series, trading_days, config, name="强预告组合",
-                            sort_key=sort_key)
+                            sort_key=sort_key, index_bars=index,
+                            regime_scaling=regime_scaling)
 
     # 基线：同一池子里随机抽等量的事件（同样按公告日建仓）
     rng = random.Random(seed)
