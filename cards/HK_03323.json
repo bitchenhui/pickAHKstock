@@ -109,12 +109,12 @@
     "经营活动现金流重新转负"
   ],
   "market_context": {
-    "price": 2.895,
-    "turnover": 69.48,
-    "market_cap": 21981800000.0,
+    "price": 2.845,
+    "turnover": 99436082.075,
+    "market_cap": 21602150000.0,
     "lot_size": 2000,
     "turnover_rate": 0.0,
-    "as_of": "2026/10/29 09:19:55",
+    "as_of": "2026/10/30 16:08:14",
     "role": "市场确认与执行参考，不是业务证据",
     "market_regime": {
       "day": "2026-10-30",

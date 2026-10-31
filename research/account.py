@@ -175,8 +175,17 @@ def lot_size(card: Card, account: Account) -> int | None:
 
 
 def price_of(card: Card) -> float | None:
-    value = (card.market_context or {}).get("price")
-    return float(value) if isinstance(value, (int, float)) and value > 0 else None
+    """卡片里的最新价。
+
+    A 股参考线命令写的是 close，港股草稿写的是 price——只读一个字段的话，
+    另一半卡片会安静地「算不出仓位」，看起来像资金约束，其实是字段名对不上。
+    """
+    context = card.market_context or {}
+    for key in ("price", "close"):
+        value = context.get(key)
+        if isinstance(value, (int, float)) and value > 0:
+            return float(value)
+    return None
 
 
 def stop_of(card: Card) -> float | None:

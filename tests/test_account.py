@@ -3,7 +3,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from research.account import (Account, AccountError, Position, plan_for, portfolio_plan)
+from research.account import (Account, AccountError, Position, plan_for,
+                            portfolio_plan, price_of)
 from research.card import Card, CounterCase, Evidence, FinancialTrack, Scenario
 
 DAY = "2026-10-28"
@@ -120,6 +121,14 @@ class AccountTests(unittest.TestCase):
         plan = plan_for(card, account)
         self.assertTrue(any("行业" in reason for reason in plan.reasons),
                         plan.reasons)
+
+    def test_price_falls_back_to_close_field(self):
+        """A 股卡片把价格存在 close 里（参考线命令写的），只读 price 会让
+        账户层安静地「算不出仓位」，看起来像资金约束。"""
+        card = research_card()
+        card.market_context.pop("price", None)
+        card.market_context["close"] = 9.87
+        self.assertAlmostEqual(price_of(card), 9.87)
 
     def test_portfolio_plan_covers_all_cards(self):
         account = self.account()
