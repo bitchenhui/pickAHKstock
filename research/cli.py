@@ -26,7 +26,9 @@ def _print_candidates(candidates: list[Candidate]) -> None:
     if not candidates:
         print("没有符合筛选条件的候选。缺失不等于没有机会——先核对数据源与筛选口径。")
         return
-    print(f"候选 {len(candidates)} 只（按变化幅度排序，仅为研究顺序）\n")
+    print(f"候选 {len(candidates)} 只（买不进／一次性因素／低基数在前，同档内按公告日新的"
+          "先看；这是研究顺序，不是收益排序——完整池的检验里随机反而最好，"
+          "见 docs/backtest-v5.md）\n")
     for candidate in candidates:
         cap = f"{candidate.market_cap / 1e8:.0f}亿" if candidate.market_cap else "—"
         print(f"{candidate.code} {candidate.name:8s} {candidate.headline:14s} "
