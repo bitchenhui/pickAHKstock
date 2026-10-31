@@ -107,6 +107,20 @@ class AccountTests(unittest.TestCase):
         self.assertEqual(plan.action, "仅观察")
         self.assertTrue(any("每手股数" in r for r in plan.reasons))
 
+    def test_sector_limit_uses_card_industry(self):
+        """行业暴露上限要用卡片里的 industry——旧字段 sector 没人填过，
+        于是 35% 的上限一直是空转的。"""
+        card = research_card(code="605358", name="立昂微", sector="")
+        card.market_context["industry"] = "半导体"
+        account = self.account(max_position_pct=0.5, max_sector_pct=0.35)
+        # 已持有同行业的票，占掉 40% 的资金 → 新增同行业应被行业上限挡住
+        account.positions.append(Position(market="A", code="603991", name="领先股份",
+                                          shares=1000, cost=13.0, currency="CNY",
+                                          sector="半导体"))
+        plan = plan_for(card, account)
+        self.assertTrue(any("行业" in reason for reason in plan.reasons),
+                        plan.reasons)
+
     def test_portfolio_plan_covers_all_cards(self):
         account = self.account()
         plans = portfolio_plan([research_card(), research_card(code="002044", name="美年健康", status="观察")], account)

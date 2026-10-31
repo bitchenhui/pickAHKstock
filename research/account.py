@@ -238,7 +238,10 @@ def plan_for(card: Card, account: Account) -> Plan:
     cash_lots = int(max(0.0, available_cash) // (price * lot))
     lots = max(0, min(risk_lots, alloc_lots, cash_lots))
 
-    sector = (card.market_context or {}).get("sector") or ""
+    # 行业上限取卡片的行业分类。旧字段叫 sector，但卡片里从来没有人填过它——
+    # 于是 35% 的行业暴露上限一直是空转的。现在用发现层算好的 industry。
+    context = card.market_context or {}
+    sector = context.get("industry") or context.get("sector") or ""
     if sector:
         sector_room = int((capital * (account.max_sector_pct - account.sector_exposure(sector, card.market)))
                            // (price * lot))
