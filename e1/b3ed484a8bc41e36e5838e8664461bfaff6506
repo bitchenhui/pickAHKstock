@@ -1,0 +1,14 @@
+research/recommend.py
+  h_69a2bad0f475d9 138-141,153-165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e1b3ed484a8bc41e36e5838e8664461bfaff6506",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
