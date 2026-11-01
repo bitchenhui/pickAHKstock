@@ -135,6 +135,10 @@ def render(recommendations: list[Recommendation]) -> str:
     """
     buyable = [item for item in recommendations if not item.candidate.unaffordable]
     blocked = [item for item in recommendations if item.candidate.unaffordable]
+    # 按共振分两栏：共振高的赚的是行业的钱，共振低的才可能是公司自己的事。
+    # 这个分法来自检验结果，不是偏好——见 docs/backtest-v5.md。
+    resonance_high = [i for i in buyable if i.candidate.resonance == "行业共振"]
+    resonance_low = [i for i in buyable if i.candidate.resonance != "行业共振"]
     lines = []
     regime = market_regime()
     lines.append(f"市场状态：**{regime.state}**（{regime.note}）")
@@ -146,8 +150,19 @@ def render(recommendations: list[Recommendation]) -> str:
     if blocked:
         lines.append(f"（按当前账户规模，{len(blocked)} 只因整手金额超过单只仓位上限"
                      "买不进，单列在后面）")
-    for index, item in enumerate(buyable, start=1):
-        lines.extend(_render_one(item, index))
+    index = 0
+    if resonance_high:
+        lines.append("── 行业共振（这个「好」多半是行业给的，先看行业不是看公司） ──")
+        for item in resonance_high:
+            index += 1
+            lines.extend(_render_one(item, index))
+    if resonance_low:
+        if resonance_high:
+            lines.append("")
+        lines.append("── 共振低或判不了（更可能是公司自己的事，值得深挖） ──")
+        for item in resonance_low:
+            index += 1
+            lines.extend(_render_one(item, index))
     if blocked:
         lines.append("--- 买不进的（资金变大或股价下来才可能） ---")
         for index, item in enumerate(blocked, start=1):
