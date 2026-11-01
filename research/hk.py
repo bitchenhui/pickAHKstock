@@ -264,6 +264,33 @@ def build_candidates(events: list[HkEvent], quotes: dict[str, Snapshot]) -> list
     return candidates
 
 
+def fetch_industry(code: str) -> str:
+    """港股的所属行业（东方财富公司资料）。
+
+    港股没有申万那样的行业分类可用，这是目前能拿到的：行业口径与 A 股不同，
+    所以港股的共振结论**不能和 A 股直接比**，只在自己内部横向比较。
+    """
+    import akshare as ak
+
+    cache_dir = Path.home() / ".cache" / "pickahkstock" / "hk_industry"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / f"{code}.txt"
+    if cache_file.exists():
+        try:
+            return cache_file.read_text(encoding="utf-8").strip()
+        except OSError:
+            pass
+    try:
+        frame = ak.stock_hk_company_profile_em(symbol=code)
+    except Exception:
+        return ""
+    industry = ""
+    if frame is not None and len(frame) > 0:
+        industry = str(frame.iloc[0].to_dict().get("所属行业") or "").strip()
+    cache_file.write_text(industry, encoding="utf-8")
+    return industry
+
+
 def discover(since_days: int = 60, limit: int = 20,
              categories: tuple[str, ...] = (CATEGORY_ALERT,)) -> list[HkCandidate]:
     end = date.today()

@@ -318,6 +318,69 @@ def _pairs_from_rows(rows: list[dict]) -> list[tuple[str, float]]:
     return list(best.values())
 
 
+def hk_resonance(code: str, peers: list[dict], days: int = 120) -> dict:
+    """港股的同业共振。
+
+    港股的行业分类只能用东财的公司资料（口径与申万不同），所以这里的结论
+    **只在港股内部横向比较**，不能与 A 股的共振数字直接比大小。
+
+    peers: [{"code", "name", "direction"}]，direction 取「正向／负向／待判读」。
+
+    港股的池子比 A 股小得多（120 天约五十家披露），多数行业凑不出三个同业，
+    这时结论是「判不了」——这是事实，不是分析没做到位。
+    """
+    from .hk import fetch_industry
+
+    target_industry = ""
+    target_direction = ""
+    rows = []
+    for peer in peers:
+        industry = peer.get("industry") or fetch_industry(peer.get("code", ""))
+        rows.append({"code": peer.get("code", ""), "name": peer.get("name", ""),
+                     "direction": peer.get("direction", ""), "industry": industry})
+        if peer.get("code") == code:
+            target_industry = industry
+            target_direction = peer.get("direction", "")
+    same = [r for r in rows if r["industry"] == target_industry and target_industry]
+    same_direction = [r for r in same if r["direction"] and r["direction"] == target_direction]
+    positive = [r for r in same if r["direction"] == "正向"]
+    negative = [r for r in same if r["direction"] == "负向"]
+    peers_with_forecast = len(same)
+    peers_same_sign = len(same_direction)
+    if peers_with_forecast < MIN_PEERS:
+        verdict = "单点不可辨"
+        note = (f"港股池子小（{days} 天约 {len(rows)} 家披露），"
+                f"同行业只有 {peers_with_forecast} 家，判不了共振")
+    elif peers_same_sign == 0:
+        verdict = "公司特有"
+        note = f"同行业 {peers_with_forecast} 家里没有同方向的预告，这是它自己的事"
+    elif peers_same_sign / peers_with_forecast >= RESONANCE_RATE:
+        verdict = "行业共振"
+        note = (f"同行业 {peers_same_sign}/{peers_with_forecast} 家同向，"
+                "这个变化多半是行业给的（方向以本公司为准）")
+    else:
+        verdict = "介于两者之间"
+        note = f"同行业 {peers_same_sign}/{peers_with_forecast} 家同向，共振度居中"
+    return {
+        "code": code,
+        "industry": target_industry,
+        "level": "hk",
+        "market": "HK",
+        "report_period": f"{days} 天窗口",
+        "peers_with_forecast": peers_with_forecast,
+        "peers_same_sign": peers_same_sign,
+        "peers_up": len(positive),
+        "peers_down": len(negative),
+        "same_sign_rate": (peers_same_sign / peers_with_forecast) if peers_with_forecast else 0.0,
+        "verdict": verdict,
+        "note": note,
+        "pool_size": len(rows),
+        "source": "东方财富港股公司资料（所属行业）+ 港股披露易公告",
+        "caveat": "港股行业口径与申万不同，只能在港股内部横向比较；"
+                  "披露公司数远少于 A 股，行业样本常常不够",
+    }
+
+
 def resonance_report(report_period: date, rows: list[dict], threshold: float = 30.0,
                      level: str = "second") -> dict:
     """整份预告池的行业地图：每个行业的预告数、同向率、渗透率排序。
