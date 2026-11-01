@@ -351,7 +351,16 @@ def cmd_board(args: argparse.Namespace) -> int:
     counts: dict[str, int] = {}
     for item in items + fresh:
         counts[item.bucket] = counts.get(item.bucket, 0) + 1
-    print("\n小结：" + "｜".join(f"{k} {v}" for k, v in counts.items()))
+    summary = "｜".join(f"{k} {v}" for k, v in counts.items())
+    try:
+        from .excluded import list_exclusions
+
+        dropped = list_exclusions()
+        if dropped:
+            summary += f"｜已排除 {len(dropped)}"
+    except Exception:
+        pass
+    print("\n小结：" + summary)
     print("「到期复核」里的条目不是建议，是已经欠下的功课；「待立项」由你决定要不要立项。")
     return 0
 
