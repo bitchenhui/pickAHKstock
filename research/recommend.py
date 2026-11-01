@@ -100,9 +100,16 @@ def _next_actions(candidate: Candidate, coverage: int, regime=None) -> list[str]
 
 
 def build(candidates: list[Candidate], with_analysts: bool = True,
-          regime=None) -> list[Recommendation]:
+          regime=None, skip_excluded: bool = True) -> list[Recommendation]:
     if regime is None:
         regime = market_regime()
+    if skip_excluded:
+        # 人裁决过「不看了」的候选不再出现在推荐清单里
+        from .excluded import excluded_keys
+
+        skipped = excluded_keys()
+        candidates = [c for c in candidates
+                      if f"{getattr(c, 'market', 'A')}_{c.code}" not in skipped]
     recommendations: list[Recommendation] = []
     for candidate in candidates:
         recommendation = Recommendation(candidate=candidate, direction=_direction(candidate))
