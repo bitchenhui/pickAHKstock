@@ -1,0 +1,14 @@
+research/cli.py
+  h_69a2bad0f475d9 354-363
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "94fea5e4db498fb9909d7fa890ca4716252c985f",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
