@@ -151,10 +151,17 @@ def new_candidates(a_candidates=None, hk_candidates=None,
     建不了仓的默认不进清单——除非显式要求，否则只是噪音。软提示不挡条目，
     只作为原因附在条目上。
     """
+    from .excluded import excluded_keys
+
+    skipped = excluded_keys()
     items: list[BoardItem] = []
     for candidate in (a_candidates or []) + (hk_candidates or []):
         if not include_blocked and _blocked(candidate):
             continue
+        market = getattr(candidate, "market", "A")
+        code = getattr(candidate, "code", "")
+        if f"{market}_{code}" in skipped:
+            continue  # 人已经裁决过「不看了」
         reason = getattr(candidate, "headline", "") or getattr(candidate, "event", "")
         cautions = [note for note in getattr(candidate, "notes", [])
                     if not any(marker in note for marker in BLOCKING_MARKERS)]

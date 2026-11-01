@@ -288,6 +288,23 @@ def cmd_business(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_exclude(args: argparse.Namespace) -> int:
+    """把一只候选标记为「不看了」，并记下理由（可撤销）。"""
+    from .excluded import exclude, unexclude
+
+    if args.remove:
+        if unexclude(args.market, args.code):
+            print(f"{args.market} {args.code} 已放回待立项")
+        else:
+            print(f"{args.market} {args.code} 不在排除清单里")
+        return 0
+    item = exclude(args.market, args.code, args.reason or "")
+    print(f"{args.market} {args.code} 已排除（{item.day}）"
+          + (f"｜理由：{item.reason}" if item.reason else ""))
+    print("待立项清单下次不再出现它；改主意用 `unexclude` 放回。")
+    return 0
+
+
 def cmd_board(args: argparse.Namespace) -> int:
     """研究看板：谁该被研究，按优先级排好。
 
@@ -715,6 +732,9 @@ def _load_all_cards() -> list[Card]:
         return []
     cards = []
     for path in sorted(CARD_DIR.glob("*.json")):
+        # 下划线开头的是辅助文件（_excluded.json 等），不是卡片
+        if path.name.startswith("_"):
+            continue
         cards.append(Card.from_dict(json.loads(path.read_text(encoding="utf-8"))))
     return cards
 
@@ -907,6 +927,13 @@ def main(argv: list[str] | None = None) -> int:
     p_board.add_argument("--period", default="2026-09-30", help="A 股新候选的报告期")
     p_board.add_argument("--limit", type=int, default=10, help="每个市场取几个新候选")
     p_board.set_defaults(func=cmd_board)
+
+    p_exc = sub.add_parser("exclude", help="把候选标记为「不看了」（可撤销）")
+    p_exc.add_argument("market")
+    p_exc.add_argument("code")
+    p_exc.add_argument("--reason", default="", help="为什么排除（留痕用）")
+    p_exc.add_argument("--remove", action="store_true", help="撤销排除")
+    p_exc.set_defaults(func=cmd_exclude)
 
     p_bt = sub.add_parser("backtest", help="§51 基线检验：强预告组 vs 对照组")
     p_bt.add_argument("--period", default="2026-06-30", help="业绩预告的报告期")
