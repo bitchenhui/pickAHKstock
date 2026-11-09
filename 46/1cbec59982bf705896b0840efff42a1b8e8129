@@ -1,0 +1,22 @@
+README.md
+  h_69a2bad0f475d9 62-97,115,126,139
+cards/A_605358.json
+  h_69a2bad0f475d9 173-175,177-182,185-188,190,192-195,529-530,737,739-754,767-770,773-778,793-794,797-801,803,903
+research/cli.py
+  h_69a2bad0f475d9 113-114,116,119-120,439,442,445,461,464,488-489,492-496,514-515,519-526,577-687,796,799,895,965-981
+research/deepdive.py
+  h_69a2bad0f475d9 1-258
+tests/test_deepdive.py
+  h_69a2bad0f475d9 1-198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "461cbec59982bf705896b0840efff42a1b8e8129",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
