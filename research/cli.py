@@ -110,39 +110,14 @@ def cmd_financials(args: argparse.Namespace) -> int:
 
     只取数，不下判断：path / recurring_judgment / cyclical_judgment 仍要人写。
     """
+    from .deepdive import fill_financials
+
     card = Card.load(args.market, args.code)
-    if args.market == "HK":
-        from .hk import fetch_stock_financials
-
-        from .hk import HK_METRIC_LABELS
-
-        data = fetch_stock_financials(args.code)
-        track = card.financials
-        track.source = data["source"]
-        track.periods = data["periods"]
-        # 卡片里一律用中文科目名，渲染与判断才有一致的口径
-        track.metrics = {HK_METRIC_LABELS.get(name, name): series
-                         for name, series in data["metrics"].items()}
-        track.quarter_metrics = {}
-    else:
-        from .ths import fetch_financials, key_series
-
-        data = fetch_financials(args.code)
-        track = card.financials
-        track.source = data["source"]
-        track.periods = list(data["periods"])[:args.periods]
-        track.quarter_periods = list(data.get("simple_periods", []))[:args.quarter_periods]
-        # 只保留展示区间内的报告期：卡片要能被人读完，不能把 F10 全历史塞进来
-        track.metrics = {name: {p: series[p] for p in track.periods if p in series}
-                         for name, series in key_series(data, subjects=tuple(KEY_SUBJECTS)).items()}
-        track.quarter_metrics = {
-            name: {p: series[p] for p in track.quarter_periods if p in series}
-            for name, series in key_series(data, block="simple", subjects=tuple(KEY_SUBJECTS)).items()}
-    track.notes = [n for n in track.notes if not n.startswith("财务序列已于")]
-    track.notes.append(f"财务序列已于 {date.today().isoformat()} 取自 {track.source}")
+    source = fill_financials(card, args.periods, args.quarter_periods)
     card.updated = date.today().isoformat()
     card.save()
-    print(f"{card.name}（{card.market} {card.code}）财务轨迹已更新：{track.source}")
+    track = card.financials
+    print(f"{card.name}（{card.market} {card.code}）财务轨迹已更新：{source}")
     print(f"报告期：{' | '.join(track.periods)}\n")
     for name, series in track.metrics.items():
         cells = [f"{period}={series.get(period, '-')}" for period in track.periods]
@@ -461,22 +436,13 @@ def cmd_portfolio(args: argparse.Namespace) -> int:
 
 def cmd_context(args: argparse.Namespace) -> int:
     """把资本轨迹与同业对照写进卡片。"""
-    from .context import fetch_capital, fetch_peers
+    from .deepdive import fill_context
 
     card = Card.load(args.market, args.code)
-    capital = fetch_capital(card.code)
-    peers = fetch_peers(card.code, args.market)
-    capital_data = capital.to_dict()
-    capital_data["capex_label"] = _amount_label(capital.capex_at())
-    capital_data["operating_cf_label"] = _amount_label(capital.operating_cf_at())
-    free_cash = capital.fcf_at()
-    capital_data["fcf_label"] = _amount_label(free_cash)
-    capital_data["construction_label"] = (capital.construction[0] if capital.construction else "—")
-    capital_data["fixed_assets_label"] = (capital.fixed_assets[0] if capital.fixed_assets else "—")
-    card.capital = capital_data
-    card.peers = peers.to_dict()
+    capital, peers = fill_context(card)
     card.updated = date.today().isoformat()
     card.save()
+    capital_data = card.capital
     print(f"{card.name}（{card.market} {card.code}）资本轨迹与同业对照已更新")
     print(f"  报告期 {capital.periods[0] if capital.periods else '—'}"
           f"｜资本开支 {capital_data['capex_label']}"
@@ -490,19 +456,12 @@ def cmd_context(args: argparse.Namespace) -> int:
     return 0
 
 
-def _amount_label(value) -> str:
-    if value is None:
-        return "—"
-    return f"{value / 1e8:+.2f} 亿"
-
-
 def cmd_expectations(args: argparse.Namespace) -> int:
     """把分析师预期写进卡片：与公司自述并排看。"""
-    from .analysts import fetch
+    from .deepdive import fill_expectations
 
     card = Card.load(args.market, args.code)
-    expectation = fetch(card.code, card.name, card.market)
-    card.expectations = expectation.to_dict()
+    expectation = fill_expectations(card)
     card.updated = date.today().isoformat()
     card.save()
     print(f"{card.name}（{card.market} {card.code}）分析师预期已更新")
@@ -526,15 +485,15 @@ def cmd_industry(args: argparse.Namespace) -> int:
     from datetime import date as _date
 
     from .backtest import forecasts_by_report_period, primary_rows
-    from .industry import co_occurrence, resonance_report
-
-    period = _date.fromisoformat(args.period)
-    rows = primary_rows(forecasts_by_report_period(period))
-    if not rows:
-        print(f"{period} 报告期没有取到预告数据")
-        return 1
+    from .deepdive import fill_industry
+    from .industry import resonance_report
 
     if args.map:
+        period = _date.fromisoformat(args.period)
+        rows = primary_rows(forecasts_by_report_period(period))
+        if not rows:
+            print(f"{period} 报告期没有取到预告数据")
+            return 1
         report = resonance_report(period, rows, threshold=args.threshold)
         print(f"报告期 {period}｜预告池 {report['pool']} 家"
               f"｜业绩改善 {report['up_pool']} 家（占 {report['market_up_rate']}%）"
@@ -552,13 +511,19 @@ def cmd_industry(args: argparse.Namespace) -> int:
         return 0
 
     card = Card.load(args.market, args.code)
-    resonance = co_occurrence(card.code, rows, report_period=period.isoformat(),
-                              threshold=args.threshold, level=args.level, name=card.name)
-    card.industry_context = resonance.to_dict()
+    resonance = fill_industry(card, period=args.period,
+                              threshold=args.threshold, level=args.level)
     card.updated = date.today().isoformat()
     card.save()
     print(f"{card.name}（{card.market} {card.code}）同业共振已更新")
-    print(f"  报告期 {period}｜申万{ {'first': '一级', 'second': '二级'}[args.level] }行业：{resonance.industry or '—'}"
+    if isinstance(resonance, dict):        # 港股口径：字段少，只能内部横比
+        print(f"  行业（东财口径）：{resonance['industry'] or '—'}")
+        print(f"  同行业发预告 {resonance['peers_with_forecast']} 家，其中同向 "
+              f"{resonance['peers_same_sign']} 家（正向 {resonance['peers_up']}／负向 {resonance['peers_down']}）")
+        print(f"  判定：**{resonance['verdict']}**　{resonance['note']}")
+        print(f"  {resonance['caveat']}")
+        return 0
+    print(f"  报告期 {resonance.report_period}｜申万{ {'first': '一级', 'second': '二级'}[args.level] }行业：{resonance.industry or '—'}"
           f"（行业 {resonance.industry_members} 家）")
     print(f"  同行业发预告 {resonance.peers_with_forecast} 家，其中同向 "
           f"{resonance.peers_same_sign} 家（改善 {resonance.peers_up}／恶化 {resonance.peers_down}）")
@@ -607,6 +572,117 @@ def cmd_recommend(args: argparse.Namespace) -> int:
     print("卡片状态、证据等级与账户检查才决定能否进入持仓研究；"
           "无机构覆盖与买不进的候选已单独标出。")
     return 0
+
+
+def cmd_odds(args: argparse.Namespace) -> int:
+    """高赔率候选清单：结构条件筛选 + 「10 倍需要什么为真」的拆解。
+
+    结构条件 ≠ 上涨概率：这是把「1 年内 5-10 倍在结构上需要什么前提」摆到
+    人面前，历史基础率见 docs/odds-v1.md。
+    """
+    from datetime import date as _date
+    from datetime import timedelta as _timedelta
+
+    from .backtest import (forecasts_by_report_period, load_prices,
+                           prefetch_prices, primary_rows)
+    from .excluded import is_excluded
+    from .odds import (DEFAULT_TARGET_PE, evaluate, inflection_type,
+                       load_snapshots, prefilter_cap, screen)
+
+    report_date = _date(*map(int, args.period.split("-")))
+    rows = primary_rows(forecasts_by_report_period(report_date))
+    typed = [row for row in rows if inflection_type(row) != "其他"]
+    if not typed:
+        print(f"{args.period} 报告期没有扭亏/减亏/预增类预告行。")
+        return 0
+    codes = sorted({str(row.get("SECURITY_CODE") or "").strip() for row in typed
+                    if str(row.get("SECURITY_CODE") or "").strip()})
+    notices = sorted({str(row.get("NOTICE_DATE") or "")[:10] for row in typed
+                      if str(row.get("NOTICE_DATE") or "")[:10]})
+    snapshots = load_snapshots([("A", code) for code in codes])
+    prefiltered = prefilter_cap(snapshots, codes, args.cap_min * 1e8, args.cap_max * 1e8)
+    start = _date.fromisoformat(notices[0]) - _timedelta(days=400)
+    end = _date.fromisoformat(notices[-1]) + _timedelta(days=20)
+    if prefiltered:
+        prefetch_prices(prefiltered, start, end)
+    prices_map = {code: load_prices(code, start, end) for code in prefiltered}
+    hits = screen(typed, snapshots, prices_map,
+                  cap_min=args.cap_min * 1e8, cap_max=args.cap_max * 1e8,
+                  runup_max=args.runup_max, target_pe=args.target_pe)
+    visible = [hit for hit in hits if not is_excluded("A", hit.code)]
+    skipped = len(hits) - len(visible)
+
+    print(f"高赔率候选 {len(visible)} 只（报告期 {args.period}｜公告日市值 "
+          f"{args.cap_min:.0f}-{args.cap_max:.0f} 亿｜近一年涨幅 <{args.runup_max * 100:.0f}%"
+          f"｜扭亏/减亏/预增）")
+    print(f"池子 {len(rows)} 行 → 拐点有效 {len(typed)} → 快照 {len(snapshots)} → "
+          f"预筛带内 {len(prefiltered)} → 通过 {len(hits)}"
+          + (f"（另跳过已排除 {skipped}）" if skipped else ""))
+    print("\n**这是结构条件筛选，不是上涨概率预测**：1 年内 5-10 倍是极小概率事件，"
+          "历史基础率与两组对照见 docs/odds-v1.md。")
+    print("「10x 需要什么为真」= 走完倍数所需的年化正常化利润（市值×10/目标PE），"
+          "与当前预告轨迹的差距——差距是可核对的事实，不是预测。\n")
+
+    order = {"扭亏": 0, "减亏": 1, "预增": 2}
+    for hit in sorted(visible, key=lambda h: (order.get(h.inflection, 9),
+                                              -(h.cap_at or 0)))[:args.limit]:
+        cap = f"{hit.cap_at / 1e8:.0f}亿" if hit.cap_at else "—"
+        runup = f"{(hit.runup or 0) * 100:+.0f}%" + ("（短窗口）" if hit.short_lookback else "")
+        print(f"{hit.inflection} {hit.code} {hit.name:10s} 公告 {hit.notice}"
+              f"｜市值 {cap}｜近一年 {runup}")
+        if hit.predict_lower is not None:
+            track = f"预告下限 {hit.predict_lower / 1e8:.2f} 亿"
+            if hit.annualized:
+                track += f"（年化 {hit.annualized / 1e8:.2f} 亿）"
+            print(f"    {track}")
+        if hit.needed_10x:
+            needed = f"10x 需要年化利润 {hit.needed_10x / 1e8:.0f} 亿（{hit.target_pe:.0f}x PE）"
+            if hit.gap_10x:
+                needed += f"，当前轨迹差 {hit.gap_10x:.1f} 倍"
+            else:
+                needed += "；尚无正利润基准，须人工补盈利路径与融资情景"
+            print(f"    {needed}")
+    if len(visible) > args.limit:
+        print(f"\n（还有 {len(visible) - args.limit} 只未展示；排序只是可读性安排，"
+              "不是「先买哪个」——候选内部排序已被检验否定，见 docs/backtest-v5.md）")
+    print("\n每只都要走卡片流程（单季拆解、行业共振、治理与风险、反证），"
+          "仓位按账户层小仓多注（20×5%）执行；这一层不产生「先买哪个」。")
+    return 0
+
+
+def cmd_deep_dive(args: argparse.Namespace) -> int:
+    """一键灌卡：一张卡片补齐全部数据面，人只做判断题。
+
+    行情/财务/参考线/预期/资本轨迹/行业共振写进卡片；风险公告、治理
+    （或港股经营回顾）作为原始扫描打印出来——那是需要人过目的材料，
+    不是结论。判断字段（path/情景/反证等）工具不代填，check 会拦。
+    """
+    from .deepdive import deep_dive, scan_outputs
+
+    result = deep_dive(args.market, args.code, period=args.period,
+                       with_scan=not args.no_scan, days=args.days)
+    card = result.card
+    marks = {"ok": "✓", "fail": "✗", "skip": "·", "scan": "▸"}
+    print(f"{card.name}（{card.market} {card.code}）deep-dive 完成，卡片已保存：\n")
+    for step in result.steps:
+        note = f" — {step.note}" if step.note and step.status in ("fail", "skip") else ""
+        print(f"  {marks.get(step.status, ' ')} {step.face}{note}")
+    if not args.no_scan:
+        print("\n── 以下需要人工过目（原始扫描，不是结论）──\n")
+        for title, lines in scan_outputs(card, days=args.days):
+            print(title)
+            for line in lines:
+                print(line)
+            print()
+    track = card.financials
+    print("待人工判断（工具不代填，check 会拦）：")
+    print(f"  路径 path           : {track.path or '（未填）'}  → 已盈利 / 未盈利")
+    print("  recurring_judgment  : 收入/毛利/现金流的变化是否由可重复的业务带来")
+    print("  cyclical_judgment   : 景气反弹还是竞争力提升")
+    print("  情景（基准/乐观/失败）与反证、失效条件：写不出来就说明这一关没过")
+    print(f"\n下一步：python -m research.cli show {card.market} {card.code}"
+          f" ｜ check {card.market} {card.code}")
+    return 1 if any(s.status == "fail" for s in result.steps) else 0
 
 
 def cmd_backtest_report(args: argparse.Namespace) -> int:
@@ -717,16 +793,10 @@ def cmd_reference(args: argparse.Namespace) -> int:
 
     这是参考线，不是止损保证：跳空、停牌、涨跌停都可能让参考价无法成交。
     """
-    from .ths import reference_levels
+    from .deepdive import fill_reference
 
     card = Card.load(args.market, args.code)
-    levels = reference_levels(args.code)
-    context = dict(card.market_context or {})
-    context.update({"close": levels["close"], "atr": levels["atr"],
-                    "atr_pct": levels["atr_pct"], "stop_reference": levels["stop_reference"],
-                    "bars": levels["bars"], "bars_as_of": levels["last_day"],
-                    "bars_source": levels["source"]})
-    card.market_context = context
+    levels = fill_reference(card)
     card.updated = date.today().isoformat()
     card.save()
     print(f"{card.name}（{card.market} {card.code}）参考线已更新")
@@ -822,8 +892,7 @@ def cmd_list(args: argparse.Namespace) -> int:
         return 0
     from .card import quality_grade
 
-    for path in sorted(CARD_DIR.glob("*.json")):
-        card = Card.from_dict(json.loads(path.read_text(encoding="utf-8")))
+    for card in _load_all_cards():
         findings = validate(card)
         grade, thin = quality_grade(card)
         mark = "✗" if blocking(findings) else "✓"
@@ -892,6 +961,23 @@ def main(argv: list[str] | None = None) -> int:
     p_rec.add_argument("--position-pct", type=float, default=0.05, help="单只仓位上限")
     p_rec.add_argument("--no-analysts", action="store_true", help="不取分析师预期（更快）")
     p_rec.set_defaults(func=cmd_recommend)
+
+    p_dd = sub.add_parser("deep-dive", help="一键灌卡：行情/财务/参考线/预期/资本/共振 + 风险扫描")
+    p_dd.add_argument("market")
+    p_dd.add_argument("code")
+    p_dd.add_argument("--period", default="", help="行业共振报告期（默认从卡片财务序列推断）")
+    p_dd.add_argument("--days", type=int, default=240, help="风险公告回看天数")
+    p_dd.add_argument("--no-scan", action="store_true", help="跳过风险/治理扫描（只灌卡）")
+    p_dd.set_defaults(func=cmd_deep_dive)
+
+    p_odds = sub.add_parser("odds", help="高赔率候选：结构条件筛选 + 10x 需要什么为真")
+    p_odds.add_argument("--period", default="2026-09-30", help="业绩预告的报告期")
+    p_odds.add_argument("--cap-min", type=float, default=30.0, help="公告日市值下限（亿）")
+    p_odds.add_argument("--cap-max", type=float, default=150.0, help="公告日市值上限（亿）")
+    p_odds.add_argument("--runup-max", type=float, default=0.8, help="公告前近一年涨幅上限")
+    p_odds.add_argument("--target-pe", type=float, default=25.0, help="10x 情景的目标 PE")
+    p_odds.add_argument("--limit", type=int, default=20, help="最多展示几只")
+    p_odds.set_defaults(func=cmd_odds)
 
     p_ind = sub.add_parser("industry", help="同业共振：行业 beta 还是公司特有")
     p_ind.add_argument("--map", action="store_true", help="看整个报告期的行业共振地图")

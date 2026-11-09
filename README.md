@@ -59,9 +59,42 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - **推荐个股**——`recommend` 命令给出推荐清单：触发事件与方向、巨潮原文链接、
   预告绝对额与变化幅度、**买不买得进**（一手金额占本金比例）、分析师覆盖与预期，
   以及每条的「下一步该做什么」。排序沿用 §51 八期检验固化的规则。
-- **分析个股**——`cards/` 里每只标的一张研究卡片：证据链、情景、反证、
-  「我可能错在哪」、结构化判断（数值+期间+依据+核对日期）、分析师预期，
-  结论等级由证据推导。
+- **分析个股**——`deep-dive` 命令一键灌卡：行情快照、财务序列（A 股 THS／港股东财）、
+  ATR 参考线与市场状态、分析师预期、资本轨迹与同业对照、行业共振（**港股共振
+  从此也进工具链**，不再手工算）一次写进卡片；风险公告与治理（港股为经营回顾对比）
+  作为原始扫描打印供人过目。各面独立成败，一个接口挂了不拖垮其余。**判断字段
+  （path/情景/反证）工具不代填**——`cards/` 里每只标的一张研究卡片：证据链、情景、
+  反证、「我可能错在哪」、结构化判断，结论等级由证据推导。
+
+## 高赔率漏斗（`odds`）：面向「1 年内 5-10 倍」的结构条件筛选
+
+用户定位是**小资金、想在 1 年内博 5-10 倍回报**的散户。`odds` 命令为此服务，
+但它做的事必须先说清楚：**这不是上涨概率预测，也不产生「先买哪个」**——它回答
+「一只票要在 1 年内走完 5-10 倍，结构上需要什么前提」，把具备前提的候选摆到
+人面前，并给出「10x 需要什么为真」的拆解（市值×10÷目标PE = 所需年化利润，
+与当前预告轨迹差几倍——差距是可核对的事实，不是预测）。
+
+三个结构条件（`research/odds.py`，主口径固定、敏感性照报）：
+
+1. **公告日市值 30-150 亿**：10 倍后 300-1500 亿仍在可解释区间；
+2. **公告前近一年涨幅 <80%**：已主升过的票空间被前置消耗；
+3. **拐点类型 扭亏/减亏/预增**：注意**扭亏行的同比幅度字段常为空**，
+   现有发现层的幅度门槛会把它们系统性丢掉——而困境反转恰是 5-10 倍
+   最常见的历史形态，这一层按绝对额与上年同期值判定，绕开幅度。
+
+历史基础率与两组对照（同池结构条件未过 / 全市场随机）见 `docs/odds-v1.md`，
+由 `scripts/odds_base_rate.py` 生成——**这套条件值不值得用，以那张表为准**，
+不以直觉为准。v1 的十三期读数（2026-11 跑出）：
+
+- **这套结构条件不构成 5-10 倍的选股优势**：通过组 ≥5x 占比 0.9%、对照 A 1.0%、
+  全市场随机 0.7%——三组几乎相同；敏感性 12 格（市值带 × 回看阈值）怎么调都一样。
+- **业务预告池里 1 年 ≥5x 本来就是约 1% 的事件**，≥2x 约 11%，中位最大涨幅 26%。
+  这些绝对数字的用途是期望管理：每期 20 只小仓多注，期望约 0.2 只 ≥5x。
+- 所以 `odds` 的定位是**候选提议器 + 期望管理**（全池 → 拐点有效 → 结构带内
+  → 每只带「10x 需要什么为真」），与发现层同构，不是 alpha 层。
+
+仓位纪律按账户层小仓多注（20×5%）执行：5-10 倍追求伴随的是极高失败率，
+数学上只能靠「小仓位 × 高赔率 × 早杀错」，不能靠重仓押中。
 
 ## 研究工作台（`research/`）
 
@@ -79,6 +112,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - `research/board.py` 研究看板：把「谁该被研究」变成可执行的排序——到期必看 > 临近复核 > 观察池 > 待立项
 - `research/forecast_pool.py` 业绩预告**全量**取数：接口忽略 pageIndex，改用数值区间递归切分代替翻页（原来每期只拿到全量的 7%）
 - `research/industry.py` 同业共振：申万二级行业映射（全市场 5221 只）+ 行业方向比较，回答「这是行业 beta 还是公司自己的变化」
+- `research/odds.py` 高赔率漏斗：市值带 + 价格位置 + 拐点类型（扭亏按绝对额判定）的结构条件筛选，与「10x 需要什么为真」的情景拆解
 - `research/backtest.py` §51 基线检验：按**各自公告日**做事件研究，比较强预告组与对照组的持有期收益，并做参数敏感性
 - `research/account.py` L3 账户层：账户配置、回撤状态、按整手与风险预算的仓位估算、账户级动作（加仓/不加仓/减仓/清仓）
 - `research/card.py` 研究卡片 schema 与校验器：**结论等级由证据推导**，证据不足只能停在「观察」；财务路径（§30 已盈利 / §34 未盈利）没写完也不算数
@@ -89,6 +123,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 ```bash
 .venv/bin/python -m research.cli discover --period 2026-09-30 --limit 10   # 发现候选
 .venv/bin/python -m research.cli new --codes 002132,002044                  # 生成卡片草稿（A 股）
+.venv/bin/python -m research.cli deep-dive A 002132                    # 一键灌卡：全部数据面 + 风险/治理扫描
 .venv/bin/python -m research.cli new --market HK --codes 09696,03323        # 生成卡片草稿（港股）
 .venv/bin/python -m research.cli financials A 002132                        # 取财务序列（只取数，不下判断）
 .venv/bin/python -m research.cli financials HK 09696                        # 港股财务（东方财富，单只查询较慢）
@@ -101,6 +136,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli show A 002132                              # 渲染卡片
 .venv/bin/python -m research.cli check A 002132                             # 校验（阻塞项会挡住状态推进）
 .venv/bin/python -m research.cli recommend --period 2026-06-30      # 推荐清单：先看哪个、为什么、下一步
+.venv/bin/python -m research.cli odds --period 2026-09-30   # 高赔率候选：结构条件 + 10x 需要什么为真
 .venv/bin/python -m research.cli expectations A 002044                    # 分析师预期写进卡片（第三方证据）
 .venv/bin/python -m research.cli context A 002044                          # 资本轨迹与同业对照写进卡片
 .venv/bin/python -m research.cli industry --map --period 2026-06-30               # 行业共振地图：谁在集体变
