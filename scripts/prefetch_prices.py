@@ -4,8 +4,10 @@
 用法：
     .venv/bin/python scripts/prefetch_prices.py               # 八个报告期全取
     .venv/bin/python scripts/prefetch_prices.py --period 2026-06-30
+    .venv/bin/python scripts/prefetch_prices.py --lookback-days 400 --forward-days 380 \
+        --period 2022-12-31 ...        # 高赔率基础率：回看一年 + 前向一年
 
-为什么单独一个脚本：回测要在八个报告期上取几千只股票的日线，串行要几小时。
+为什么单独一个脚本：回测要在多个报告期上取几千只股票的日线，串行要几小时。
 这里按报告期并行预取（6 并发，带间隔），结果按代码落盘缓存，重复跑只补缺口。
 """
 
@@ -32,8 +34,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="预取回测日线")
     parser.add_argument("--period", action="append", help="只取指定报告期（可多次）")
     parser.add_argument("--workers", type=int, default=6)
+    parser.add_argument("--lookback-days", type=int, default=40,
+                        help="公告日之前的自然日窗口（默认 40，高赔率基础率用 400）")
+    parser.add_argument("--forward-days", type=int, default=None,
+                        help="公告日之后的自然日窗口（默认按持有期 60 交易日折算；"
+                             "高赔率基础率传 380 ≈ 250 交易日）")
     args = parser.parse_args()
     periods = tuple(args.period) if args.period else PERIODS
+    forward = args.forward_days if args.forward_days is not None else int(HOLD_DAYS * 2.2) + 30
 
     for period in periods:
         report_date = date(*map(int, period.split("-")))
@@ -43,8 +51,8 @@ def main() -> int:
         if not notices:
             print(f"{period}: 没有预告行", flush=True)
             continue
-        start = date.fromisoformat(min(notices)) - timedelta(days=40)
-        end = date.fromisoformat(max(notices)) + timedelta(days=int(HOLD_DAYS * 2.2) + 30)
+        start = date.fromisoformat(min(notices)) - timedelta(days=args.lookback_days)
+        end = date.fromisoformat(max(notices)) + timedelta(days=forward)
         codes = [str(row.get("SECURITY_CODE") or "").strip() for row in rows]
         started = time.time()
         got = prefetch_prices(codes, start, end, workers=args.workers)
