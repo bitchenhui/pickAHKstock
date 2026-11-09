@@ -1,0 +1,24 @@
+.gitignore
+  h_69a2bad0f475d9 8
+docs/odds-v1.md
+  h_69a2bad0f475d9 1-75
+research/odds.py
+  h_69a2bad0f475d9 1-380
+scripts/odds_base_rate.py
+  h_69a2bad0f475d9 1-340
+scripts/prefetch_prices.py
+  h_69a2bad0f475d9 7-8,10,37-41,44,54-55
+tests/test_odds.py
+  h_69a2bad0f475d9 1-203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8bb51c337f443fe7e3c867995a71eaeb963cac13",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
