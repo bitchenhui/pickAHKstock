@@ -62,7 +62,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - **分析个股**——`deep-dive` 命令一键灌卡：行情快照、财务序列（A 股 THS／港股东财）、
   ATR 参考线与市场状态、分析师预期、资本轨迹与同业对照、行业共振（**港股共振
   从此也进工具链**，不再手工算）一次写进卡片；风险公告与治理（港股为经营回顾对比）
-  作为原始扫描打印供人过目。各面独立成败，一个接口挂了不拖垮其余。**判断字段
+  作为原始扫描打印供人过目并**留痕进卡片**（`scans` 字段，note 渲染层从这里读）。
+  各面独立成败，一个接口挂了不拖垮其余。**判断字段
   （path/情景/反证）工具不代填**——`cards/` 里每只标的一张研究卡片：证据链、情景、
   反证、「我可能错在哪」、结构化判断，结论等级由证据推导。
 
@@ -124,6 +125,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli discover --period 2026-09-30 --limit 10   # 发现候选
 .venv/bin/python -m research.cli new --codes 002132,002044                  # 生成卡片草稿（A 股）
 .venv/bin/python -m research.cli deep-dive A 002132                    # 一键灌卡：全部数据面 + 风险/治理扫描
+.venv/bin/python -m research.cli note A 002132                   # 单卡 → 小红书笔记样式 HTML（cards/notes/）
+.venv/bin/python -m research.cli notebook                         # 全部卡片 → 一页信息流汇总（cards/notes/index.html）
 .venv/bin/python -m research.cli new --market HK --codes 09696,03323        # 生成卡片草稿（港股）
 .venv/bin/python -m research.cli financials A 002132                        # 取财务序列（只取数，不下判断）
 .venv/bin/python -m research.cli financials HK 09696                        # 港股财务（东方财富，单只查询较慢）

@@ -1,0 +1,81 @@
+name: 发布研究汇总页
+
+# 定时刷新全部卡片（deep-dive 数据面 + 扫描留痕）→ 生成小红书样式汇总页
+# → 发布到 GitHub Pages。外部接口对海外 IP 可能限流：各面独立成败，
+# 失败的卡片沿用仓库里上一次的数据，页面不会空。
+on:
+  schedule:
+    - cron: "0 0 * * 1-5"     # 北京时间 08:00，工作日（A 股交易日）
+  workflow_dispatch:           # 手动触发：Actions 页面 → Run workflow
+
+permissions:
+  contents: write              # 刷新后的卡片要提交回仓库（数据保鲜）
+  pages: write
+  id-token: write
+
+concurrency:
+  group: publish-notebook
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+
+      - name: 刷新全部卡片（数据面 + 扫描留痕）
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/pycache
+        run: |
+          for f in cards/A_*.json cards/HK_*.json; do
+            [ -e "$f" ] || continue
+            base=$(basename "$f" .json)
+            market=${base%%_*}
+            code=${base#*_}
+            echo "== $market $code"
+            python -m research.cli deep-dive "$market" "$code" || true
+          done
+
+      - name: 生成单卡笔记与汇总页
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/pycache
+        run: |
+          for f in cards/A_*.json cards/HK_*.json; do
+            [ -e "$f" ] || continue
+            base=$(basename "$f" .json)
+            market=${base%%_*}
+            code=${base#*_}
+            python -m research.cli note "$market" "$code" || true
+          done
+          python -m research.cli notebook
+
+      - name: 提交刷新后的卡片
+        run: |
+          git config user.name "research-bot"
+          git config user.email "actions@github.com"
+          git add cards/
+          if git diff --cached --quiet; then
+            echo "卡片无变化，跳过提交"
+          else
+            git commit -m "CI 数据刷新：deep-dive 全卡（自动，判断字段不受影响）"
+            git push
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: cards/notes
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

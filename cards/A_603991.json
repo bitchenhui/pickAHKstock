@@ -247,22 +247,28 @@
     "对外担保出现代偿，或担保余额超过归母净资产 50%"
   ],
   "market_context": {
-    "close": 126.3,
-    "atr": 8.5121,
-    "atr_pct": 6.74,
-    "stop_reference": 109.276,
-    "bars": 438,
-    "bars_as_of": "2026-10-27",
+    "close": 125.05,
+    "atr": 9.8629,
+    "atr_pct": 7.89,
+    "stop_reference": 105.324,
+    "bars": 447,
+    "bars_as_of": "2026-11-09",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_603991/01/2026.js",
     "market_regime": {
-      "day": "2026-10-30",
-      "close": 3985.5,
-      "ma60": 4450.626166666666,
-      "change_20d": -0.10219096491662805,
+      "day": "2026-11-10",
+      "close": 4069.22,
+      "ma60": 4383.658166666666,
+      "change_20d": -0.048287056094001524,
       "state": "下行",
-      "note": "沪深300 3986，低于60 日均线 4451，20 日 -10.2%"
+      "note": "沪深300 4069，低于60 日均线 4384，20 日 -4.8%"
     },
-    "industry": "半导体"
+    "industry": "半导体",
+    "price": 128.46,
+    "turnover": 308050000.0,
+    "market_cap": 19617000000.0,
+    "pe": 61.35,
+    "pb": 5.22,
+    "as_of": "20261110152300"
   },
   "financials": {
     "path": "已盈利",
@@ -596,8 +602,8 @@
     "working_capital_note": "货币资金由 12.35 亿降至 7.54 亿（−38.97%），主因是偿还债务 5.63 亿，负债率同步由 33.71% 降至 27.33%，属主动去杠杆而非经营失血；应收账款 7.52 亿元（较年初 6.73 亿元增加 11.7%）而前三季收入同比大增，需核对是否为并表带来的口径变化；Q3 单季每股经营现金流 1.69 元，需确认是否来自正常回款而非应付账期拉长。",
     "path_evidence": [],
     "notes": [
-      "财务序列已于 2026-10-28 取自同花顺 F10 财务主表；单季度数据与巨潮定期报告需互相核对",
-      "数据已于 2026-10-28 取自同花顺 F10 财务主表"
+      "数据已于 2026-10-28 取自同花顺 F10 财务主表",
+      "财务序列已于 2026-11-10 取自 https://basic.10jqka.com.cn/api/stock/finance/603991_main.json"
     ]
   },
   "catalysts": [
@@ -764,24 +770,24 @@
     "code": "603991",
     "name": "领先股份",
     "market": "A",
-    "rank": "134.0/188",
+    "rank": "152.0/188",
     "rows": {
       "PEG": NaN,
-      "市盈率-TTM": 53.96312719,
+      "市盈率-TTM": 59.71760226,
       "市盈率-25E": NaN,
       "市盈率-26E": NaN,
       "市盈率-27E": NaN,
-      "市销率-24A": 31.35832664564,
-      "市销率-TTM": 4.89181856,
+      "市销率-24A": 34.70228979679,
+      "市销率-TTM": 5.41346824,
       "市销率-25E": NaN,
       "市销率-26E": NaN,
       "市销率-27E": NaN,
-      "市净率-24A": 4.934067327894,
-      "市净率-MRQ": 4.591009,
-      "市现率1-24A": -1224.91084627,
-      "市现率1-TTM": 58.07747737,
-      "市现率2-24A": 14.37133613,
-      "市现率2-TTM": 23.56162635,
+      "市净率-24A": 5.460222295161,
+      "市净率-MRQ": 5.0805812,
+      "市现率1-24A": -1355.53187014,
+      "市现率1-TTM": 64.27069509,
+      "市现率2-24A": 15.90385471,
+      "市现率2-TTM": 26.07417146,
       "EV/EBITDA-24A": -590.896298657521
     },
     "source": "东方财富 A股估值比较",
@@ -794,76 +800,202 @@
     "level": "second",
     "report_period": "2026-09-30",
     "industry_members": 183,
-    "peers_with_forecast": 24,
-    "peers_same_sign": 24,
-    "peers_strong": 21,
-    "peers_up": 24,
+    "peers_with_forecast": 5,
+    "peers_same_sign": 5,
+    "peers_strong": 5,
+    "peers_up": 5,
     "peers_down": 0,
     "same_sign_rate": 1.0,
-    "market_same_sign_rate": 0.8469387755102041,
-    "lift": 1.180722891566265,
-    "penetration": 0.13114754098360656,
-    "market_penetration": 0.0375407010151312,
-    "median_change_industry": 138.9,
-    "median_change_market": 80.3,
+    "market_same_sign_rate": 0.8421052631578947,
+    "lift": 1.1875,
+    "penetration": 0.0273224043715847,
+    "market_penetration": 0.01819574794100747,
+    "median_change_industry": 261.3,
+    "median_change_market": 96.2,
     "same_sign_peers": [
       {
         "code": "001309",
         "change": 32046.52
       },
       {
-        "code": "688825",
-        "change": 2581.06
-      },
-      {
-        "code": "301308",
-        "change": 1864.55
-      },
-      {
-        "code": "301536",
-        "change": 663.13
-      },
-      {
-        "code": "688802",
-        "change": 269.84
-      },
-      {
         "code": "605358",
         "change": 261.31
-      },
-      {
-        "code": "688469",
-        "change": 247.08
-      },
-      {
-        "code": "688002",
-        "change": 218.0
-      },
-      {
-        "code": "688385",
-        "change": 187.63
-      },
-      {
-        "code": "688620",
-        "change": 179.04
       },
       {
         "code": "603061",
         "change": 148.04
       },
       {
-        "code": "300458",
-        "change": 129.85
+        "code": "603893",
+        "change": 68.04
       }
     ],
-    "background_period": "2026-06-30",
-    "background_up_rate": 0.8870967741935484,
-    "background_market_up_rate": 0.5715778474399164,
-    "background_lift": 1.5520139175561716,
-    "background_note": "2026-06-30 该行业 62 家发预告，改善率 89%（全市场 57%），相对倍数 1.55",
+    "background_period": "",
+    "background_up_rate": 0.0,
+    "background_market_up_rate": 0.0,
+    "background_lift": 0.0,
+    "background_note": "",
     "verdict": "行业共振",
-    "note": "同行业 24/24 家同向，几乎一致，更像行业 beta 而不是公司特有",
+    "note": "同行业 5/5 家同向，几乎一致，更像行业 beta 而不是公司特有",
     "source": "申万二级行业成分股 + 东方财富业绩预告"
+  },
+  "scans": {
+    "as_of": "2026-11-10",
+    "days": 240,
+    "risks": [
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于公司部分银行账户被冻结的公告",
+        "published": "2026-10-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-10-24/1225620901.PDF",
+        "category": "账户与偿债"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于重大仲裁的进展公告",
+        "published": "2026-09-08",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-09-09/1225553726.PDF",
+        "category": "仲裁与诉讼"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于控股股东部分股份解除质押及再质押的公告",
+        "published": "2026-08-28",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-08-29/1225523662.PDF",
+        "category": "股权质押"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于会计政策变更的公告",
+        "published": "2026-08-26",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-08-27/1225510694.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于控股股东一致行动人部分股份质押的公告",
+        "published": "2026-07-24",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-07-25/1225440224.PDF",
+        "category": "股权质押"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于重大仲裁的进展公告",
+        "published": "2026-07-10",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-07-11/1225419253.PDF",
+        "category": "仲裁与诉讼"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于上海证券交易所对公司2025年年度报告的信息披露监管问询函回复的公告",
+        "published": "2026-07-07",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-07-08/1225413355.PDF",
+        "category": "监管问询"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之部分限售股上市流通的公告",
+        "published": "2026-06-21",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-06-22/1225379983.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "华泰联合证券有限责任公司关于深圳市领先半导体科技产业股份有限公司重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之部分限售股上市流通的核查意见",
+        "published": "2026-06-21",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-06-22/1225379970.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于变更公司注册地址并完成工商变更登记及变更办公地址的公告",
+        "published": "2026-06-11",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-06-12/1225364240.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "华泰联合证券有限责任公司关于深圳市领先半导体科技产业股份有限公司重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之2025年度持续督导意见",
+        "published": "2026-05-07",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-05-08/1225281394.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "华泰联合证券有限责任公司关于重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之标的资产减值测试情况的核查意见",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164752.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于会计政策变更的公告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164706.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于会计政策变更的公告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164706.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "2025年度董事会审计委员会履职情况报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164703.PDF",
+        "category": "审计意见"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "控股股东、实际控制人及其他关联方资金占用情况的专项说明",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164685.PDF",
+        "category": "账户与偿债"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于计提资产减值准备的公告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164671.PDF",
+        "category": "资产质量"
+      }
+    ],
+    "governance": [
+      {
+        "category": "股东户数",
+        "detail": "20260930 股东 14409.0 户，上期 16172 户，增减 -10.9%；人均持股 10598.0 股",
+        "date": "2026-09-30",
+        "severity": "低",
+        "source": "巨潮资讯 股东户数（20260930）"
+      },
+      {
+        "category": "担保",
+        "detail": "统计区间 2025-11-10---2026-11-10：5 次，金额 271200.0（万元），占归母净资产 72.15%",
+        "date": "2026-11-10",
+        "severity": "高",
+        "source": "巨潮资讯 担保统计"
+      }
+    ]
   },
   "risks": [
     {
@@ -980,6 +1112,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-10-31",
+  "updated": "2026-11-10",
   "derived_level": "证据充分"
 }

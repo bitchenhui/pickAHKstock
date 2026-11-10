@@ -180,6 +180,7 @@ class Card:
     capital: dict = field(default_factory=dict)         # 资本轨迹（资本开支/经营现金流/在建工程）
     peers: dict = field(default_factory=dict)           # 同业对照（估值分位与远期 PE）
     industry_context: dict = field(default_factory=dict)  # 同业共振（行业 beta vs 公司特有）
+    scans: dict = field(default_factory=dict)   # 风险公告/治理（港股为经营回顾）扫描留痕，deep-dive 写入
     risks: list[Risk] = field(default_factory=list)
     provenance: dict = field(default_factory=dict)   # 数据来源与快照哈希
     account_checks: list[AccountCheck] = field(default_factory=list)

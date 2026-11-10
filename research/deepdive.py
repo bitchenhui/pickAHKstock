@@ -208,50 +208,85 @@ def deep_dive(market: str, code: str, period: str = "", with_scan: bool = True,
     run("行业共振", fill_industry, card, period=period)
 
     if with_scan:
-        # 扫描段只打印不写卡：这是「需要人工过目」的原始材料
-        result.steps.append(Step("风险公告扫描", "scan"))
-        if market == "A":
-            result.steps.append(Step("治理与筹码扫描", "scan"))
-        else:
-            result.steps.append(Step("经营回顾对比", "scan"))
-            result.steps.append(Step("治理与筹码扫描", "skip", "港股无巨潮治理数据接口"))
+        # 扫描结果结构化留痕进卡片：终端会滚走，卡片才是资产
+        scans, scan_steps = collect_scans(card, days=days)
+        card.scans = scans
+        result.steps.extend(scan_steps)
 
     card.updated = date.today().isoformat()
     card.save()
     return result
 
 
-def scan_outputs(card: Card, days: int = 240) -> list[tuple[str, list[str]]]:
-    """扫描段的原始输出（deep-dive 的 CLI 打印用）。返回 [(标题, 行)]。
+def collect_scans(card: Card, days: int = 240) -> tuple[dict, list[Step]]:
+    """风险公告 + 治理（港股为经营回顾对比）扫描，返回可序列化 dict 与步骤报告。
 
-    这里复用各扫描模块的返回值，不重复实现打印——cli 的 risks/governance/
-    business 命令与这里的输出口径一致，人看到的才不会两套。
+    每段独立成败：一段接口失败只记 note，不拖垮其余段。
     """
     from .governance import scan as governance_scan
     from .hk_business import diff_reviews, fetch_reviews
     from .risk import scan_risks
 
-    out: list[tuple[str, list[str]]] = []
-    events = scan_risks(card.code, card.name, since_days=days, market=card.market)
-    lines = [f"  {event}" for event in events] or [
-        f"  近 {days} 天未发现风险类公告标题（不等于没有风险：关键词扫描会漏）"]
-    out.append((f"风险公告（{len(events)} 条）", lines))
+    scans: dict = {"as_of": date.today().isoformat(), "days": days}
+    steps: list[Step] = []
+
+    try:
+        events = scan_risks(card.code, card.name, since_days=days, market=card.market)
+        scans["risks"] = [event.to_dict() for event in events]
+        steps.append(Step("风险公告扫描", "scan" if events else "ok",
+                          f"{len(events)} 条" if events else f"近 {days} 天未发现风险类标题"))
+    except Exception as exc:
+        steps.append(Step("风险公告扫描", "fail", f"{type(exc).__name__}: {exc}"))
 
     if card.market == "A":
-        items = governance_scan(card.code, card.name)
-        lines = [f"  [{item.severity}] {item.category}：{item.detail}" for item in items] or [
-            "  未取到治理数据（缺口不等于没有风险）"]
-        out.append((f"治理与筹码（{len(items)} 条）", lines))
+        try:
+            items = governance_scan(card.code, card.name)
+            scans["governance"] = [item.to_dict() for item in items]
+            steps.append(Step("治理与筹码扫描", "scan" if items else "ok",
+                              f"{len(items)} 条" if items else "未取到治理数据"))
+        except Exception as exc:
+            steps.append(Step("治理与筹码扫描", "fail", f"{type(exc).__name__}: {exc}"))
     else:
-        reviews = fetch_reviews(card.code, card.market)
-        if reviews:
-            diff = diff_reviews(reviews)
-            lines = [f"  最近 {reviews[0].period}，对比 {diff.prior_period} → {diff.period}"
-                     if diff else "  没有去年同期可对比"]
-            if diff:
-                changed = {k: v for k, v in diff.theme_delta.items() if v}
-                lines.append(f"  主题词频变化：{changed or '无明显变化'}")
-                lines += [f"  · {item}" for item in (diff.numbers or [])[:6]]
+        steps.append(Step("治理与筹码扫描", "skip", "港股无巨潮治理数据接口"))
+        try:
+            reviews = fetch_reviews(card.code, card.market)
+            diff = diff_reviews(reviews) if reviews else None
+            scans["business"] = {
+                "latest": reviews[0].period if reviews else "",
+                "diff": diff.to_dict() if diff else None}
+            steps.append(Step("经营回顾对比", "scan" if diff else "ok",
+                              f"最近 {reviews[0].period}" if reviews else "没有取到经营回顾"))
+        except Exception as exc:
+            steps.append(Step("经营回顾对比", "fail", f"{type(exc).__name__}: {exc}"))
+    return scans, steps
+
+
+def scan_outputs(card: Card, days: int = 240) -> list[tuple[str, list[str]]]:
+    """卡片里已留痕的扫描结果 → CLI 打印行。deep-dive 落卡，打印与卡片同一份。"""
+    scans = card.scans or {}
+    out: list[tuple[str, list[str]]] = []
+    risks = scans.get("risks") or []
+    lines = [f"  [{r.get('category')}] {r.get('published')} {r.get('title')}"
+             f"  {r.get('url')}" for r in risks] or [
+        f"  近 {scans.get('days', days)} 天未发现风险类公告标题（不等于没有风险：关键词扫描会漏）"]
+    out.append((f"风险公告（{len(risks)} 条）", lines))
+    governance = scans.get("governance")
+    if governance is not None:
+        lines = [f"  [{g.get('severity')}] {g.get('category')}：{g.get('detail')}"
+                 for g in governance] or ["  未取到治理数据（缺口不等于没有风险）"]
+        out.append((f"治理与筹码（{len(governance)} 条）", lines))
+    business = scans.get("business")
+    if business is not None:
+        lines = []
+        if business.get("diff"):
+            diff = business["diff"]
+            changed = {k: v for k, v in (diff.get("theme_delta") or {}).items() if v}
+            lines = [f"  最近 {business.get('latest', '')}，对比 "
+                     f"{diff.get('prior_period')} → {diff.get('period')}",
+                     f"  主题词频变化：{changed or '无明显变化'}"]
+            lines += [f"  · {item}" for item in (diff.get("numbers") or [])[:6]]
+        elif business.get("latest"):
+            lines = [f"  最近 {business['latest']}，没有去年同期可对比"]
         else:
             lines = ["  没有取到经营回顾"]
         out.append(("经营回顾对比（港股）", lines))

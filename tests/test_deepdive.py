@@ -154,6 +154,11 @@ class DeepDiveTests(unittest.TestCase):
             "hk_discover": lambda since_days=120, limit=20: [],
             "hk_resonance": lambda code, peers, days=120: {
                 "verdict": "单点不可辨", "industry": "建筑", "level": "hk"},
+            # 扫描段整体替换，测试不碰网络
+            "collect_scans": lambda card, days=240: (
+                {"as_of": "2026-11-10", "risks": [{"title": "盈警", "category": "监管问询"}]},
+                [deepdive.Step("风险公告扫描", "scan", "1 条"),
+                 deepdive.Step("经营回顾对比", "scan")]),
         }
         manager = unittest.mock.patch.multiple(deepdive, **patches)
         manager.start()
@@ -166,6 +171,8 @@ class DeepDiveTests(unittest.TestCase):
         card = Card.load("HK", "03333")
         self.assertEqual(card.industry_context["level"], "hk")
         self.assertEqual(card.market_context["lot_size"], 2000)
+        # 扫描结果留痕进卡片，note 渲染层从这里读
+        self.assertEqual(card.scans["risks"][0]["title"], "盈警")
         # HK 科目名经 HK_METRIC_LABELS 映射成中文口径
         self.assertIn("归母净利润", card.financials.metrics)
 

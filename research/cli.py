@@ -685,6 +685,45 @@ def cmd_deep_dive(args: argparse.Namespace) -> int:
     return 1 if any(s.status == "fail" for s in result.steps) else 0
 
 
+def cmd_note(args: argparse.Namespace) -> int:
+    """单张卡片 → 小红书笔记样式 HTML（只渲染卡片里已有的数据）。"""
+    from .note import note_fragment, save_document
+
+    card = Card.load(args.market, args.code)
+    fragment = note_fragment(card)
+    from pathlib import Path as _Path
+
+    default = _Path(__file__).resolve().parent.parent / "cards" / "notes" / \
+        f"{card.market}_{card.code}.html"
+    path = _Path(args.out) if args.out else default
+    save_document(fragment, path, f"{card.name}（{card.market} {card.code}）研究笔记")
+    print(f"{card.name}（{card.market} {card.code}）笔记 → {path}")
+    print("只渲染卡片里已有的数据：缺的面（如未 deep-dive 的扫描留痕）不会编造。")
+    return 0
+
+
+def cmd_notebook(args: argparse.Namespace) -> int:
+    """全部卡片 → 一页小红书信息流式汇总 HTML。"""
+    from pathlib import Path as _Path
+
+    from .note import notebook_fragment, save_document
+
+    cards = _load_all_cards()
+    if not cards:
+        print("还没有卡片。")
+        return 0
+    fragment = notebook_fragment(cards)
+    default = _Path(__file__).resolve().parent.parent / "cards" / "notes" / "index.html"
+    path = _Path(args.out) if args.out else default
+    save_document(fragment, path, "小资金研究台 · 观察池信息流")
+    order = {"持仓研究": 0, "观察": 1, "降级": 2, "淘汰": 3}
+    ranked = sorted(cards, key=lambda c: (order.get(c.status, 9), c.code))
+    print(f"研究台汇总 {len(ranked)} 张卡片 → {path}")
+    for card in ranked:
+        print(f"  {card.status:4s} {card.market} {card.code} {card.name}")
+    return 0
+
+
 def cmd_backtest_report(args: argparse.Namespace) -> int:
     """定期回测报告：跑八期事件研究 + 组合层 + 分期拆解。"""
     import runpy
@@ -969,6 +1008,16 @@ def main(argv: list[str] | None = None) -> int:
     p_dd.add_argument("--days", type=int, default=240, help="风险公告回看天数")
     p_dd.add_argument("--no-scan", action="store_true", help="跳过风险/治理扫描（只灌卡）")
     p_dd.set_defaults(func=cmd_deep_dive)
+
+    p_note = sub.add_parser("note", help="单张卡片 → 小红书笔记样式 HTML")
+    p_note.add_argument("market")
+    p_note.add_argument("code")
+    p_note.add_argument("--out", default="", help="输出路径（默认 cards/notes/市场_代码.html）")
+    p_note.set_defaults(func=cmd_note)
+
+    p_nb = sub.add_parser("notebook", help="全部卡片 → 一页小红书信息流汇总 HTML")
+    p_nb.add_argument("--out", default="", help="输出路径（默认 cards/notes/index.html）")
+    p_nb.set_defaults(func=cmd_notebook)
 
     p_odds = sub.add_parser("odds", help="高赔率候选：结构条件筛选 + 10x 需要什么为真")
     p_odds.add_argument("--period", default="2026-09-30", help="业绩预告的报告期")

@@ -154,22 +154,28 @@
     "对外担保被担保方出现代偿，或担保余额进一步上升超过归母净资产 120%"
   ],
   "market_context": {
-    "close": 3.51,
-    "atr": 0.1336,
-    "atr_pct": 3.81,
-    "stop_reference": 3.243,
-    "bars": 438,
-    "bars_as_of": "2026-10-27",
+    "close": 3.42,
+    "atr": 0.1393,
+    "atr_pct": 4.07,
+    "stop_reference": 3.141,
+    "bars": 447,
+    "bars_as_of": "2026-11-09",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_002132/01/2026.js",
     "market_regime": {
-      "day": "2026-10-30",
-      "close": 3985.5,
-      "ma60": 4450.626166666666,
-      "change_20d": -0.10219096491662805,
+      "day": "2026-11-10",
+      "close": 4069.22,
+      "ma60": 4383.658166666666,
+      "change_20d": -0.048287056094001524,
       "state": "下行",
-      "note": "沪深300 3986，低于60 日均线 4451，20 日 -10.2%"
+      "note": "沪深300 4069，低于60 日均线 4384，20 日 -4.8%"
     },
-    "industry": "通用设备"
+    "industry": "通用设备",
+    "price": 3.43,
+    "turnover": 59700000.0,
+    "market_cap": 4807000000.0,
+    "pe": 123.78,
+    "pb": 1.38,
+    "as_of": "20261110152300"
   },
   "financials": {
     "path": "已盈利",
@@ -503,8 +509,8 @@
     "working_capital_note": "应收周转天数从上年同期 68.49 天降至 63.76 天、存货周转天数从 58.13 天降至 56.17 天，均有改善；每股经营现金流 0.54 元好于上年 0.26 元。收入没有靠放宽信用换来的假象，问题确实出在价格与毛利端。但 2223.66 万元存货跌价准备说明存货的可变现净值在下降，需要用年报的存货结构与跌价测算核对是否还有未计提的部分。",
     "path_evidence": [],
     "notes": [
-      "财务序列已于 2026-10-28 取自同花顺 F10 财务主表；单季度数据与巨潮定期报告需互相核对",
-      "数据已于 2026-10-28 取自同花顺 F10 财务主表"
+      "数据已于 2026-10-28 取自同花顺 F10 财务主表",
+      "财务序列已于 2026-11-10 取自 https://basic.10jqka.com.cn/api/stock/finance/002132_main.json"
     ]
   },
   "catalysts": [
@@ -678,24 +684,24 @@
     "code": "002132",
     "name": "恒星科技",
     "market": "A",
-    "rank": "187.0/258",
+    "rank": "181.0/258",
     "rows": {
       "PEG": NaN,
-      "市盈率-TTM": 118.00574783,
+      "市盈率-TTM": 123.41885552,
       "市盈率-25E": NaN,
       "市盈率-26E": NaN,
       "市盈率-27E": NaN,
-      "市销率-24A": 0.892089537113,
-      "市销率-TTM": 0.85495493,
+      "市销率-24A": 0.933011075512,
+      "市销率-TTM": 0.89417305,
       "市销率-25E": NaN,
       "市销率-26E": NaN,
       "市销率-27E": NaN,
-      "市净率-24A": 1.317474371963,
-      "市净率-MRQ": 1.31689459,
-      "市现率1-24A": 14.26402267,
-      "市现率1-TTM": 6.40869685,
-      "市现率2-24A": 153.42922212,
-      "市现率2-TTM": 156.11453541,
+      "市净率-24A": 1.377908976182,
+      "市净率-MRQ": 1.3773026,
+      "市现率1-24A": 14.91833563,
+      "市现率1-TTM": 6.70267377,
+      "市现率2-24A": 160.46725983,
+      "市现率2-TTM": 163.27575263,
       "EV/EBITDA-24A": 21.599498099972
     },
     "source": "东方财富 A股估值比较",
@@ -708,44 +714,142 @@
     "level": "second",
     "report_period": "2026-09-30",
     "industry_members": 220,
-    "peers_with_forecast": 7,
-    "peers_same_sign": 5,
-    "peers_strong": 6,
-    "peers_up": 5,
-    "peers_down": 2,
-    "same_sign_rate": 0.7142857142857143,
-    "market_same_sign_rate": 0.8469387755102041,
-    "lift": 0.8433734939759036,
-    "penetration": 0.031818181818181815,
-    "market_penetration": 0.0375407010151312,
-    "median_change_industry": 118.3,
-    "median_change_market": 80.3,
+    "peers_with_forecast": 3,
+    "peers_same_sign": 2,
+    "peers_strong": 3,
+    "peers_up": 2,
+    "peers_down": 1,
+    "same_sign_rate": 0.6666666666666666,
+    "market_same_sign_rate": 0.8421052631578947,
+    "lift": 0.7916666666666666,
+    "penetration": 0.013636363636363636,
+    "market_penetration": 0.01819574794100747,
+    "median_change_industry": 44.4,
+    "median_change_market": 96.2,
     "same_sign_peers": [
-      {
-        "code": "688808",
-        "change": 1866.0
-      },
-      {
-        "code": "688257",
-        "change": 318.0
-      },
-      {
-        "code": "688059",
-        "change": 118.27
-      },
       {
         "code": "000811",
         "change": 30.0
       }
     ],
-    "background_period": "2026-06-30",
-    "background_up_rate": 0.5094339622641509,
-    "background_market_up_rate": 0.5715778474399164,
-    "background_lift": 0.8912766030837157,
-    "background_note": "2026-06-30 该行业 53 家发预告，改善率 51%（全市场 57%），相对倍数 0.89",
+    "background_period": "",
+    "background_up_rate": 0.0,
+    "background_market_up_rate": 0.0,
+    "background_lift": 0.0,
+    "background_note": "",
     "verdict": "介于两者之间",
-    "note": "同行业 5/7 家同向，共振度居中",
+    "note": "同行业 2/3 家同向，共振度居中",
     "source": "申万二级行业成分股 + 东方财富业绩预告"
+  },
+  "scans": {
+    "as_of": "2026-11-10",
+    "days": 240,
+    "risks": [
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "公司关于2026年前三季度计提资产减值准备的公告",
+        "published": "2026-10-22",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-10-23/1225615398.PDF",
+        "category": "资产质量"
+      },
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "公司关于2026年半年度计提资产减值准备的公告",
+        "published": "2026-08-27",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-08-28/1225517839.PDF",
+        "category": "资产质量"
+      },
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "公司关于副总经理辞职的公告",
+        "published": "2026-08-27",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-08-28/1225517838.PDF",
+        "category": "治理变动"
+      },
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "非经营性资金占用及其他关联资金往来情况汇总表",
+        "published": "2026-08-27",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-08-28/1225517837.PDF",
+        "category": "账户与偿债"
+      },
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "公司关于控股股东办理股票质押展期的公告",
+        "published": "2026-06-11",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-06-12/1225364444.PDF",
+        "category": "股权质押"
+      },
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "公司内部控制审计报告",
+        "published": "2026-04-28",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-29/1225226582.PDF",
+        "category": "审计意见"
+      },
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "公司关于会计政策变更的公告",
+        "published": "2026-04-28",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-29/1225226578.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "公司关于计提资产减值准备的公告",
+        "published": "2026-04-28",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-29/1225226577.PDF",
+        "category": "资产质量"
+      },
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "公司2025年控股股东及其他关联方资金占用情况的专项说明",
+        "published": "2026-04-28",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-29/1225226567.PDF",
+        "category": "账户与偿债"
+      },
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "2025年度非经营性资金占用及其他关联资金往来情况汇总表",
+        "published": "2026-04-28",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-29/1225226566.PDF",
+        "category": "账户与偿债"
+      },
+      {
+        "code": "002132",
+        "name": "恒星科技",
+        "title": "2025年年度审计报告",
+        "published": "2026-04-28",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-29/1225226564.PDF",
+        "category": "审计意见"
+      }
+    ],
+    "governance": [
+      {
+        "category": "股东户数",
+        "detail": "20260930 股东 72702.0 户，上期 72959 户，增减 -0.35%；人均持股 19278.0 股",
+        "date": "2026-09-30",
+        "severity": "低",
+        "source": "巨潮资讯 股东户数（20260930）"
+      },
+      {
+        "category": "担保",
+        "detail": "统计区间 2025-11-10---2026-11-10：2 次，金额 360000.0（万元），占归母净资产 103.44%",
+        "date": "2026-11-10",
+        "severity": "高",
+        "source": "巨潮资讯 担保统计"
+      }
+    ]
   },
   "risks": [
     {
@@ -842,6 +946,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-10-31",
+  "updated": "2026-11-10",
   "derived_level": "证据充分"
 }

@@ -170,9 +170,9 @@
     "下一期股东户数大幅回升（超过 +20%），说明集中是假象；或担保余额超过归母净资产 50%"
   ],
   "market_context": {
-    "price": 30.61,
-    "market_cap": 23637000000.0,
-    "as_of": "20261109161451",
+    "price": 31.38,
+    "market_cap": 24232000000.0,
+    "as_of": "20261110152313",
     "role": "市场确认与执行参考，不是业务证据",
     "close": 30.61,
     "atr": 2.0907,
@@ -182,17 +182,17 @@
     "bars_as_of": "2026-11-09",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_605358/01/2026.js",
     "market_regime": {
-      "day": "2026-11-09",
-      "close": 4056.11,
-      "ma60": 4394.204833333333,
-      "change_20d": -0.05407441266050672,
+      "day": "2026-11-10",
+      "close": 4069.22,
+      "ma60": 4383.658166666666,
+      "change_20d": -0.048287056094001524,
       "state": "下行",
-      "note": "沪深300 4056，低于60 日均线 4394，20 日 -5.4%"
+      "note": "沪深300 4069，低于60 日均线 4384，20 日 -4.8%"
     },
     "industry": "半导体",
-    "turnover": 644610000.0,
-    "pe": 169.23,
-    "pb": 2.19
+    "turnover": 797730000.0,
+    "pe": 173.49,
+    "pb": 2.25
   },
   "financials": {
     "path": "已盈利",
@@ -527,7 +527,7 @@
     "path_evidence": [],
     "notes": [
       "数据已于 2026-10-28 取自同花顺 F10 财务主表",
-      "财务序列已于 2026-11-09 取自 https://basic.10jqka.com.cn/api/stock/finance/605358_main.json"
+      "财务序列已于 2026-11-10 取自 https://basic.10jqka.com.cn/api/stock/finance/605358_main.json"
     ]
   },
   "catalysts": [
@@ -803,6 +803,124 @@
     "note": "同行业 5/5 家同向，几乎一致，更像行业 beta 而不是公司特有",
     "source": "申万二级行业成分股 + 东方财富业绩预告"
   },
+  "scans": {
+    "as_of": "2026-11-10",
+    "days": 240,
+    "risks": [
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "立昂微关于控股股东部分股权质押的公告",
+        "published": "2026-11-04",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-11-05/1225656958.PDF",
+        "category": "股权质押"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "立昂微关于变更董事会秘书的公告",
+        "published": "2026-10-09",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-10-10/1225598523.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "立昂微关于受让控股子公司少数股权进展暨完成工商变更登记的公告",
+        "published": "2026-08-31",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-09-01/1225535812.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "立昂微关于计提资产减值准备的公告",
+        "published": "2026-08-07",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-08-08/1225464771.PDF",
+        "category": "资产质量"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "立昂微关于变更持续督导保荐代表人的公告",
+        "published": "2026-07-08",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-07-09/1225415727.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "中诚信国际关于终止杭州立昂微电子股份有限公司主体和债项信用评级的公告",
+        "published": "2026-06-22",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-06-23/1225380670.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "立昂微关于计提资产减值准备的公告",
+        "published": "2026-04-27",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-28/1225214941.PDF",
+        "category": "资产质量"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "立昂微关于公司总经理变更的公告",
+        "published": "2026-04-27",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-28/1225214734.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "杭州立昂微电子股份有限公司2025年度审计报告",
+        "published": "2026-04-27",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-28/1225214732.PDF",
+        "category": "审计意见"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "立昂微董事会审计委员会2025年度履职情况报告",
+        "published": "2026-04-27",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-28/1225214668.PDF",
+        "category": "审计意见"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "关于杭州立昂微电子股份有限公司非经营性资金占用及其他关联资金往来情况的专项审核说明",
+        "published": "2026-04-27",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-28/1225214659.PDF",
+        "category": "账户与偿债"
+      },
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "title": "杭州立昂微电子股份有限公司内部控制审计报告",
+        "published": "2026-04-27",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-28/1225214556.PDF",
+        "category": "审计意见"
+      }
+    ],
+    "governance": [
+      {
+        "category": "股东户数",
+        "detail": "20260930 股东 160934.0 户，上期 252326 户，增减 -36.22%；人均持股 4798.0 股",
+        "date": "2026-09-30",
+        "severity": "低",
+        "source": "巨潮资讯 股东户数（20260930）"
+      },
+      {
+        "category": "担保",
+        "detail": "统计区间 2025-11-10---2026-11-10：20 次，金额 332900.0（万元），占归母净资产 30.88%",
+        "date": "2026-11-10",
+        "severity": "高",
+        "source": "巨潮资讯 担保统计"
+      }
+    ]
+  },
   "risks": [
     {
       "category": "价格",
@@ -900,6 +1018,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-11-09",
+  "updated": "2026-11-10",
   "derived_level": "证据充分"
 }
