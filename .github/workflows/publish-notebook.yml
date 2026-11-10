@@ -29,11 +29,16 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: "3.11"    # ubuntu-26.04 runner 无 3.9；代码为 3.9+ 语法
           cache: pip
 
       - name: 安装依赖
         run: pip install -r requirements.txt
+
+      - name: 测试（178 项，先于发布暴露运行时不兼容）
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/pycache
+        run: python -m unittest discover -s tests
 
       - name: 刷新全部卡片（数据面 + 扫描留痕）
         env:
