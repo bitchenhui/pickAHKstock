@@ -20,7 +20,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -50,7 +50,9 @@ jobs:
             market=${base%%_*}
             code=${base#*_}
             echo "== $market $code"
-            python -m research.cli deep-dive "$market" "$code" || true
+            # 海外 IP 访问国内接口慢：单卡 6 分钟上限，卡住就放弃这张，
+            # 卡片沿用仓库里的上一次数据（deep-dive 各面独立成败）
+            timeout 360 python -m research.cli deep-dive "$market" "$code" || echo "!! $market $code 超时/失败，沿用仓库数据"
           done
 
       - name: 生成单卡笔记与汇总页
