@@ -256,11 +256,11 @@
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_603991/01/2026.js",
     "market_regime": {
       "day": "2026-11-10",
-      "close": 4069.22,
-      "ma60": 4383.658166666666,
-      "change_20d": -0.048287056094001524,
+      "close": 4059.11,
+      "ma60": 4383.489666666666,
+      "change_20d": -0.050651592261347966,
       "state": "下行",
-      "note": "沪深300 4069，低于60 日均线 4384，20 日 -4.8%"
+      "note": "沪深300 4059，低于60 日均线 4383，20 日 -5.1%"
     },
     "industry": "半导体",
     "price": 128.46,
@@ -268,7 +268,7 @@
     "market_cap": 19617000000.0,
     "pe": 61.35,
     "pb": 5.22,
-    "as_of": "20261110152300"
+    "as_of": "20261110161500"
   },
   "financials": {
     "path": "已盈利",
@@ -773,21 +773,21 @@
     "rank": "152.0/188",
     "rows": {
       "PEG": NaN,
-      "市盈率-TTM": 59.71760226,
+      "市盈率-TTM": 61.34604707,
       "市盈率-25E": NaN,
       "市盈率-26E": NaN,
       "市盈率-27E": NaN,
-      "市销率-24A": 34.70228979679,
-      "市销率-TTM": 5.41346824,
+      "市销率-24A": 35.648589742468,
+      "市销率-TTM": 5.56108861,
       "市销率-25E": NaN,
       "市销率-26E": NaN,
       "市销率-27E": NaN,
-      "市净率-24A": 5.460222295161,
-      "市净率-MRQ": 5.0805812,
-      "市现率1-24A": -1355.53187014,
-      "市现率1-TTM": 64.27069509,
-      "市现率2-24A": 15.90385471,
-      "市现率2-TTM": 26.07417146,
+      "市净率-24A": 5.60911760125,
+      "市净率-MRQ": 5.21912404,
+      "市现率1-24A": -1392.49599391,
+      "市现率1-TTM": 66.02329861,
+      "市现率2-24A": 16.3375384,
+      "市现率2-TTM": 26.78519045,
       "EV/EBITDA-24A": -590.896298657521
     },
     "source": "东方财富 A股估值比较",
@@ -809,7 +809,7 @@
     "market_same_sign_rate": 0.8421052631578947,
     "lift": 1.1875,
     "penetration": 0.0273224043715847,
-    "market_penetration": 0.01819574794100747,
+    "market_penetration": 0.018192263500574492,
     "median_change_industry": 261.3,
     "median_change_market": 96.2,
     "same_sign_peers": [
@@ -926,6 +926,30 @@
       {
         "code": "603991",
         "name": "领先股份",
+        "title": "公司证券简称变更实施公告",
+        "published": "2026-05-25",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-05-26/1225328799.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于变更公司注册地址及修订《公司章程》的公告",
+        "published": "2026-05-18",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-05-19/1225312224.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于拟变更公司证券简称的公告",
+        "published": "2026-05-18",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-05-19/1225312223.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
         "title": "华泰联合证券有限责任公司关于深圳市领先半导体科技产业股份有限公司重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之2025年度持续督导意见",
         "published": "2026-05-07",
         "url": "http://static.cninfo.com.cn/finalpage/2026-05-08/1225281394.PDF",
@@ -934,34 +958,10 @@
       {
         "code": "603991",
         "name": "领先股份",
-        "title": "华泰联合证券有限责任公司关于重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之标的资产减值测试情况的核查意见",
-        "published": "2026-04-23",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164752.PDF",
-        "category": "重组变更"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
         "title": "关于会计政策变更的公告",
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164706.PDF",
         "category": "重组变更"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
-        "title": "关于会计政策变更的公告",
-        "published": "2026-04-23",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164706.PDF",
-        "category": "重组变更"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
-        "title": "2025年度董事会审计委员会履职情况报告",
-        "published": "2026-04-23",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164703.PDF",
-        "category": "审计意见"
       },
       {
         "code": "603991",
@@ -974,10 +974,50 @@
       {
         "code": "603991",
         "name": "领先股份",
+        "title": "2025年度审计报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164684.PDF",
+        "category": "审计意见"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
         "title": "关于计提资产减值准备的公告",
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164671.PDF",
         "category": "资产质量"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于先进封装材料国际有限公司2025年12月31日99.97%股东权益的减值测试报告之专项审核报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164669.PDF",
+        "category": "资产质量"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于变更投资者联系电话及传真的公告",
+        "published": "2026-04-17",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-18/1225115055.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于控股股东一致行动人部分股份质押的公告",
+        "published": "2026-04-16",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-17/1225109518.PDF",
+        "category": "股权质押"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于公司副总裁离任及董事长代行董事会秘书职责的公告",
+        "published": "2026-03-31",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-01/1225065678.PDF",
+        "category": "治理变动"
       }
     ],
     "governance": [
