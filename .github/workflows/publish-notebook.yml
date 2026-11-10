@@ -68,17 +68,20 @@ jobs:
           done
           python -m research.cli notebook
 
-      - name: 提交刷新后的卡片
+      - name: 提交刷新后的卡片（best-effort：撞车不挡发布）
         run: |
           git config user.name "research-bot"
           git config user.email "actions@github.com"
           git add cards/
           if git diff --cached --quiet; then
             echo "卡片无变化，跳过提交"
-          else
-            git commit -m "CI 数据刷新：deep-dive 全卡（自动，判断字段不受影响）"
-            git push
+            exit 0
           fi
+          git commit -m "CI 数据刷新：deep-dive 全卡（自动，判断字段不受影响）"
+          # 别人在运行期间推了提交时 rebase 重放；仍失败就放弃提交但不挡发布
+          # （Pages 用的是本次工作区生成的 notes，不依赖这份提交）
+          git pull --rebase origin master && git push || \
+            echo "!! 提交刷新数据失败（推送撞车），页面照常发布，数据下次再留"
 
       - uses: actions/upload-pages-artifact@v3
         with:
