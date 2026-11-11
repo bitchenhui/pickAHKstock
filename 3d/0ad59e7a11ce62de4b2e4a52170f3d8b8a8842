@@ -1,0 +1,16 @@
+cards/notes/index.html
+  h_69a2bad0f475d9 6-7,9,13-15,18-22,99,104-108,110-113,117,123-141
+research/note.py
+  h_69a2bad0f475d9 105-107,110-114,191,196-200,202-205,209,215-232,510,519-523,526-534,536-551,553,644-645,647-648
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3d0ad59e7a11ce62de4b2e4a52170f3d8b8a8842",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
