@@ -1,0 +1,18 @@
+research/cli.py
+  h_69a2bad0f475d9 733,746
+research/sentinel.py
+  h_69a2bad0f475d9 194-248,265-269
+tests/test_sentinel.py
+  h_69a2bad0f475d9 99,102-105,108-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5c577a33dfd716eac6d65412fc95e1f544d715da",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
