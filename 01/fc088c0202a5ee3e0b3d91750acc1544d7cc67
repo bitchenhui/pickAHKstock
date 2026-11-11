@@ -1,0 +1,48 @@
+README.md
+  h_69a2bad0f475d9 116
+cards/A_603026.json
+  h_69a2bad0f475d9 6-7,31,43-48,52-57,61-66,70-72,74-79,81-84,86,93-96,98,100-105,109,435-437,440,443-458,568,594-664,666,728-729,736-743,754-759,763-764
+cards/_snapshots/2026-11-11_A_000626.json
+  h_69a2bad0f475d9 1-12
+cards/_snapshots/2026-11-11_A_002044.json
+  h_69a2bad0f475d9 1-12
+cards/_snapshots/2026-11-11_A_002132.json
+  h_69a2bad0f475d9 1-12
+cards/_snapshots/2026-11-11_A_603026.json
+  h_69a2bad0f475d9 1-12
+cards/_snapshots/2026-11-11_A_603991.json
+  h_69a2bad0f475d9 1-12
+cards/_snapshots/2026-11-11_A_605358.json
+  h_69a2bad0f475d9 1-12
+cards/_snapshots/2026-11-11_HK_03323.json
+  h_69a2bad0f475d9 1-12
+cards/_snapshots/2026-11-11_HK_09696.json
+  h_69a2bad0f475d9 1-12
+cards/notes/A_603026.html
+  h_69a2bad0f475d9 81
+cards/notes/index.html
+  h_69a2bad0f475d9 81
+research/card.py
+  h_69a2bad0f475d9 183
+research/commodity.py
+  h_69a2bad0f475d9 1-136
+research/deepdive.py
+  h_69a2bad0f475d9 209-215
+research/note.py
+  h_69a2bad0f475d9 183-225,341-344,430
+tests/test_commodity.py
+  h_69a2bad0f475d9 1-56
+tests/test_deepdive.py
+  h_69a2bad0f475d9 105-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "01fc088c0202a5ee3e0b3d91750acc1544d7cc67",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
