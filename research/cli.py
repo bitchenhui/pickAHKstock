@@ -724,6 +724,37 @@ def cmd_notebook(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sentinel(args: argparse.Namespace) -> int:
+    """哨兵：对照行动条件检查全部卡片，命中触发器则推通知。
+
+    检查的是低频数据（快照/日线/盯价），但可以每小时跑一次。
+    未配置任何通知渠道时只打印不发——先把触发器摆到眼前。
+    """
+    from .sentinel import check_cards, notify
+
+    cards = _load_all_cards()
+    if not cards:
+        print("还没有卡片。")
+        return 0
+    alerts, checked = check_cards(cards)
+    print(f"哨兵检查 {checked} 张卡片：命中 {len(alerts)} 条触发器\n")
+    for alert in alerts:
+        print(f"  {alert.line()}")
+    if not alerts:
+        print("  （无触发：参考线、相对强度、催化剂、盯价都安静）")
+        return 0
+    title = f"研究台哨兵：{len(alerts)} 条触发"
+    body = "\n".join(alert.line() for alert in alerts)
+    results = notify(title, body)
+    if results:
+        print("\n通知：")
+        for line in results:
+            print(f"  {line}")
+    else:
+        print("\n未配置通知渠道（环境变量/Secrets），只打印未推送。")
+    return 0
+
+
 def cmd_backtest_report(args: argparse.Namespace) -> int:
     """定期回测报告：跑八期事件研究 + 组合层 + 分期拆解。"""
     import runpy
@@ -1018,6 +1049,9 @@ def main(argv: list[str] | None = None) -> int:
     p_nb = sub.add_parser("notebook", help="全部卡片 → 一页小红书信息流汇总 HTML")
     p_nb.add_argument("--out", default="", help="输出路径（默认 cards/notes/index.html）")
     p_nb.set_defaults(func=cmd_notebook)
+
+    p_sent = sub.add_parser("sentinel", help="哨兵：触发器命中检查 + 多渠道通知")
+    p_sent.set_defaults(func=cmd_sentinel)
 
     p_odds = sub.add_parser("odds", help="高赔率候选：结构条件筛选 + 10x 需要什么为真")
     p_odds.add_argument("--period", default="2026-09-30", help="业绩预告的报告期")

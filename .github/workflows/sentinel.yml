@@ -1,0 +1,53 @@
+name: 哨兵
+
+# 高频地检查低频数据：盘中每小时对照一次行动条件（失效线/相对强度/
+# 催化剂/盯价极值），命中才推通知。数据仍是快照/日频——这不是高频
+# 行情系统，是触发器哨兵。
+#
+# 通知渠道在仓库 Settings → Secrets and variables → Actions 配置
+# （配哪个用哪个，可多个），名字与 research/sentinel.py 文档一致：
+#   SENTINEL_SERVERCHAN_KEY / SENTINEL_BARK_KEY /
+#   SENTINEL_DINGTALK_WEBHOOK(+SENTINEL_DINGTALK_SECRET) /
+#   SENTINEL_WECOM_WEBHOOK / SENTINEL_FEISHU_WEBHOOK /
+#   SENTINEL_SMTP_HOST/PORT/USER/PASS/TO
+on:
+  schedule:
+    - cron: "30 1-7 * * 1-5"    # 北京时间 09:30-15:30 每半日整段，每小时第 30 分
+  workflow_dispatch:
+
+jobs:
+  sentinel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 数据接口缓存
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pickahkstock
+          key: pickahk-cache-${{ github.run_id }}
+          restore-keys: pickahk-cache-
+
+      - name: 哨兵检查（命中才通知）
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/pycache
+          SENTINEL_SERVERCHAN_KEY: ${{ secrets.SENTINEL_SERVERCHAN_KEY }}
+          SENTINEL_BARK_KEY: ${{ secrets.SENTINEL_BARK_KEY }}
+          SENTINEL_DINGTALK_WEBHOOK: ${{ secrets.SENTINEL_DINGTALK_WEBHOOK }}
+          SENTINEL_DINGTALK_SECRET: ${{ secrets.SENTINEL_DINGTALK_SECRET }}
+          SENTINEL_WECOM_WEBHOOK: ${{ secrets.SENTINEL_WECOM_WEBHOOK }}
+          SENTINEL_FEISHU_WEBHOOK: ${{ secrets.SENTINEL_FEISHU_WEBHOOK }}
+          SENTINEL_SMTP_HOST: ${{ secrets.SENTINEL_SMTP_HOST }}
+          SENTINEL_SMTP_PORT: ${{ secrets.SENTINEL_SMTP_PORT }}
+          SENTINEL_SMTP_USER: ${{ secrets.SENTINEL_SMTP_USER }}
+          SENTINEL_SMTP_PASS: ${{ secrets.SENTINEL_SMTP_PASS }}
+          SENTINEL_SMTP_TO: ${{ secrets.SENTINEL_SMTP_TO }}
+        run: python -m research.cli sentinel
