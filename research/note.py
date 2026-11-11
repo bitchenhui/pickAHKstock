@@ -180,6 +180,49 @@ def _status_badge(status: str) -> str:
     return f'<span class="badge {cls}">{_esc(status)}</span>'
 
 
+def _watch_line(card: Card) -> str:
+    """汇总行用的一句话盯价摘要：品种 最新价(30日±x%)。"""
+    items = ((card.commodities or {}).get("items")) or {}
+    if not items:
+        return "未映射"
+    parts = []
+    for stats in items.values():
+        chg = stats.get("chg_30d")
+        chg_text = "—" if chg is None else f"{chg * 100:+.1f}%"
+        parts.append(f"{stats.get('symbol', '')} {stats.get('latest', '—')}（30日{chg_text}）")
+    return " ｜ ".join(parts)
+
+
+def _commodity_rows(card: Card) -> str:
+    """盯的价格块：最新价、30/250 日变化、一年位置。代理关系已在名称里。"""
+    items = ((card.commodities or {}).get("items")) or {}
+    if not items:
+        return ""
+    rows = []
+    for stats in items.values():
+        def _pct(value, short=False):
+            if value is None:
+                return "—"
+            text = f"{value * 100:+.1f}%"
+            return text + ("（短窗口）" if short else "")
+        position = stats.get("position_250d")
+        position_text = "—" if position is None else f"{position * 100:.0f}%"
+        trend = "".join("▁▂▃▄▅▆▇"[min(6, max(0, int((p - stats.get("low_250d", p))
+                          / max(1e-9, (stats.get("high_250d", p) - stats.get("low_250d", p)))
+                          * 6)))] for p in [row["price"] for row in stats.get("series_tail", [])])
+        rows.append(
+            f'<div class="kv"><span class="k">{_esc(stats.get("name", ""))}</span>'
+            f'<span><b>{_esc(stats.get("latest", "—"))}</b>'
+            f'（{_esc(stats.get("day", ""))}）｜30日 {_esc(_pct(stats.get("chg_30d"), stats.get("chg_30d_short")))}'
+            f'｜一年 {_esc(_pct(stats.get("chg_250d"), stats.get("chg_250d_short")))}'
+            f'｜一年区间位置 {position_text}'
+            + (f'｜<span aria-hidden="true">{trend}</span>' if trend else "")
+            + "</span></div>")
+    return (f'<section><h3>💰 盯的价格（行业给的就要盯行业）</h3>{"".join(rows)}'
+            f'<p class="derived">来源：{_esc((card.commodities or {}).get("source", ""))}；'
+            f'代理关系见名称标注</p></section>')
+
+
 def _regime_line(card: Card) -> str:
     regime = (card.market_context or {}).get("market_regime") or {}
     if not regime:
@@ -295,6 +338,10 @@ def note_fragment(card: Card) -> str:
             f'<p class="fact">在建工程 {_esc(capital.get("construction_label", "—"))} ｜ '
             f'固定资产 {_esc(capital.get("fixed_assets_label", "—"))}</p></section>')
 
+    commodity_block = _commodity_rows(card)
+    if commodity_block:
+        parts.append(commodity_block)
+
     risks = scans.get("risks") or []
     governance = scans.get("governance") or []
     business = scans.get("business") or {}
@@ -380,6 +427,7 @@ def notebook_fragment(cards: list[Card]) -> str:
             ("单季利润", (f"{momentum}（{quarters[0][0]} {quarters[0][1] / 1e8:.2f} 亿 → "
                           f"{quarters[-1][0]} {quarters[-1][1] / 1e8:.2f} 亿）") if quarters else "—"),
             ("经营现金流", capital.get("operating_cf_label", "—")),
+            ("盯价", _watch_line(card)),
             ("红旗", f"风险公告 {risk_count} 条 · 高severity治理 {high_flags} 条"
                      if (risk_count or high_flags) else "未扫描留痕"),
             ("机构覆盖", str(expectations.get("coverage", "—")) + " 家"),

@@ -206,6 +206,13 @@ def deep_dive(market: str, code: str, period: str = "", with_scan: bool = True,
     run("分析师预期", fill_expectations, card)
     run("资本轨迹与同业", fill_context, card)
     run("行业共振", fill_industry, card, period=period)
+    from .commodity import WATCHLIST, fill_commodities
+
+    if card.code in WATCHLIST:
+        run("盯的价格", fill_commodities, card)
+    else:
+        result.steps.append(Step(
+            "盯的价格", "skip", f"{card.code} 不在价格映射表（WATCHLIST），该盯什么价需要人定"))
 
     if with_scan:
         # 扫描结果结构化留痕进卡片：终端会滚走，卡片才是资产

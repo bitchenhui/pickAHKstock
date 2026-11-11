@@ -102,7 +102,9 @@ class DeepDiveTests(unittest.TestCase):
     def test_all_faces_filled_and_saved(self):
         self._patch_all()
         result = deepdive.deep_dive("A", "600001", with_scan=False)
-        self.assertTrue(all(s.status == "ok" for s in result.steps), result.steps)
+        faces = {s.face: s.status for s in result.steps}
+        self.assertNotIn("fail", faces.values(), result.steps)
+        self.assertEqual(faces["盯的价格"], "skip")   # 600001 不在映射表，照实记 skip
         card = Card.load("A", "600001")
         self.assertEqual(card.financials.metrics["净利润"]["2026-09-30"], "1.0亿")
         self.assertEqual(card.market_context["close"], 11.0)

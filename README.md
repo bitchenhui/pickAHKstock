@@ -113,6 +113,7 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 - `research/board.py` 研究看板：把「谁该被研究」变成可执行的排序——到期必看 > 临近复核 > 观察池 > 待立项
 - `research/forecast_pool.py` 业绩预告**全量**取数：接口忽略 pageIndex，改用数值区间递归切分代替翻页（原来每期只拿到全量的 7%）
 - `research/industry.py` 同业共振：申万二级行业映射（全市场 5221 只）+ 行业方向比较，回答「这是行业 beta 还是公司自己的变化」
+- `research/commodity.py` 盯的价格：行业共振指向的商品现货序列（akshare 期货品种现货价，免登录），碳酸锂/工业硅/纯碱/玻璃；六氟磷酸锂等无日频现货的品种用成本端做**代理并在名称里写明**；代码映射表 WATCHLIST 人工维护，没映射的票照实跳过
 - `research/odds.py` 高赔率漏斗：市值带 + 价格位置 + 拐点类型（扭亏按绝对额判定）的结构条件筛选，与「10x 需要什么为真」的情景拆解
 - `research/backtest.py` §51 基线检验：按**各自公告日**做事件研究，比较强预告组与对照组的持有期收益，并做参数敏感性
 - `research/account.py` L3 账户层：账户配置、回撤状态、按整手与风险预算的仓位估算、账户级动作（加仓/不加仓/减仓/清仓）
