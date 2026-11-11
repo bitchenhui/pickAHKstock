@@ -1,0 +1,14 @@
+cards/notes/index.html
+  h_69a2bad0f475d9 212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d003f5163ee072abb7afdaa4b2dea4570e813290",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
