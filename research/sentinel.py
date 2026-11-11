@@ -172,15 +172,6 @@ def _send_serverchan(title: str, body: str) -> str:
     return response.text[:80]
 
 
-def _send_bark(title: str, body: str) -> str:
-    key = os.environ["SENTINEL_BARK_KEY"]
-    url = (f"https://api.day.app/{key}/"
-           f"{urllib.parse.quote(title)}/{urllib.parse.quote(body[:180])}")
-    response = requests.get(url, timeout=15)
-    response.raise_for_status()
-    return response.text[:80]
-
-
 def _send_smtp(title: str, body: str) -> str:
     import smtplib
     from email.mime.text import MIMEText
@@ -200,11 +191,63 @@ def _send_smtp(title: str, body: str) -> str:
     return "sent"
 
 
-def notify(title: str, body: str) -> list[str]:
-    """向所有已配置的渠道发送。返回每渠道结果（供 CLI 打印）。"""
+PAGE_URL = "https://bitchenhui.github.io/pickAHKstock"
+BARK_GROUP = "研究台哨兵"
+# 关键触发用时效性通知（iPhone 可穿专注模式），其余普通通知
+TIME_SENSITIVE = ("失效线", "催化剂到期")
+BARK_MAX_PUSH = 8              # 防轰炸：逐条上限，超出并入一条汇总
+
+
+def _bark_push(item: dict) -> str:
+    """Bark POST /push：device_key 放 JSON 里，支持分组/铃声/跳转/等级。"""
+    item = {"device_key": os.environ["SENTINEL_BARK_KEY"], **item}
+    response = requests.post("https://api.day.app/push", json=item, timeout=15)
+    response.raise_for_status()
+    return response.text[:60]
+
+
+def _bark_alert_item(alert: Alert) -> dict:
+    return {
+        "title": f"【{alert.kind}】{alert.name}",
+        "body": f"{alert.detail} → {alert.action_hint}",
+        "group": BARK_GROUP,
+        "sound": "minima",
+        "level": "timeSensitive" if alert.kind in TIME_SENSITIVE else "active",
+        # 点通知直达这张卡的线上笔记页
+        "url": f"{PAGE_URL}/{alert.market}_{alert.code}.html",
+    }
+
+
+def notify_alerts(alerts: list[Alert]) -> list[str]:
+    """按渠道发触发器。Bark 走 iPhone 原生体验：逐条推送、分组折叠、
+    点击直达对应卡片；其余渠道汇总一条长文。"""
+    results: list[str] = []
+    if os.environ.get("SENTINEL_BARK_KEY"):
+        for alert in alerts[:BARK_MAX_PUSH]:
+            try:
+                results.append(f"Bark[{alert.kind}]: {_bark_push(_bark_alert_item(alert))}")
+            except Exception as exc:
+                results.append(f"Bark[{alert.kind}]: 失败 {type(exc).__name__}: {str(exc)[:60]}")
+        if len(alerts) > BARK_MAX_PUSH:
+            extra = len(alerts) - BARK_MAX_PUSH
+            summary = {"title": f"研究台哨兵：还有 {extra} 条触发",
+                       "body": "点击打开汇总页查看全部",
+                       "group": BARK_GROUP, "sound": "minima", "level": "active",
+                       "url": f"{PAGE_URL}/"}
+            try:
+                results.append(f"Bark[汇总]: {_bark_push(summary)}")
+            except Exception as exc:
+                results.append(f"Bark[汇总]: 失败 {str(exc)[:60]}")
+    title = f"研究台哨兵：{len(alerts)} 条触发"
+    body = "\n".join(alert.line() for alert in alerts)
+    results.extend(_notify_text_channels(title, body))
+    return results
+
+
+def _notify_text_channels(title: str, body: str) -> list[str]:
+    """文本汇总类渠道（Bark 之外，长文友好）。"""
     senders = {
         "Server酱": ("SENTINEL_SERVERCHAN_KEY", _send_serverchan),
-        "Bark": ("SENTINEL_BARK_KEY", _send_bark),
         "钉钉": ("SENTINEL_DINGTALK_WEBHOOK", _send_dingtalk),
         "企业微信": ("SENTINEL_WECOM_WEBHOOK", _send_wecom),
         "飞书": ("SENTINEL_FEISHU_WEBHOOK", _send_feishu),
@@ -219,3 +262,8 @@ def notify(title: str, body: str) -> list[str]:
         except Exception as exc:      # 单渠道失败不挡其他渠道
             results.append(f"{name}: 失败 {type(exc).__name__}: {str(exc)[:80]}")
     return results
+
+
+def notify(title: str, body: str) -> list[str]:
+    """兼容入口：只发文本汇总渠道（Bark 的逐条体验走 notify_alerts）。"""
+    return _notify_text_channels(title, body)

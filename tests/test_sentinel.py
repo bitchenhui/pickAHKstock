@@ -96,18 +96,44 @@ class NotifyTests(unittest.TestCase):
         with unittest.mock.patch.dict("os.environ", env, clear=True):
             self.assertEqual(sentinel.notify("t", "b"), [])
 
-    def test_notify_posts_to_bark(self):
+    def test_bark_alerts_pushed_one_by_one(self):
         import os
 
+        alerts = [sentinel.Alert("A", "603026", "石大胜华", "失效线",
+                                 "现价 8.8 跌破参考线 9.0", "打开卡片核对"),
+                  sentinel.Alert("HK", "03323", "中国建材", "盯价极值",
+                                 "纯碱 1040 处一年最低", "对照失效条件")]
         with unittest.mock.patch.dict("os.environ",
                                       {"SENTINEL_BARK_KEY": "testkey"}, clear=False), \
-             unittest.mock.patch.object(sentinel.requests, "get") as mock_get:
-            mock_get.return_value.text = '{"code":200}'
-            results = sentinel.notify("标题", "内容")
-        self.assertEqual(len(results), 1)
-        self.assertIn("Bark", results[0])
-        url = mock_get.call_args[0][0]
-        self.assertIn("api.day.app/testkey", url)
+             unittest.mock.patch.object(sentinel.requests, "post") as mock_post:
+            mock_post.return_value.text = '{"code":200}'
+            results = sentinel.notify_alerts(alerts)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(mock_post.call_count, 2)
+        first = mock_post.call_args_list[0]
+        item = first.kwargs.get("json")
+        self.assertEqual(item["title"], "【失效线】石大胜华")
+        self.assertEqual(item["group"], "研究台哨兵")
+        self.assertEqual(item["level"], "timeSensitive")   # 失效线=时效性
+        self.assertEqual(item["url"],
+                         "https://bitchenhui.github.io/pickAHKstock/A_603026.html")
+        second = mock_post.call_args_list[1].kwargs["json"]
+        self.assertEqual(second["level"], "active")        # 盯价极值=普通
+
+    def test_bark_push_capped_with_summary(self):
+        import os
+
+        alerts = [sentinel.Alert("A", f"6000{i:02d}", f"股{i}", "催化剂到期", "x", "y")
+                  for i in range(10)]
+        with unittest.mock.patch.dict("os.environ",
+                                      {"SENTINEL_BARK_KEY": "testkey"}, clear=False), \
+             unittest.mock.patch.object(sentinel.requests, "post") as mock_post:
+            mock_post.return_value.text = '{"code":200}'
+            sentinel.notify_alerts(alerts)
+        # 逐条 8 + 汇总 1 = 9 次 POST
+        self.assertEqual(mock_post.call_count, 9)
+        summary = mock_post.call_args_list[-1].kwargs["json"]
+        self.assertIn("还有 2 条", summary["title"])
 
 
 if __name__ == "__main__":

@@ -730,7 +730,7 @@ def cmd_sentinel(args: argparse.Namespace) -> int:
     检查的是低频数据（快照/日线/盯价），但可以每小时跑一次。
     未配置任何通知渠道时只打印不发——先把触发器摆到眼前。
     """
-    from .sentinel import check_cards, notify
+    from .sentinel import check_cards, notify_alerts
 
     cards = _load_all_cards()
     if not cards:
@@ -743,9 +743,7 @@ def cmd_sentinel(args: argparse.Namespace) -> int:
     if not alerts:
         print("  （无触发：参考线、相对强度、催化剂、盯价都安静）")
         return 0
-    title = f"研究台哨兵：{len(alerts)} 条触发"
-    body = "\n".join(alert.line() for alert in alerts)
-    results = notify(title, body)
+    results = notify_alerts(alerts)
     if results:
         print("\n通知：")
         for line in results:
