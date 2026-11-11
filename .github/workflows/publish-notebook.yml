@@ -35,6 +35,13 @@ jobs:
       - name: 安装依赖
         run: pip install -r requirements.txt
 
+      - name: 数据接口缓存
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pickahkstock
+          key: pickahk-cache-${{ github.run_id }}
+          restore-keys: pickahk-cache-
+
       - name: 测试（178 项，先于发布暴露运行时不兼容）
         env:
           PYTHONPYCACHEPREFIX: /tmp/pycache
