@@ -224,6 +224,17 @@ _CSS = """
   #xhs-root .plain-line { font-size: 14px; color: #1f1f1f; line-height: 1.6; margin: 0 0 8px; }
   #xhs-root .plain-box .flags li { border-bottom: 1px solid #e6efe8; font-size: 12.5px; }
   #xhs-root .plain-box .flags li:last-child { border-bottom: none; }
+  #xhs-root .debate-box { background: #f7f5fb; border-radius: 10px; padding: 11px 12px;
+                         margin-top: 14px; }
+  #xhs-root .debate-box h3 { color: #5b4b8a; margin-bottom: 6px; }
+  #xhs-root .debate-verdict { font-size: 13.5px; color: #1f1f1f; line-height: 1.6;
+                              margin: 0 0 9px; }
+  #xhs-root .debate-side { background: #fff; border-radius: 8px; padding: 8px 10px;
+                           margin-bottom: 8px; font-size: 12.5px; color: #444; }
+  #xhs-root .debate-side b { color: #2f6f4f; font-size: 12px; }
+  #xhs-root .debate-side.bear b { color: #a33; }
+  #xhs-root .debate-side p { margin: 4px 0 0; line-height: 1.55; }
+  #xhs-root .debate-box .flags li { font-size: 12.5px; }
   #xhs-root .quote { background: #fff7f0; border-radius: 10px; padding: 10px 12px;
                      font-size: 13px; color: #7a4a12; margin-top: 8px; }
   #xhs-root .flags { list-style: none; margin: 0; padding: 0; }
@@ -528,6 +539,18 @@ def note_fragment(card: Card) -> str:
         f'目标价 {_esc(expectations.get("target_price") or "—")}</p>'
         + ('<p class="fact">⚠ 无机构覆盖：缺第三方预期这条证据，需自行补</p>'
            if not coverage else "") + "</section>")
+
+    debate = card.debate or {}
+    if debate.get("verdict"):
+        rows = "".join(f'<li><span class="m">?</span><span>{_esc(c)}</span></li>'
+                        for c in (debate.get("checks") or [])[:4])
+        parts.append(
+            f'<section class="debate-box"><h3>⚖ 多空对辩（模型，只用卡片事实）</h3>'
+            f'<p class="debate-verdict">{_esc(debate["verdict"])}</p>'
+            f'<div class="debate-side"><b>多方</b><p>{_esc(debate.get("bull", ""))}</p></div>'
+            f'<div class="debate-side bear"><b>空方</b><p>{_esc(debate.get("bear", ""))}</p></div>'
+            + (f'<ul class="flags">{rows}</ul>' if rows else "")
+            + '<p class="derived">结论不引入卡片之外的数字，不给概率与目标价</p></section>')
 
     action = _action_block(card)
     if action:
