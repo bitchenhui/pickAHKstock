@@ -183,27 +183,29 @@
   ],
   "market_context": {
     "close": 4.94,
-    "atr": 0.2086,
-    "atr_pct": 4.22,
-    "stop_reference": 4.523,
-    "bars": 448,
-    "bars_as_of": "2026-11-10",
+    "atr": 0.2014,
+    "atr_pct": 4.08,
+    "stop_reference": 4.537,
+    "bars": 449,
+    "bars_as_of": "2026-11-11",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_002044/01/2026.js",
     "market_regime": {
       "day": "2026-11-11",
-      "close": 4081.67,
-      "ma60": 4373.787666666666,
-      "change_20d": -0.03224758635079006,
+      "close": 4075.71,
+      "ma60": 4373.688333333333,
+      "change_20d": -0.03366068549534351,
       "state": "下行",
-      "note": "沪深300 4082，低于60 日均线 4374，20 日 -3.2%"
+      "note": "沪深300 4076，低于60 日均线 4374，20 日 -3.4%",
+      "index": "沪深300",
+      "caveat": ""
     },
     "industry": "医疗服务",
-    "price": 4.95,
-    "turnover": 272070000.0,
-    "market_cap": 19376000000.0,
-    "pe": 58.74,
+    "price": 4.94,
+    "turnover": 373060000.0,
+    "market_cap": 19336000000.0,
+    "pe": 58.62,
     "pb": 2.35,
-    "as_of": "20261111134818"
+    "as_of": "20261111161436"
   },
   "financials": {
     "path": "已盈利",
@@ -695,53 +697,20 @@
   },
   "capital": {
     "code": "002044",
-    "periods": [
-      "2026-09-30",
-      "2026-06-30",
-      "2026-03-31",
-      "2025-12-31",
-      "2025-09-30",
-      "2025-06-30"
-    ],
-    "capex": [
-      "4.13亿",
-      "2.30亿",
-      "1.03亿",
-      "4.19亿",
-      "3.36亿",
-      "2.40亿"
-    ],
-    "operating_cf": [
-      "-1.25亿",
-      "-4.29亿",
-      "-4.98亿",
-      "18.00亿",
-      "-1.82亿",
-      "-4.22亿"
-    ],
-    "construction": [
-      "8923.10万",
-      "1.02亿",
-      "7748.16万",
-      "8181.76万",
-      "1.03亿",
-      "1.05亿"
-    ],
-    "fixed_assets": [
-      "14.71亿",
-      "14.73亿",
-      "15.38亿",
-      "16.10亿",
-      "16.74亿",
-      "17.46亿"
-    ],
+    "periods": [],
+    "capex": [],
+    "operating_cf": [],
+    "construction": [],
+    "fixed_assets": [],
     "source": "同花顺 F10 现金流量表与资产负债表",
-    "notes": [],
-    "capex_label": "+4.13 亿",
-    "operating_cf_label": "-1.25 亿",
-    "fcf_label": "-5.38 亿",
-    "construction_label": "8923.10万",
-    "fixed_assets_label": "14.71亿"
+    "notes": [
+      "同花顺 F10 debt 获取失败 002044：502 Server Error: Bad Gateway for url: https://basic.10jqka.com.cn/api/stock/finance/002044_debt.json"
+    ],
+    "capex_label": "—",
+    "operating_cf_label": "—",
+    "fcf_label": "—",
+    "construction_label": "—",
+    "fixed_assets_label": "—"
   },
   "peers": {
     "code": "002044",

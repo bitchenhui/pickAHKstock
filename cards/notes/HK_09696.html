@@ -78,6 +78,38 @@
   #xhs-root .nb-stats .chip b { color: #ff2442; }
   #xhs-root .kv { display: flex; gap: 8px; font-size: 13px; color: #444; padding: 3px 0; }
   #xhs-root .kv .k { color: #999; flex: none; width: 74px; }
-</style><div class="note" id="note-HK-09696"><div class="author"><div class="avatar" aria-hidden="true">研</div><div><div class="who">天齐锂业（HK 09696）</div><div class="meta">小资金研究台 · 观察池 · 更新 2026-11-10</div></div></div><div class="cover"><h2>天齐锂业<span class="badge watch">观察</span><br>单季利润拆解，先看再说话</h2><p class="sub">HK 09696 ｜ 结论等级 证据充分｜ 最近到期 2027-03-31</p></div><p class="tags">#HK #09696 #单点不可辨 #观察</p><section><h3>1️⃣ 事件</h3><p class="fact">2026-10-20 公告：盈利预喜</p><p class="fact">出处：香港交易所披露易（经东方财富转发） · 2026-10-20 · <b>已核实</b></p></section><section><h3>3️⃣ 行业还是公司</h3><p class="fact">行业：<b>—</b> ｜ 同行业 0 家，同向 0 家</p><div class="quote">判定：<b>单点不可辨</b>。港股行业口径与申万不同，只能在港股内部横向比较；披露公司数远少于 A 股，行业样本常常不够</div></section><section><h3>4️⃣ 利润之外的第三只眼</h3><p class="fact">经营现金流 — ｜ 自由现金流 — ｜ 资本开支 —</p><p class="fact">在建工程 — ｜ 固定资产 —</p></section><section><h3>🚩 红旗与留痕</h3><ul class="flags"><li><span class="m">⚠️</span><span>[监管问询] 2026-10-25 内幕消息╱ 海外监管公告2026年第三季度报告</span></li><li><span class="m">·</span><span>经营回顾 2025-06-30 → 2026-06-30：{&#x27;成本&#x27;: 1, &#x27;供给&#x27;: -1}</span></li></ul><p class="derived">扫描截至 2026-11-10；每条都要回原文确认（关键词会误报）</p></section><section><h3>👤 第三方预期</h3><p class="fact">覆盖机构 <b>0</b> 家 ｜ 最新评级 — ｜ 目标价 —</p><p class="fact">⚠ 无机构覆盖：缺第三方预期这条证据，需自行补</p></section><p class="discipline">仓位纪律：小仓多注（20 只 × 5%）；市场状态<b>下行</b>（2026-10-30，沪深300 3985.5）：此类票仓位按 0.5× 折算</p><div class="actions" aria-hidden="true"><span>❤️ 点赞</span><span>⭐ 收藏</span><span>💬 评论</span></div><p class="legal">研究工具输出，非投资建议 · 数据：巨潮/同花顺/东财 · 截至 2026-11-10</p></div></div>
+  /* —— 视图切换与导出 —— */
+  #xhs-root .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+                       padding: 12px 0 4px; }
+  #xhs-root .toolbar .seg { display: inline-flex; background: #fff; border-radius: 999px;
+                            padding: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  #xhs-root .toolbar .seg button { border: 0; background: transparent; padding: 6px 16px;
+                                   border-radius: 999px; font-size: 13px; color: #666;
+                                   cursor: pointer; }
+  #xhs-root .toolbar .seg button[aria-pressed="true"] { background: #1f1f1f; color: #fff; }
+  #xhs-root .toolbar .export { border: 0; background: #fff; color: #ff2442; font-size: 13px;
+                               padding: 8px 16px; border-radius: 999px; cursor: pointer;
+                               box-shadow: 0 1px 3px rgba(0,0,0,.05); font-weight: 600; }
+  #xhs-root .view-desk, #xhs-root .view-xhs { display: none; }
+  #xhs-root[data-view="desk"] .view-desk { display: block; }
+  #xhs-root[data-view="xhs"] .view-xhs { display: block; }
+  /* —— 研究台（正常渲染）视图：表格优先，中性配色 —— */
+  #xhs-root .desk-wrap { overflow-x: auto; }
+  #xhs-root table.desk { width: 100%; border-collapse: collapse; background: #fff;
+                         border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05);
+                         font-size: 13px; min-width: 880px; }
+  #xhs-root table.desk caption { text-align: left; padding: 12px 14px 4px; font-weight: 700;
+                                 color: #1f1f1f; font-size: 14px; }
+  #xhs-root table.desk th { text-align: left; padding: 10px 10px; background: #fafafa;
+                            color: #666; font-weight: 600; border-bottom: 1px solid #eee;
+                            white-space: nowrap; }
+  #xhs-root table.desk td { padding: 9px 10px; border-bottom: 1px solid #f4f4f6;
+                            vertical-align: top; }
+  #xhs-root table.desk tr:last-child td { border-bottom: none; }
+  #xhs-root .mono { font-variant-numeric: tabular-nums; }
+  #xhs-root .muted { color: #999; }
+  #xhs-root .pos { color: #c4322f; }
+  #xhs-root .neg { color: #1a7f37; }
+</style><div class="note" id="note-HK-09696"><div class="author"><div class="avatar" aria-hidden="true">研</div><div><div class="who">天齐锂业（HK 09696）</div><div class="meta">小资金研究台 · 观察池 · 更新 2026-11-11</div></div></div><div class="cover"><h2>天齐锂业<span class="badge watch">观察</span><br>单季利润拆解，先看再说话</h2><p class="sub">HK 09696 ｜ 结论等级 证据充分｜ 最近到期 2027-03-31</p></div><p class="tags">#HK #09696 #单点不可辨 #观察</p><section><h3>1️⃣ 事件</h3><p class="fact">2026-10-20 公告：盈利预喜</p><p class="fact">出处：香港交易所披露易（经东方财富转发） · 2026-10-20 · <b>已核实</b></p></section><section><h3>3️⃣ 行业还是公司</h3><p class="fact">行业：<b>—</b> ｜ 同行业 0 家，同向 0 家</p><div class="quote">判定：<b>单点不可辨</b>。港股行业口径与申万不同，只能在港股内部横向比较；披露公司数远少于 A 股，行业样本常常不够</div></section><section><h3>4️⃣ 利润之外的第三只眼</h3><p class="fact">经营现金流 — ｜ 自由现金流 — ｜ 资本开支 —</p><p class="fact">在建工程 — ｜ 固定资产 —</p></section><section><h3>💰 盯的价格（行业给的就要盯行业）</h3><div class="kv"><span class="k">碳酸锂</span><span><b>90000.0</b>（2026-11-10）｜30日 -32.8%｜一年 +13.4%｜一年区间位置 9%｜<span aria-hidden="true">▁▁▁▁▁▁▁▁▁▁</span></span></div><p class="derived">来源：akshare futures_spot_price_daily（期货品种对应现货价）；代理关系见名称标注</p></section><section><h3>🚩 红旗与留痕</h3><ul class="flags"><li><span class="m">⚠️</span><span>[监管问询] 2026-10-25 内幕消息╱ 海外监管公告2026年第三季度报告</span></li><li><span class="m">·</span><span>经营回顾 2025-06-30 → 2026-06-30：{&#x27;成本&#x27;: 1, &#x27;供给&#x27;: -1}</span></li></ul><p class="derived">扫描截至 2026-11-10；每条都要回原文确认（关键词会误报）</p></section><section><h3>👤 第三方预期</h3><p class="fact">覆盖机构 <b>0</b> 家 ｜ 最新评级 — ｜ 目标价 —</p><p class="fact">⚠ 无机构覆盖：缺第三方预期这条证据，需自行补</p></section><p class="discipline">仓位纪律：小仓多注（20 只 × 5%）；市场状态<b>下行</b>（2026-11-11，恒生指数 24315.92）：此类票仓位按 0.5× 折算；港股系数照搬 A 股 0.5×（A 股十三期检验的值），未在港股事件池单独验证</p><div class="actions" aria-hidden="true"><span>❤️ 点赞</span><span>⭐ 收藏</span><span>💬 评论</span></div><p class="legal">研究工具输出，非投资建议 · 数据：巨潮/同花顺/东财 · 截至 2026-11-11</p></div></div>
 </body>
 </html>
