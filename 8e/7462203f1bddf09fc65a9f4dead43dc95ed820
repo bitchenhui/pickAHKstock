@@ -1,0 +1,18 @@
+.github/workflows/sentinel.yml
+  h_69a2bad0f475d9 21
+research/sentinel.py
+  h_69a2bad0f475d9 52-54,60-64
+tests/test_sentinel.py
+  h_69a2bad0f475d9 31,34-36,55-56,58-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8e7462203f1bddf09fc65a9f4dead43dc95ed820",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
