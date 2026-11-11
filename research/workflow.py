@@ -33,7 +33,8 @@ def scaffold_hk(candidate, source: str = "港股发现层") -> Card:
         market_context={"price": candidate.price, "turnover": candidate.turnover,
                         "market_cap": candidate.market_cap, "lot_size": candidate.lot_size,
                         "turnover_rate": candidate.turnover_rate, "as_of": candidate.as_of,
-                        "role": "市场确认与执行参考，不是业务证据"},
+                        "role": "市场确认与执行参考，不是业务证据",
+                        "market_regime": _regime_note("HK")},
         gaps=["港股无巨潮治理数据接口：股东户数、质押、担保、诉讼等治理维度未取得",
               "港股公告 PDF 中文无法抽取，原文需人工阅读"],
         log=[LogEntry(at=today, event=f"由{source}生成草稿", from_status="", to_status="观察")],
@@ -41,8 +42,8 @@ def scaffold_hk(candidate, source: str = "港股发现层") -> Card:
     return card
 
 
-def _regime_note() -> dict:
-    """市场状态快照：写进卡片的市场数据段。
+def _regime_note(market: str = "A") -> dict:
+    """市场状态快照：写进卡片的市场数据段。A 股看沪深300，港股看恒生指数。
 
     这类高 beta 标的在下跌市里是放大器（v4 诊断：下跌日平均日收益是随机的
     1.08–1.33 倍），仓位决策要知道现在处在哪种市场状态。
@@ -50,7 +51,7 @@ def _regime_note() -> dict:
     try:
         from .regime import market_regime
 
-        regime = market_regime()
+        regime = market_regime(market=market)
         return regime.to_dict()
     except Exception:
         return {}

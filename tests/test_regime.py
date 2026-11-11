@@ -38,6 +38,35 @@ class MarketRegimeTests(unittest.TestCase):
         self.assertEqual(result.state, "未知")
         self.assertFalse(result.down)
 
+    def _hk_regime(self, closes, as_of=date(2026, 11, 11)):
+        bars = [{"day": f"2026-{(i // 28) + 1:02d}-{(i % 28) + 1:02d}", "close": close}
+                for i, close in enumerate(closes)]
+        with unittest.mock.patch.object(regime, "hk_index_bars", lambda start, end: bars):
+            return regime.market_regime(as_of, market="HK")
+
+    def test_hk_uses_hangseng_with_caveat(self):
+        closes = [25000.0] * 80 + [22000.0] * 20
+        result = self._hk_regime(closes)
+        self.assertEqual(result.state, "下行")
+        self.assertEqual(result.index, "恒生指数")
+        self.assertIn("恒生指数", result.note)
+        # 港股系数照搬 A 股，必须在口径里说清
+        self.assertIn("未在港股事件池单独验证", result.caveat)
+        self.assertAlmostEqual(result.position_factor(), 0.5)
+        data = result.to_dict()
+        self.assertEqual(data["index"], "恒生指数")
+        self.assertTrue(data["caveat"])
+
+    def test_hk_flat_market_no_caveat_trigger(self):
+        result = self._hk_regime([24000.0] * 100)
+        self.assertEqual(result.state, "震荡")
+        self.assertEqual(result.position_factor(), 1.0)
+
+    def test_a_share_has_no_caveat(self):
+        result = self._regime([100.0] * 100)
+        self.assertEqual(result.index, "沪深300")
+        self.assertEqual(result.caveat, "")
+
 
 if __name__ == "__main__":
     unittest.main()

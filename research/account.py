@@ -268,11 +268,14 @@ def plan_for(card: Card, account: Account) -> Plan:
     # 市场状态：下行市里这类高 beta 标的的下跌日弹性是随机的 1.1–1.3 倍。
     # 这里**只提示不自动改**——仓位规则是使用者自己的参数（account.json），
     # 工具不替他改；要生效可以自己把单只上限调低，或在策略里写死这条。
-    factor = _regime_factor()
+    # A/HK 各看自己的指数（沪深300/恒生指数），不跨市场混用状态。
+    regime = _regime_of(card.market)
+    factor = regime.position_factor() if regime else 1.0
     if factor < 1.0:
-        plan.reasons.append(f"市场在下行，建议仓位按 {factor:.1f}× 折算"
+        caveat = f"（{regime.caveat}）" if getattr(regime, "caveat", "") else ""
+        plan.reasons.append(f"市场在下行（{regime.note}），建议仓位按 {factor:.1f}× 折算"
                             f"（约 {int(lots * factor)} 手）——高 beta 标的在下跌市里"
-                            "是放大器不是信号；本次未自动修改账户参数")
+                            f"是放大器不是信号{caveat}；本次未自动修改账户参数")
     plan.action = "可加仓"
     plan.lots = lots
     plan.shares = lots * lot
@@ -280,14 +283,14 @@ def plan_for(card: Card, account: Account) -> Plan:
     return plan
 
 
-def _regime_factor() -> float:
-    """市场状态给出的仓位折算系数（下行 0.5，其余 1.0）。取不到就 1.0。"""
+def _regime_of(market: str):
+    """该市场的状态对象；取不到就 None（折算系数按 1.0 处理）。"""
     try:
         from .regime import market_regime
 
-        return market_regime().position_factor()
+        return market_regime(market=market)
     except Exception:
-        return 1.0
+        return None
 
 
 def portfolio_plan(cards: list[Card], account: Account) -> list[Plan]:

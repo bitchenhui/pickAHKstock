@@ -73,21 +73,23 @@ def fill_financials(card: Card, periods: int = 8, quarter_periods: int = 8) -> s
 
 
 def fill_reference(card: Card) -> dict:
-    """ATR 与 2ATR 参考失效线 + 市场状态快照（仅 A 股，THS 日线不覆盖港股）。"""
+    """ATR 与 2ATR 参考失效线（仅 A 股，THS 日线不覆盖港股）。"""
     levels = reference_levels(card.code)
     context = dict(card.market_context or {})
     context.update({"close": levels["close"], "atr": levels["atr"],
                     "atr_pct": levels["atr_pct"], "stop_reference": levels["stop_reference"],
                     "bars": levels["bars"], "bars_as_of": levels["last_day"],
                     "bars_source": levels["source"]})
-    # 市场状态是时点信息：卡片建卡时记过一次，deep-dive 顺手刷新
-    context["market_regime"] = _regime_note()
     card.market_context = context
     return levels
 
 
 def fill_quote(card: Card) -> dict:
-    """行情快照刷新（价/成交额/市值；港股含每手股数）。腾讯接口，快。"""
+    """行情快照刷新（价/成交额/市值；港股含每手股数）+ 市场状态快照。
+
+    市场状态是时点信息，A/HK 各看自己的指数（沪深300/恒生指数），
+    每次 deep-dive 顺手刷新——它决定仓位要不要按 0.5× 折算。
+    """
     snapshot = fetch_snapshots([(card.market, card.code)]).get(card.code)
     if snapshot is None:
         raise RuntimeError("行情快照未取到")
@@ -97,6 +99,7 @@ def fill_quote(card: Card) -> dict:
                     "pb": snapshot.pb, "as_of": snapshot.as_of})
     if card.market == "HK" and snapshot.lot_size:
         context["lot_size"] = snapshot.lot_size
+    context["market_regime"] = _regime_note(card.market)
     card.market_context = context
     return {"price": snapshot.price, "turnover": snapshot.turnover,
             "market_cap": snapshot.market_cap, "lot_size": snapshot.lot_size}

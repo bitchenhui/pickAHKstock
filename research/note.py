@@ -228,8 +228,10 @@ def _regime_line(card: Card) -> str:
     if not regime:
         return ""
     factor = "按 0.5× 折算" if regime.get("state") == "下行" else "不折算"
+    index_name = regime.get("index") or ("恒生指数" if card.market == "HK" else "沪深300")
+    caveat = f"；{_esc(regime['caveat'])}" if regime.get("caveat") else ""
     return (f"市场状态<b>{_esc(regime.get('state', '—'))}</b>（{_esc(regime.get('day', ''))}，"
-            f"沪深300 {_esc(regime.get('close', '—'))}）：此类票仓位{factor}")
+            f"{_esc(index_name)} {_esc(regime.get('close', '—'))}）：此类票仓位{factor}{caveat}")
 
 
 def _tags(card: Card) -> list[str]:
@@ -400,12 +402,17 @@ def notebook_fragment(cards: list[Card]) -> str:
         counts[card.status] = counts.get(card.status, 0) + 1
     chips = "".join(f'<span class="chip">{_esc(status)} <b>{count}</b></span>'
                     for status, count in counts.items())
-    regime_state = ""
-    for card in ranked:
-        regime = (card.market_context or {}).get("market_regime") or {}
-        if regime.get("state"):
-            regime_state = f'A股市场状态：{_esc(regime["state"])}（{_esc(regime.get("day", ""))}）'
-            break
+    regime_parts = []
+    for market, label in (("A", "A 股·沪深300"), ("HK", "港股·恒生指数")):
+        for card in ranked:
+            if card.market != market:
+                continue
+            regime = (card.market_context or {}).get("market_regime") or {}
+            if regime.get("state"):
+                regime_parts.append(f"{label}：{_esc(regime['state'])}"
+                                    f"（{_esc(regime.get('day', ''))}）")
+                break
+    regime_state = " ｜ ".join(regime_parts)
 
     notes = []
     for card in ranked:

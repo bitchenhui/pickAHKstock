@@ -83,7 +83,8 @@ class DeepDiveTests(unittest.TestCase):
             "reference_levels": lambda code: {"close": 11.0, "atr": 0.5, "atr_pct": 4.5,
                                               "stop_reference": 10.0, "bars": 120,
                                               "last_day": "2026-11-06", "source": "测试"},
-            "_regime_note": lambda: {"state": "下行", "day": "2026-11-07"},
+            "_regime_note": lambda market="A": {"state": "下行", "day": "2026-11-07",
+                                                "index": "沪深300" if market == "A" else "恒生指数"},
             "fetch_expectations": lambda code, name, market: _DictObj(
                 {"coverage": 3}, coverage=3, eps_forecast=[], ratings=[], notes=[]),
             "fetch_capital": lambda code: _capital(),

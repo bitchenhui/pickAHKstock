@@ -588,6 +588,62 @@ def index_bars(start: date, end: date) -> list[dict]:
     return out
 
 
+def hk_index_bars(start: date, end: date) -> list[dict]:
+    """恒生指数日线（港股市场状态层用）。
+
+    主源腾讯（hkHSI，实测可用），东财全球指数（secid 100.HSI）兜底；
+    结果落盘缓存，口径与 index_bars 一致：[{day, close}]。
+    """
+    cache_file = CACHE_DIR / f"index_hk_{start.isoformat()}_{end.isoformat()}.json"
+    if cache_file.exists():
+        try:
+            cached = json.loads(cache_file.read_text(encoding="utf-8"))
+            if cached:
+                return cached
+        except ValueError:
+            pass
+    out: list[dict] = []
+    url = TENCENT_QFQ.format(symbol="hkHSI", start=start.isoformat(),
+                             end=end.isoformat(), count=400)
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=25)
+        response.raise_for_status()
+        block = ((response.json().get("data") or {}).get("hkHSI")) or {}
+        for bar in block.get("qfqday") or block.get("day") or []:
+            if len(bar) < 3:
+                continue
+            try:
+                out.append({"day": bar[0], "close": float(bar[2])})
+            except (TypeError, ValueError):
+                continue
+    except (requests.RequestException, ValueError):
+        out = []
+    if not out:
+        # 东财全球指数兜底：字段序 日期,开,收,高,低
+        url = (f"https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=100.HSI"
+               f"&fields1=f1,f2,f3&fields2=f51,f52,f53,f54,f55&klt=101&fqt=1"
+               f"&beg={start.strftime('%Y%m%d')}&end={end.strftime('%Y%m%d')}")
+        try:
+            response = requests.get(url, headers=HEADERS, timeout=25)
+            response.raise_for_status()
+            klines = ((response.json().get("data") or {}).get("klines")) or []
+            for line in klines:
+                parts = str(line).split(",")
+                if len(parts) < 3:
+                    continue
+                try:
+                    out.append({"day": parts[0], "close": float(parts[2])})
+                except (TypeError, ValueError):
+                    continue
+        except (requests.RequestException, ValueError):
+            out = []
+    out.sort(key=lambda b: b["day"])
+    if out:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    return out
+
+
 def _window_return(bars: list[dict], start_after: str, hold_days: int) -> float | None:
     if not bars:
         return None

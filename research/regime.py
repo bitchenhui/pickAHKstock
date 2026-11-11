@@ -14,13 +14,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from .backtest import index_bars
+from .backtest import hk_index_bars, index_bars
 
 # 判定门槛
 MA_WINDOW = 60          # 均线窗口（交易日）
 CHANGE_WINDOW = 20      # 涨跌看的窗口（交易日）
 DOWN_MOVE = -0.08       # 20 日跌幅超过这个数算「下行」
 UP_MOVE = 0.08          # 20 日涨幅超过这个数算「上行」
+
+HK_CAVEAT = "港股系数照搬 A 股 0.5×（A 股十三期检验的值），未在港股事件池单独验证"
 
 
 @dataclass
@@ -31,10 +33,13 @@ class MarketRegime:
     change_20d: float | None = None
     state: str = "未知"          # 上行 / 震荡 / 下行
     note: str = ""
+    index: str = "沪深300"       # 状态基于哪个指数
+    caveat: str = ""             # 口径边界（如港股系数未单独验证）
 
     def to_dict(self) -> dict:
         return {"day": self.day, "close": self.close, "ma60": self.ma60,
-                "change_20d": self.change_20d, "state": self.state, "note": self.note}
+                "change_20d": self.change_20d, "state": self.state, "note": self.note,
+                "index": self.index, "caveat": self.caveat}
 
     @property
     def down(self) -> bool:
@@ -76,18 +81,24 @@ def regime_at(bars: list[dict], day: str) -> MarketRegime:
     return result
 
 
-def market_regime(as_of: date | None = None) -> MarketRegime:
-    """沪深300 的市场状态。取不到数据就说「未知」，不猜。"""
+def market_regime(as_of: date | None = None, market: str = "A") -> MarketRegime:
+    """市场状态：A 股看沪深300，港股看恒生指数。取不到数据就说「未知」，不猜。
+
+    港股沿用了同一套判定门槛与 0.5× 折算——这两者的依据（A 股十三期检验）
+    并未在港股事件池上单独验证，caveat 里如实标注。
+    """
     as_of = as_of or date.today()
     start = as_of - timedelta(days=int(MA_WINDOW * 1.6) + 20)
-    bars = index_bars(start, as_of)
-    result = MarketRegime()
+    index_name = "沪深300" if market == "A" else "恒生指数"
+    bars = index_bars(start, as_of) if market == "A" else hk_index_bars(start, as_of)
+    result = MarketRegime(index=index_name,
+                          caveat="" if market == "A" else HK_CAVEAT)
     if len(bars) < CHANGE_WINDOW + 2:
-        result.note = "指数日线不足，状态未知"
+        result.note = f"{index_name} 日线不足，状态未知"
         return result
     closes = [bar["close"] for bar in bars if bar.get("close")]
     if len(closes) < CHANGE_WINDOW + 2:
-        result.note = "指数日线不足，状态未知"
+        result.note = f"{index_name} 日线不足，状态未知"
         return result
     result.day = bars[-1]["day"]
     result.close = closes[-1]
@@ -104,6 +115,6 @@ def market_regime(as_of: date | None = None) -> MarketRegime:
     else:
         result.state = "震荡"
     below = "" if not result.ma60 else ("低于" if result.close < result.ma60 else "高于")
-    result.note = (f"沪深300 {result.close:.0f}，{below}60 日均线 {result.ma60:.0f}，"
+    result.note = (f"{index_name} {result.close:.0f}，{below}60 日均线 {result.ma60:.0f}，"
                    f"20 日 {result.change_20d * 100:+.1f}%")
     return result
