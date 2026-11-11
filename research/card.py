@@ -182,6 +182,8 @@ class Card:
     industry_context: dict = field(default_factory=dict)  # 同业共振（行业 beta vs 公司特有）
     commodities: dict = field(default_factory=dict)  # 盯的价格（行业共振指向的商品现货，代理关系注明）
     execution: dict = field(default_factory=dict)   # 执行层：流动性门槛 + 相对强度（deep-dive 写入）
+    plain: dict = field(default_factory=dict)        # 人话版结论（同一事实的零术语表述）
+    debate: dict = field(default_factory=dict)       # 多空对辩记录（LLM，可选）
     scans: dict = field(default_factory=dict)   # 风险公告/治理（港股为经营回顾）扫描留痕，deep-dive 写入
     risks: list[Risk] = field(default_factory=list)
     provenance: dict = field(default_factory=dict)   # 数据来源与快照哈希

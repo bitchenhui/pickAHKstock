@@ -218,6 +218,12 @@ _CSS = """
   #xhs-root .meter .v { font-size: 12.5px; color: #1f1f1f; width: 74px; flex: none;
                         text-align: right; font-variant-numeric: tabular-nums; }
   #xhs-root .derived { font-size: 11.5px; color: #999; margin-top: 6px; }
+  #xhs-root .plain-box { background: #f4f9f4; border-radius: 10px; padding: 11px 12px;
+                         margin-top: 14px; }
+  #xhs-root .plain-box h3 { color: #2f7d4f; margin-bottom: 6px; }
+  #xhs-root .plain-line { font-size: 14px; color: #1f1f1f; line-height: 1.6; margin: 0 0 8px; }
+  #xhs-root .plain-box .flags li { border-bottom: 1px solid #e6efe8; font-size: 12.5px; }
+  #xhs-root .plain-box .flags li:last-child { border-bottom: none; }
   #xhs-root .quote { background: #fff7f0; border-radius: 10px; padding: 10px 12px;
                      font-size: 13px; color: #7a4a12; margin-top: 8px; }
   #xhs-root .flags { list-style: none; margin: 0; padding: 0; }
@@ -418,6 +424,23 @@ def note_fragment(card: Card) -> str:
     if momentum:
         title = (f"{'单季利润' + momentum}" if momentum else title)
     hl = f'<span class="hl">{_esc(momentum)}</span>' if momentum else ""
+    plain = card.plain or {}
+    if plain.get("one_line"):
+        rows = ""
+        if plain.get("facts"):
+            rows += "".join(f'<li><span class="m">·</span><span>{_esc(f)}</span></li>'
+                            for f in plain["facts"][:4])
+        if plain.get("watch"):
+            rows += ('<li><span class="m">▶</span><span>该看：'
+                     + _esc("；".join(plain["watch"][:2])) + "</span></li>")
+        if plain.get("decide"):
+            rows += ('<li><span class="m">✕</span><span>改主意的信号：'
+                     + _esc("；".join(plain["decide"][:2])) + "</span></li>")
+        parts.append(
+            f'<section class="plain-box"><h3>💬 人话版结论</h3>'
+            f'<p class="plain-line">{_esc(plain["one_line"])}</p>'
+            f'<ul class="flags">{rows}</ul></section>')
+
     parts.append(
         f'<div class="cover"><h2>{_esc(card.name)}{_status_badge(card.status)}<br>'
         f'单季利润{hl or "拆解"}，先看再说话</h2>'

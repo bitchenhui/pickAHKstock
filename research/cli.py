@@ -759,6 +759,57 @@ def cmd_sentinel(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_analyze(args: argparse.Namespace) -> int:
+    """分析一只标的：人话版结论 +（配了 LLM）多空对辩。
+
+    人话版只重组卡片里已有的事实，不引入新数字；专业分析过程原样保留
+    在卡片里（show 命令看全文）。
+    """
+    from .llm import analyze
+    from .plain import plain_conclusion
+
+    card = Card.load(args.market, args.code)
+    result = analyze(card)
+    plain = result["plain"]
+    card.plain = plain
+    if result.get("debate"):
+        card.debate = result["debate"]
+    card.updated = date.today().isoformat()
+    card.save()
+
+    print(f"=== {card.name}（{card.market} {card.code}）人话版 ===\n")
+    print(f"结论：{plain['one_line']}\n")
+    if plain["facts"]:
+        print("事实（同一批数据的通俗说法）：")
+        for fact in plain["facts"]:
+            print(f"  · {fact}")
+        print()
+    if plain["watch"]:
+        print("该看什么：")
+        for line in plain["watch"]:
+            print(f"  · {line}")
+        print()
+    if plain["decide"]:
+        print("什么时候该改主意：")
+        for line in plain["decide"]:
+            print(f"  · {line}")
+        print()
+    if result.get("debate"):
+        debate = result["debate"]
+        print("--- 多空对辩（模型，只用卡片事实）---")
+        print(f"多方：{debate['bull']}\n")
+        print(f"空方：{debate['bear']}\n")
+        print(f"合成：{debate['verdict']}")
+        for check in debate["checks"]:
+            print(f"  · {check}")
+        print(f"（模型：{debate['source']}）")
+    elif result.get("debate_error"):
+        print(f"多空对辩未完成：{result['debate_error']}")
+        print("（未配置 LLM_API_KEY 时只用规则人话版；配置后重跑本命令即可）")
+    print(f"\n专业分析全文：python -m research.cli show {card.market} {card.code}")
+    return 0
+
+
 def cmd_backtest_report(args: argparse.Namespace) -> int:
     """定期回测报告：跑八期事件研究 + 组合层 + 分期拆解。"""
     import runpy
@@ -1053,6 +1104,11 @@ def main(argv: list[str] | None = None) -> int:
     p_nb = sub.add_parser("notebook", help="全部卡片 → 一页小红书信息流汇总 HTML")
     p_nb.add_argument("--out", default="", help="输出路径（默认 cards/notes/index.html）")
     p_nb.set_defaults(func=cmd_notebook)
+
+    p_an = sub.add_parser("analyze", help="人话版结论 +（配了 LLM）多空对辩")
+    p_an.add_argument("market")
+    p_an.add_argument("code")
+    p_an.set_defaults(func=cmd_analyze)
 
     p_sent = sub.add_parser("sentinel", help="哨兵：触发器命中检查 + 多渠道通知")
     p_sent.set_defaults(func=cmd_sentinel)

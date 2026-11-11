@@ -33,6 +33,12 @@ from .quotes import fetch_snapshots
 RS_FLIP_MARGIN = 2.0
 POSITION_EXTREME = 0.10     # 盯价一年区间位置 ≤10% 或 ≥90% 视为接近极值
 
+# —— 盘中三层价格触发（用户 2026-11-12 认可）——
+NEAR_STOP_PCT = 3.0        # ① 距 2ATR 失效线还有 3% → 该准备了
+PULLBACK_TOL = 0.02        # ② 回踩 60 日线 ±2% → 进入你研究过的区域
+SURGE_PCT = 5.0            # ③ 日内涨跌幅超 5% 且放量 → 有事情发生
+SURGE_VOLUME = 2.0         # 放量倍数（相对 20 日均量）
+
 # 去重状态文件：状态型触发器（价格持续破线、盯价持续在极值区）只在
 # 状态变化时推一次，否则每小时重复推送等于轰炸。CI 靠数据缓存跨轮持久。
 STATE_FILE = Path.home() / ".cache" / "pickahkstock" / "sentinel_state.json"
@@ -85,6 +91,8 @@ def check_cards(cards: list[Card]) -> tuple[list[Alert], int]:
                 "打开卡片核对失效条件，决定撤或留（参考线不保证成交）",
                 fingerprint=f"stop:{card.market}:{card.code}"))
 
+        alerts.extend(intraday_triggers(card, price))
+
         prev_rs = ((card.execution or {}).get("strength") or {}).get("rs")
         if prev_rs is not None:
             try:
@@ -130,6 +138,62 @@ def check_cards(cards: list[Card]) -> tuple[list[Alert], int]:
                     "对照卡片的失效条件（如价格破位线）",
                     fingerprint=f"ext:{item['symbol']}:{band}"))
     return alerts, len(cards)
+
+
+def intraday_triggers(card: Card, price: float | None) -> list[Alert]:
+    """盘中三层价格触发：接近失效线 / 回踩 60 日线 / 异动放量。
+
+    这不是「买卖点预测」——它只回答「现在到了你该做决策的时刻吗」：
+    ① 距 2ATR 失效线还有 3%：提前准备，不是叫你卖；
+    ② 回踩 60 日线 ±2%：进入你研究过的区域，是观察点不是买点；
+    ③ 涨跌幅超 5% 且量比 >2：有事情发生了，去看是什么事。
+    """
+    from .backtest import load_prices
+
+    alerts: list[Alert] = []
+    context = card.market_context or {}
+    stop = context.get("stop_reference")
+    if price and stop:
+        distance = (price - float(stop)) / float(stop) * 100
+        if 0 < distance <= NEAR_STOP_PCT:
+            alerts.append(Alert(
+                card.market, card.code, card.name, "接近失效线",
+                f"现价 {price}，距 2ATR 参考失效线 {stop} 只剩 {distance:.1f}%",
+                "准备好：打开卡片核对失效条件，别等跌破才想",
+                fingerprint=f"nearstop:{card.market}:{card.code}"))
+
+    try:
+        from datetime import timedelta
+
+        bars = load_prices(card.code, date.today() - timedelta(days=220), date.today())
+    except Exception:
+        bars = []
+    if len(bars) >= 61:
+        closes = [bar["close"] for bar in bars if bar.get("close")]
+        if len(closes) >= 61:
+            ma60 = sum(closes[-60:]) / 60
+            if price and abs(price - ma60) / ma60 <= PULLBACK_TOL:
+                alerts.append(Alert(
+                    card.market, card.code, card.name, "回踩 60 日线",
+                    f"现价 {price}，60 日线 {ma60:.2f}（在 ±2% 区域内）",
+                    "进入你研究过的区域：看基本面结论是否仍成立，别自动买",
+                    fingerprint=f"pullback:{card.market}:{card.code}"))
+
+    if len(bars) >= 21 and price:
+        last = bars[-1]
+        volumes = [b.get("volume") for b in bars[-21:-1] if b.get("volume")]
+        if volumes and last.get("close") and last.get("volume"):
+            avg_vol = sum(volumes) / len(volumes)
+            change = (last["close"] / bars[-2]["close"] - 1) * 100 if len(bars) >= 2 else 0.0
+            vol_ratio = last["volume"] / avg_vol if avg_vol else 0
+            if abs(change) >= SURGE_PCT and vol_ratio >= SURGE_VOLUME:
+                direction = "大涨" if change > 0 else "大跌"
+                alerts.append(Alert(
+                    card.market, card.code, card.name, "异动放量",
+                    f"{direction} {change:.1f}%，量比 {vol_ratio:.1f} 倍",
+                    "有事情发生了：去公告与新闻确认是什么事，别按价格反应",
+                    fingerprint=f"surge:{card.market}:{card.code}:{direction}"))
+    return alerts
 
 
 # ---------------------------------------------------------------- 通知渠道
@@ -221,13 +285,25 @@ def _bark_push(item: dict) -> str:
 def _bark_alert_item(alert: Alert) -> dict:
     return {
         "title": f"【{alert.kind}】{alert.name}",
-        "body": f"{alert.detail} → {alert.action_hint}",
+        "body": f"{alert.detail}\n→ {alert.action_hint}",
         "group": BARK_GROUP,
         "sound": "minima",
         "level": "timeSensitive" if alert.kind in TIME_SENSITIVE else "active",
         # 点通知直达这张卡的线上笔记页
         "url": f"{PAGE_URL}/{alert.market}_{alert.code}.html",
     }
+
+
+def _plain_hint(card_code: str, market: str, cards_by_key: dict) -> str:
+    """从卡片的人话版结论里取一句短的，附在推送里（手机上一眼看懂）。"""
+    card = cards_by_key.get((market, card_code))
+    if not card:
+        return ""
+    plain = card.plain or {}
+    one_line = plain.get("one_line") or ""
+    if not one_line:
+        return ""
+    return one_line[:60] + ("…" if len(one_line) > 60 else "")
 
 
 def notify_alerts(alerts: list[Alert]) -> list[str]:
