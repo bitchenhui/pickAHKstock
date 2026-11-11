@@ -1,0 +1,30 @@
+cards/A_002044.json
+  h_69a2bad0f475d9 194-196,198,648,650,652,656,660,664,666-668,692,694,789,803-821
+cards/notes/A_002044.html
+  h_69a2bad0f475d9 214
+cards/notes/index.html
+  h_69a2bad0f475d9 214
+research/card.py
+  h_69a2bad0f475d9 184
+research/deepdive.py
+  h_69a2bad0f475d9 219-221
+research/execution.py
+  h_69a2bad0f475d9 1-136
+research/note.py
+  h_69a2bad0f475d9 509-512,567-568,588-639,734,765-767,769-770,772
+tests/test_deepdive.py
+  h_69a2bad0f475d9 79-80,103-112
+tests/test_execution.py
+  h_69a2bad0f475d9 1-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e0138ff23861e4740cc56f78dd377b26421fbd0",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
