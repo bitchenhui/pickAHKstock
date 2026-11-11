@@ -103,8 +103,8 @@ def _meter_rows(quarters: list[tuple[str, float]]) -> str:
 
 _CSS = """
   #xhs-root { max-width: 440px; margin: 0 auto; }
-  /* 研究台视图要放一张宽表：容器宽度随视图切换，xhs 视图保持窄屏卡片 */
-  #xhs-root[data-view="desk"] { max-width: 1080px; }
+  /* 研究台视图：宽容器 + 深色金融终端风；xhs 视图保持浅色窄卡（导出格式） */
+  #xhs-root[data-view="desk"] { max-width: 1280px; }
   #xhs-root { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI",
               "Microsoft YaHei", sans-serif; color: #333; line-height: 1.55;
               -webkit-font-smoothing: antialiased;
@@ -112,6 +112,77 @@ _CSS = """
               color-scheme: light; }
   #xhs-root .legal, #xhs-root .tags, #xhs-root .kv span,
   #xhs-root table.desk td, #xhs-root .sub { overflow-wrap: anywhere; }
+
+  /* ============ 研究台 · 深色终端主题 ============ */
+  #xhs-root[data-view="desk"] { color: #d8e1ef; }
+  #xhs-root[data-view="desk"] .desk-shell { background:
+      radial-gradient(1200px 500px at 20% -10%, rgba(47,106,182,.18), transparent 60%),
+      radial-gradient(900px 420px at 90% 0%, rgba(212,175,90,.08), transparent 55%),
+      #0a1020; border: 1px solid rgba(255,255,255,.07); border-radius: 16px;
+      padding: 22px clamp(14px, 2.5vw, 30px) 26px; margin-top: 14px; }
+  #xhs-root[data-view="desk"] .desk-topline { display: flex; justify-content: space-between;
+      align-items: baseline; flex-wrap: wrap; gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,.08); padding-bottom: 14px; }
+  #xhs-root[data-view="desk"] .desk-brand { font-size: 20px; font-weight: 700; color: #f2f6fc;
+      letter-spacing: .5px; }
+  #xhs-root[data-view="desk"] .desk-brand small { display: block; font-size: 10.5px;
+      font-weight: 500; color: #8a9bb8; letter-spacing: 2.5px; margin-top: 2px; }
+  #xhs-root[data-view="desk"] .desk-status { font-family: ui-monospace, SFMono-Regular, Menlo,
+      monospace; font-size: 11.5px; color: #93a5c4; letter-spacing: .3px; text-align: right; }
+  #xhs-root[data-view="desk"] .desk-status b { color: #e8eef8; font-weight: 600; }
+  #xhs-root[data-view="desk"] .desk-status .up { color: #ff6b6b; }
+  #xhs-root[data-view="desk"] .desk-status .down-t { color: #3fd6a4; }
+  #xhs-root[data-view="desk"] .desk-title { font-size: 13px; font-weight: 600; color: #9fb2d0;
+      padding: 16px 2px 8px; letter-spacing: 1px; }
+  #xhs-root[data-view="desk"] .desk-card, #xhs-root[data-view="desk"] .desk-promo {
+      background: #0e1729; border: 1px solid rgba(255,255,255,.07); border-radius: 12px;
+      overflow: hidden; }
+  #xhs-root[data-view="desk"] .desk-promo { border-color: rgba(217,179,108,.4);
+      background: linear-gradient(180deg, rgba(217,179,108,.07), rgba(14,23,41,1) 55%);
+      margin-bottom: 16px; padding: 14px 16px; }
+  #xhs-root[data-view="desk"] .desk-promo h4 { margin: 0 0 4px; font-size: 13px;
+      color: #d9b36c; letter-spacing: 1.5px; font-weight: 700; }
+  #xhs-root[data-view="desk"] .desk-promo .promo-row { display: flex; gap: 14px;
+      flex-wrap: wrap; padding: 8px 0; border-top: 1px dashed rgba(217,179,108,.25); }
+  #xhs-root[data-view="desk"] .desk-promo .promo-row:first-of-type { border-top: 0; }
+  #xhs-root[data-view="desk"] .promo-name { min-width: 150px; }
+  #xhs-root[data-view="desk"] .promo-name b { color: #f2f6fc; font-size: 14px; }
+  #xhs-root[data-view="desk"] .promo-why { flex: 1; font-size: 12.5px; color: #a8b8d4; }
+  #xhs-root[data-view="desk"] .promo-why .gap { color: #d9b36c; }
+  #xhs-root[data-view="desk"] .promo-none { font-size: 12.5px; color: #93a5c4; padding: 4px 0; }
+  #xhs-root[data-view="desk"] table.desk th { background: #101b31; color: #8095b8;
+      border-bottom: 1px solid rgba(255,255,255,.09); }
+  #xhs-root[data-view="desk"] table.desk td { border-bottom: 1px solid rgba(255,255,255,.055); }
+  #xhs-root[data-view="desk"] table.desk tbody tr:hover td { background: rgba(63,182,242,.045); }
+  #xhs-root[data-view="desk"] .desk-title, #xhs-root[data-view="desk"] .muted { color: #8a9bb8; }
+  #xhs-root[data-view="desk"] .mono { font-family: ui-monospace, SFMono-Regular, Menlo,
+      monospace; }
+  #xhs-root[data-view="desk"] td b { color: #eef3fa; }
+  #xhs-root[data-view="desk"] .pos { color: #ff6b6b; }
+  #xhs-root[data-view="desk"] .neg { color: #3fd6a4; }
+  #xhs-root[data-view="desk"] .badge { border: 1px solid; background: transparent; }
+  #xhs-root[data-view="desk"] .badge.watch { color: #ff8f8f; border-color: rgba(255,107,107,.45); }
+  #xhs-root[data-view="desk"] .badge.down { color: #8095b8; border-color: rgba(128,149,184,.35); }
+  #xhs-root[data-view="desk"] .desk-foot { font-size: 11px; color: #7d8fae; text-align: center;
+      padding-top: 14px; letter-spacing: .5px; }
+  #xhs-root[data-view="desk"] .toolbar .seg { background: #0e1729;
+      border: 1px solid rgba(255,255,255,.08); box-shadow: none; }
+  #xhs-root[data-view="desk"] .toolbar .seg button { color: #8095b8; }
+  #xhs-root[data-view="desk"] .toolbar .seg button[aria-pressed="true"] { background: #d9b36c;
+      color: #0a1020; }
+  #xhs-root[data-view="desk"] .toolbar .export { background: transparent; color: #d9b36c;
+      border: 1px solid rgba(217,179,108,.5); box-shadow: none; }
+  #xhs-root[data-view="desk"] .nb-stats .chip { background: #0e1729; color: #9fb2d0;
+      border: 1px solid rgba(255,255,255,.08); box-shadow: none; }
+  #xhs-root[data-view="desk"] .nb-stats .chip b { color: #d9b36c; }
+  #xhs-root[data-view="desk"] .nb-head .title { color: #f2f6fc; }
+  #xhs-root[data-view="desk"] .nb-head .sub { color: #8a9bb8; }
+
+  @media (max-width: 760px) {
+    #xhs-root[data-view="desk"] table.desk tr { background: #0e1729;
+        border: 1px solid rgba(255,255,255,.07); box-shadow: none; }
+    #xhs-root[data-view="desk"] .desk-promo .promo-row { flex-direction: column; gap: 4px; }
+  }
   #xhs-root .feed { display: flex; flex-direction: column; gap: 12px; }
   #xhs-root .note { background: #fff; border-radius: 14px; padding: 18px 16px 12px;
                     box-shadow: 0 1px 3px rgba(0,0,0,.05); }
@@ -506,8 +577,99 @@ def _xhs_feed(summaries: list[dict]) -> str:
     return f'<div class="feed">{"".join(notes)}</div>'
 
 
+def _hold_candidates(summaries: list[dict]) -> list[dict]:
+    """最接近「持仓研究」资格的候选：资格是硬的，排序信号是软的、可解释的。
+
+    资格（缺一不排入）：状态为观察/持仓研究、结论等级=证据充分、无阻塞。
+    排序信号：①共振非「行业共振」（公司自己的事才值得持有个股，行业 beta
+    不如买 ETF）②盯价 30 日方向顺风 ③无高危治理红旗 ④有机构覆盖。
+    每只附 reasons 与 gap——gap 是还差什么，状态推进的最终裁决永远是人。
+    """
+    out = []
+    for item in summaries:
+        card: Card = item["card"]
+        if card.status not in ("观察", "持仓研究"):
+            continue
+        if card.derived_level() != "证据充分" or item["blocks"]:
+            continue
+        reasons = []
+        verdict = (item["resonance"] or {}).get("verdict", "")
+        if verdict and verdict != "行业共振":
+            reasons.append(f"共振「{verdict}」：变化更可能是公司自己的事")
+        items = ((card.commodities or {}).get("items")) or {}
+        tailwind = [s.get("name", "") for s in items.values()
+                    if (s.get("chg_30d") or 0) > 0]
+        if tailwind:
+            reasons.append("盯价 30 日顺风：" + "、".join(tailwind))
+        if not item["high_flags"]:
+            reasons.append("无高危治理红旗")
+        if item["expectations"].get("coverage"):
+            reasons.append(f"机构覆盖 {item['expectations']['coverage']} 家")
+        checks = card.account_checks or []
+        gap = ("账户准入检查未写（最坏情境/流动性/相关性），状态推进由你裁决"
+               if not checks else "账户检查已写，状态推进由你裁决")
+        out.append({"card": card, "reasons": reasons, "gap": gap,
+                    "score": len(reasons) + (1 if verdict == "公司特有" else 0)})
+    out.sort(key=lambda row: (-row["score"], row["card"].code))
+    return out[:2]
+
+
+def _due_html(card: Card) -> str:
+    """desk 表格的到期单元格：已过期给警示色（返回 HTML，调用处不再转义）。"""
+    due = _due(card)
+    if not due:
+        return '<span class="muted">未定</span>'
+    if "已过期" in due:
+        return f'<span class="pos">{_esc(due)}</span>'
+    return _esc(due)
+
+
+def _desk_view(summaries: list[dict], regime_parts: list[str], ranked_count: int,
+               active_count: int) -> str:
+    """研究台深色终端视图：状态条 + 持仓候选 + 全卡表。"""
+    candidates = _hold_candidates(summaries)
+    if candidates:
+        rows = []
+        for c in candidates:
+            card = c["card"]
+            context = card.market_context or {}
+            quote = []
+            if context.get("price"):
+                quote.append(f"现价 {_esc(context['price'])}")
+            if context.get("market_cap"):
+                quote.append(f"市值 {context['market_cap'] / 1e8:.0f} 亿")
+            rows.append(
+                f'<div class="promo-row"><div class="promo-name"><b>{_esc(card.name)}</b><br>'
+                f'<span class="muted mono">{_esc(card.market)} {_esc(card.code)}</span>'
+                + (f'<br><span class="mono">{" ｜ ".join(quote)}</span>' if quote else "")
+                + '</div>'
+                f'<div class="promo-why">{_esc("；".join(c["reasons"]) or "证据齐但信号少")}'
+                f'<br><span class="gap">还差：{_esc(c["gap"])}</span></div></div>')
+        promo = ('<div class="desk-promo"><h4>持仓候选 · 最接近资格（资格=证据充分+零阻塞）</h4>'
+                 + "".join(rows)
+                 + '<div class="desk-foot" style="text-align:left;padding-top:8px">'
+                 "排序信号：共振非行业 beta ＞ 盯价顺风 ＞ 无高危红旗 ＞ 有机构覆盖；"
+                 "这是研究推进顺序，不是买入指令——最终裁决是你</div></div>")
+    else:
+        promo = ('<div class="desk-promo"><h4>持仓候选</h4>'
+                 '<p class="promo-none">当前没有同时满足「证据充分 + 零阻塞」的观察卡——'
+                 '这是纪律不是缺口：判断没写完就不该有持仓候选。</p></div>')
+    status_line = " ｜ ".join(regime_parts)
+    return (
+        '<div class="desk-shell">'
+        '<div class="desk-topline"><div class="desk-brand">小资金研究台'
+        "<small>A / H · RESEARCH TERMINAL</small></div>"
+        f'<div class="desk-status">{_esc(status_line)}<br>'
+        f"<b>{ranked_count}</b> 张在册 · 活跃 <b>{active_count}</b> · "
+        "非投资建议</div></div>"
+        f"{promo}{_desk_table(summaries)}"
+        '<div class="desk-foot">研究工具输出，非投资建议 · 数据：巨潮 / 同花顺 / 东财 / akshare'
+        f" · {_esc(date.today().isoformat())}</div>"
+        "</div>")
+
+
 def _desk_table(summaries: list[dict]) -> str:
-    """研究台视图：桌面一张表；<760px 每行转卡片（td 的 data-label 提供列名）。"""
+    """研究台全卡表：桌面一张表；<760px 每行转卡片（td 的 data-label 提供列名）。"""
     head = ("标的", "状态", "共振", "单季净利润", "经营现金流", "盯的价格",
             "红旗", "覆盖", "最近到期", "阻塞")
     body = []
@@ -541,7 +703,7 @@ def _desk_table(summaries: list[dict]) -> str:
             f'<td data-label="{head[6]}">{red}</td>',
             f'<td data-label="{head[7]}" class="mono">'
             f'{_esc(item["expectations"].get("coverage", "—"))}</td>',
-            f'<td data-label="{head[8]}" class="mono">{_esc(_due(card) or "未定")}</td>',
+            f'<td data-label="{head[8]}" class="mono">{_due_html(card)}</td>',
             (f'<td data-label="{head[9]}" class="pos">{item["blocks"]}</td>'
              if item["blocks"] else
              f'<td data-label="{head[9]}" class="muted">0</td>'),
@@ -626,25 +788,27 @@ def notebook_fragment(cards: list[Card]) -> str:
             "</div>"
             '<button type="button" class="export" data-export-xhs>导出小红书笔记 HTML</button>'
             "</div>"
-            f'<div class="view-desk">{_desk_table(summaries)}</div>'
+            f'<div class="view-desk">{_desk_view(summaries, regime_parts, len(ranked), len(active))}</div>'
             f'<div class="view-xhs">{_xhs_feed(summaries)}</div>'
             f'<p class="legal">研究工具输出，非投资建议 · 数据：巨潮/同花顺/东财 · '
             f'生成于 {date.today().isoformat()}</p>'
             f"<script>{_JS}</script></div>")
 
 
-def save_document(fragment: str, path: Path, title: str) -> Path:
-    """片段 → 可独立打开的完整 HTML 文档。"""
+def save_document(fragment: str, path: Path, title: str, dark: bool = False) -> Path:
+    """片段 → 可独立打开的完整 HTML 文档。dark=True 用于研究台深色页。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     if not fragment.lstrip().startswith("<div id=\"xhs-root\""):
         fragment = f'<div id="xhs-root"><style>{_CSS}</style>{fragment}</div>'
+    background = "#070c18" if dark else "#f5f5f7"
+    theme_color = "#0a1020" if dark else "#f5f5f7"
     document = (
         "<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
         "<meta name=\"color-scheme\" content=\"light\">\n"
-        "<meta name=\"theme-color\" content=\"#f5f5f7\">\n"
+        f"<meta name=\"theme-color\" content=\"{theme_color}\">\n"
         f"<title>{_esc(title)}</title>\n"
-        "<style>body{margin:0;padding:16px 10px;background:#f5f5f7;}"
+        f"<style>body{{margin:0;padding:16px 10px;background:{background};}}"
         "@media (max-width:760px){body{padding:10px 8px;}}</style>\n"
         "</head>\n<body>\n" + fragment + "\n</body>\n</html>\n")
     path.write_text(document, encoding="utf-8")

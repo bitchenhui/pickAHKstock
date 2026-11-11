@@ -715,7 +715,7 @@ def cmd_notebook(args: argparse.Namespace) -> int:
     fragment = notebook_fragment(cards)
     default = _Path(__file__).resolve().parent.parent / "cards" / "notes" / "index.html"
     path = _Path(args.out) if args.out else default
-    save_document(fragment, path, "小资金研究台 · 观察池信息流")
+    save_document(fragment, path, "小资金研究台 · 观察池信息流", dark=True)
     order = {"持仓研究": 0, "观察": 1, "降级": 2, "淘汰": 3}
     ranked = sorted(cards, key=lambda c: (order.get(c.status, 9), c.code))
     print(f"研究台汇总 {len(ranked)} 张卡片 → {path}")
