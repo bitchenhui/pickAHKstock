@@ -22,6 +22,7 @@ import os
 import urllib.parse
 from dataclasses import dataclass, field
 from datetime import date
+from pathlib import Path
 
 import requests
 
@@ -32,6 +33,10 @@ from .quotes import fetch_snapshots
 RS_FLIP_MARGIN = 2.0
 POSITION_EXTREME = 0.10     # 盯价一年区间位置 ≤10% 或 ≥90% 视为接近极值
 
+# 去重状态文件：状态型触发器（价格持续破线、盯价持续在极值区）只在
+# 状态变化时推一次，否则每小时重复推送等于轰炸。CI 靠数据缓存跨轮持久。
+STATE_FILE = Path.home() / ".cache" / "pickahkstock" / "sentinel_state.json"
+
 
 @dataclass
 class Alert:
@@ -41,6 +46,7 @@ class Alert:
     kind: str                  # 失效线 / 强度转向 / 催化剂到期 / 盯价极值
     detail: str
     action_hint: str
+    fingerprint: str = ""      # 去重指纹：同指纹已推过且仍持续 → 静默
 
     def line(self) -> str:
         return (f"【{self.kind}】{self.name}（{self.market} {self.code}）：{self.detail}"
@@ -76,7 +82,8 @@ def check_cards(cards: list[Card]) -> tuple[list[Alert], int]:
             alerts.append(Alert(
                 card.market, card.code, card.name, "失效线",
                 f"现价 {price} 已跌破 2ATR 参考失效线 {stop}",
-                "打开卡片核对失效条件，决定撤或留（参考线不保证成交）"))
+                "打开卡片核对失效条件，决定撤或留（参考线不保证成交）",
+                fingerprint=f"stop:{card.market}:{card.code}"))
 
         prev_rs = ((card.execution or {}).get("strength") or {}).get("rs")
         if prev_rs is not None:
@@ -100,7 +107,8 @@ def check_cards(cards: list[Card]) -> tuple[list[Alert], int]:
                 alerts.append(Alert(
                     card.market, card.code, card.name, "催化剂到期",
                     f"{catalyst.event}（{catalyst.date}）已到验证窗口",
-                    "按卡片失效条件核对兑现情况，该写结论了"))
+                    "按卡片失效条件核对兑现情况，该写结论了",
+                    fingerprint=f"cat:{card.market}:{card.code}:{catalyst.event[:24]}"))
 
         for item in ((card.commodities or {}).get("items") or {}).values():
             try:
@@ -112,11 +120,15 @@ def check_cards(cards: list[Card]) -> tuple[list[Alert], int]:
                 continue
             if position <= POSITION_EXTREME or position >= 1 - POSITION_EXTREME:
                 edge = "一年最低附近" if position <= POSITION_EXTREME else "一年最高附近"
+                band = ("<5%" if position <= 0.05 else
+                        "5-10%" if position <= POSITION_EXTREME else
+                        ">95%" if position >= 0.95 else "90-95%")
                 alerts.append(Alert(
                     card.market, card.code, card.name, "盯价极值",
                     f"{item['name']} {stats['latest']}，处于{edge}"
                     f"（区间位置 {position * 100:.0f}%）",
-                    "对照卡片的失效条件（如价格破位线）"))
+                    "对照卡片的失效条件（如价格破位线）",
+                    fingerprint=f"ext:{item['symbol']}:{band}"))
     return alerts, len(cards)
 
 
@@ -267,3 +279,31 @@ def _notify_text_channels(title: str, body: str) -> list[str]:
 def notify(title: str, body: str) -> list[str]:
     """兼容入口：只发文本汇总渠道（Bark 的逐条体验走 notify_alerts）。"""
     return _notify_text_channels(title, body)
+
+
+def dedupe(alerts: list[Alert]) -> tuple[list[Alert], list[Alert]]:
+    """状态型触发器的去重：同指纹已推过且仍持续 → 静默；状态消失即重置。
+
+    盯价极值/失效线是状态不是事件——碳酸锂天天在一年最低位，不重置
+    就是每小时轰炸。指纹持续存在则静默，从本轮消失（价格离开极值区/
+    收复失效线）就删记录，下次再触发会重新推。
+    """
+    today = date.today().isoformat()
+    state: dict[str, str] = {}
+    try:
+        state = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        state = {}
+    fresh: list[Alert] = []
+    silent: list[Alert] = []
+    seen = {alert.fingerprint for alert in alerts}
+    for alert in alerts:
+        if alert.fingerprint in state:
+            silent.append(alert)
+        else:
+            fresh.append(alert)
+    # 只保留本轮仍存在的指纹；过老的（>30 天未刷新）也清掉
+    state = {fp: today for fp in seen}
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+    return fresh, silent

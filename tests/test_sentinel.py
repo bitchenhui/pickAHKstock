@@ -138,3 +138,39 @@ class NotifyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DedupeTests(unittest.TestCase):
+    def test_same_fingerprint_silent_until_state_clears(self):
+        import tempfile
+        from pathlib import Path
+
+        alert = sentinel.Alert("A", "600001", "测试", "盯价极值", "d", "h",
+                               fingerprint="ext:LC:5-10%")
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            with unittest.mock.patch.object(sentinel, "STATE_FILE", state):
+                fresh, silent = sentinel.dedupe([alert])
+                self.assertEqual(len(fresh), 1)          # 第一次：推
+                fresh, silent = sentinel.dedupe([alert])
+                self.assertEqual(len(silent), 1)         # 状态持续：静默
+                self.assertEqual(fresh, [])
+                # 状态消失（本轮无该指纹）后重新触发：再推
+                sentinel.dedupe([])
+                fresh, silent = sentinel.dedupe([alert])
+                self.assertEqual(len(fresh), 1)
+
+    def test_different_band_is_new_event(self):
+        import tempfile
+        from pathlib import Path
+
+        low = sentinel.Alert("A", "600001", "测试", "盯价极值", "d", "h",
+                             fingerprint="ext:LC:5-10%")
+        deeper = sentinel.Alert("A", "600001", "测试", "盯价极值", "d", "h",
+                                fingerprint="ext:LC:<5%")
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            with unittest.mock.patch.object(sentinel, "STATE_FILE", state):
+                sentinel.dedupe([low])
+                fresh, _ = sentinel.dedupe([deeper])     # 跌进更深档位 = 新事件
+                self.assertEqual(len(fresh), 1)

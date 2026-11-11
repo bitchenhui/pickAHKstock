@@ -730,24 +730,30 @@ def cmd_sentinel(args: argparse.Namespace) -> int:
     检查的是低频数据（快照/日线/盯价），但可以每小时跑一次。
     未配置任何通知渠道时只打印不发——先把触发器摆到眼前。
     """
-    from .sentinel import check_cards, notify_alerts
+    from .sentinel import check_cards, dedupe, notify_alerts
 
     cards = _load_all_cards()
     if not cards:
         print("还没有卡片。")
         return 0
     alerts, checked = check_cards(cards)
-    print(f"哨兵检查 {checked} 张卡片：命中 {len(alerts)} 条触发器\n")
-    for alert in alerts:
-        print(f"  {alert.line()}")
+    fresh, silent = dedupe(alerts)
+    print(f"哨兵检查 {checked} 张卡片：命中 {len(alerts)} 条"
+          f"（新触发 {len(fresh)}，持续状态静默 {len(silent)}）\n")
+    for alert in fresh:
+        print(f"  ▶ {alert.line()}")
+    for alert in silent:
+        print(f"  · 已提醒过，静默：{alert.line()}")
     if not alerts:
         print("  （无触发：参考线、相对强度、催化剂、盯价都安静）")
         return 0
-    results = notify_alerts(alerts)
+    results = notify_alerts(fresh) if fresh else []
     if results:
         print("\n通知：")
         for line in results:
             print(f"  {line}")
+    elif not fresh:
+        print("\n全部为持续状态，未推送（状态变化时才会再响）。")
     else:
         print("\n未配置通知渠道（环境变量/Secrets），只打印未推送。")
     return 0
