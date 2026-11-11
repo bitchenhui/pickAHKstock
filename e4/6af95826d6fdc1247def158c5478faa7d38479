@@ -1,0 +1,36 @@
+README.md
+  h_69a2bad0f475d9 218-219
+cards/HK_03323.json
+  h_69a2bad0f475d9 112-114,117,120-123,125-127,129,294,304,314,344,360,519,521,523-527,529,531,533-534,556-691,860
+cards/HK_09696.json
+  h_69a2bad0f475d9 111-113,116,119-122,124-126,128-129,297,307,317,353,512,514,516,518-522,524-526,549-619,776
+cards/notes/index.html
+  h_69a2bad0f475d9 81
+research/account.py
+  h_69a2bad0f475d9 271-273,275-276,278,286-287,291,293
+research/backtest.py
+  h_69a2bad0f475d9 591-646
+research/deepdive.py
+  h_69a2bad0f475d9 76,88-92,102
+research/note.py
+  h_69a2bad0f475d9 231-232,234,405-415
+research/regime.py
+  h_69a2bad0f475d9 17,25-26,36-37,41-42,84-89,92-95,97,101,118
+research/workflow.py
+  h_69a2bad0f475d9 36-37,45-46,54
+tests/test_deepdive.py
+  h_69a2bad0f475d9 86-87
+tests/test_regime.py
+  h_69a2bad0f475d9 41-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e46af95826d6fdc1247def158c5478faa7d38479",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
