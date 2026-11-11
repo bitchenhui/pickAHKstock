@@ -247,10 +247,10 @@
     "对外担保出现代偿，或担保余额超过归母净资产 50%"
   ],
   "market_context": {
-    "close": 133.61,
-    "atr": 9.9064,
-    "atr_pct": 7.41,
-    "stop_reference": 113.797,
+    "close": 134.57,
+    "atr": 9.8714,
+    "atr_pct": 7.34,
+    "stop_reference": 114.827,
     "bars": 449,
     "bars_as_of": "2026-11-11",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_603991/01/2026.js",
@@ -961,6 +961,22 @@
       {
         "code": "603991",
         "name": "领先股份",
+        "title": "华泰联合证券有限责任公司关于重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之标的资产减值测试情况的核查意见",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164752.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "2025年度内部控制审计报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164738.PDF",
+        "category": "审计意见"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
         "title": "关于会计政策变更的公告",
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164706.PDF",
@@ -985,9 +1001,25 @@
       {
         "code": "603991",
         "name": "领先股份",
+        "title": "2025年度审计报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164684.PDF",
+        "category": "审计意见"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
         "title": "关于计提资产减值准备的公告",
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164671.PDF",
+        "category": "资产质量"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于先进封装材料国际有限公司2025年12月31日99.97%股东权益的减值测试报告之专项审核报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164669.PDF",
         "category": "资产质量"
       }
     ],
