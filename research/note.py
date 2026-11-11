@@ -506,6 +506,10 @@ def note_fragment(card: Card) -> str:
         + ('<p class="fact">⚠ 无机构覆盖：缺第三方预期这条证据，需自行补</p>'
            if not coverage else "") + "</section>")
 
+    action = _action_block(card)
+    if action:
+        parts.append(action)
+
     if blocks:
         items = "".join(f'<li><span class="box" aria-hidden="true"></span>'
                         f'<span>{_esc(f)}</span></li>' for f in blocks[:6])
@@ -560,6 +564,8 @@ def _xhs_feed(summaries: list[dict]) -> str:
                           f"{quarters[-1][0]} {quarters[-1][1] / 1e8:.2f} 亿）") if quarters else "—"),
             ("经营现金流", item["capital"].get("operating_cf_label", "—")),
             ("盯价", _watch_line(card)),
+            ("相对强度", ((card.execution or {}).get("strength") or {}).get("rs", "—")
+             if ((card.execution or {}).get("strength") or {}).get("rs") is not None else "—"),
             ("红旗", f"风险公告 {item['risk_count']} 条 · 高severity治理 {item['high_flags']} 条"
                      if (item["risk_count"] or item["high_flags"]) else "未扫描留痕"),
             ("机构覆盖", str(item["expectations"].get("coverage", "—")) + " 家"),
@@ -577,6 +583,58 @@ def _xhs_feed(summaries: list[dict]) -> str:
                      + kv + '<div class="actions" aria-hidden="true"><span>❤️</span>'
                        '<span>⭐</span><span>💬</span></div></div>')
     return f'<div class="feed">{"".join(notes)}</div>'
+
+
+def _strength_line(card: Card) -> str:
+    strength = (card.execution or {}).get("strength") or {}
+    if strength.get("rs") is None:
+        return "—"
+    rs = strength["rs"]
+    cls = "pos" if rs > 0 else "neg"
+    return (f'<span class="{cls}">{rs:+.1f}pct</span><br>'
+            f'<span class="muted">个股 {strength.get("stock_return", "—")}% vs '
+            f'指数 {strength.get("index_return", "—")}%</span>')
+
+
+def _action_block(card: Card) -> str:
+    """行动条件区：何时看 / 何时动 / 何时撤——全是触发器，不是买卖点预测。"""
+    execution = card.execution or {}
+    liquidity = execution.get("liquidity") or {}
+    strength = execution.get("strength") or {}
+    regime = (card.market_context or {}).get("market_regime") or {}
+
+    watch = []
+    for catalyst in card.catalysts[:2]:
+        if catalyst.event:
+            watch.append(f"{catalyst.event}（{catalyst.date or '日期待定'}）")
+    if strength.get("rs") is not None:
+        watch.append(f"相对强度转向（当前 {strength['rs']:+.1f}pct vs 大盘）")
+    act = []
+    blocks = len(blocking(validate(card)))
+    act.append(f"质量门{'通过' if not blocks else f'还有 {blocks} 项阻塞'}")
+    if regime.get("state"):
+        factor = "0.5×" if regime.get("state") == "下行" else "全额"
+        act.append(f"市场状态 {regime.get('state')}（仓位按 {factor}）")
+    if liquidity.get("level"):
+        act.append(f"流动性 {liquidity['level']}")
+    quit_lines = list(card.invalidation[:3])
+    stop = (card.market_context or {}).get("stop_reference")
+    if stop:
+        quit_lines.append(f"收盘跌破 2ATR 参考线 {stop}（参考失效，不是保证成交）")
+    if not watch and not act and not quit_lines:
+        return ""
+    rows = ""
+    if watch:
+        rows += ('<div class="kv"><span class="k">何时看</span><span>'
+                 + _esc("；".join(watch)) + "</span></div>")
+    if act:
+        rows += ('<div class="kv"><span class="k">何时动</span><span>'
+                 + _esc("；".join(act)) + "</span></div>")
+    if quit_lines:
+        rows += ('<div class="kv"><span class="k">何时撤</span><span>'
+                 + _esc("；".join(quit_lines)) + "</span></div>")
+    return (f'<section><h3>🎯 行动条件（触发器，不是买卖点）</h3>{rows}'
+            '<p class="derived">条件出现是行动信号，点位由你与券商确定；本区不预测涨跌</p></section>')
 
 
 def _hold_candidates(summaries: list[dict]) -> list[dict]:
@@ -673,7 +731,7 @@ def _desk_view(summaries: list[dict], regime_parts: list[str], ranked_count: int
 def _desk_table(summaries: list[dict]) -> str:
     """研究台全卡表：桌面一张表；<760px 每行转卡片（td 的 data-label 提供列名）。"""
     head = ("标的", "状态", "共振", "单季净利润", "经营现金流", "盯的价格",
-            "红旗", "覆盖", "最近到期", "阻塞")
+            "相对强度", "红旗", "覆盖", "最近到期", "阻塞")
     body = []
     for item in summaries:
         card: Card = item["card"]
@@ -704,13 +762,14 @@ def _desk_table(summaries: list[dict]) -> str:
             f'<td data-label="{head[4]}" class="mono">{cash_cell}</td>',
             f'<td data-label="{head[5]}" class="mono w-limit">'
             f'{_esc(_watch_line(card)).replace(" ｜ ", "<br>")}</td>',
-            f'<td data-label="{head[6]}">{red}</td>',
-            f'<td data-label="{head[7]}" class="mono">'
+            f'<td data-label="{head[6]}">{_strength_line(card)}</td>',
+            f'<td data-label="{head[7]}">{red}</td>',
+            f'<td data-label="{head[8]}" class="mono">'
             f'{_esc(item["expectations"].get("coverage", "—"))}</td>',
-            f'<td data-label="{head[8]}" class="mono">{_due_html(card)}</td>',
-            (f'<td data-label="{head[9]}" class="pos">{item["blocks"]}</td>'
+            f'<td data-label="{head[9]}" class="mono">{_due_html(card)}</td>',
+            (f'<td data-label="{head[10]}" class="pos">{item["blocks"]}</td>'
              if item["blocks"] else
-             f'<td data-label="{head[9]}" class="muted">0</td>'),
+             f'<td data-label="{head[10]}" class="muted">0</td>'),
         ]
         body.append("<tr>" + "".join(cells) + "</tr>")
     return ('<div class="desk-title">全部研究卡片（观察/持仓在前，降级在后）</div>'

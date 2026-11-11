@@ -76,6 +76,8 @@ class DeepDiveTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def _patch_all(self, **overrides):
+        from research import execution
+
         patches = {
             "fetch_snapshots": lambda codes: {"600001": _fake_snapshot()},
             "fetch_financials": lambda code: _financials_data(),
@@ -98,7 +100,16 @@ class DeepDiveTests(unittest.TestCase):
         patches.update(overrides)
         manager = unittest.mock.patch.multiple(deepdive, **patches)
         manager.start()
-        self.addCleanup(manager.stop)
+        # 执行层取数走 execution 模块内部符号，一并离线化
+        exec_manager = unittest.mock.patch.multiple(
+            execution,
+            avg_turnover_a=lambda code: {"avg_turnover": 5e7, "window": 20, "as_of": "2026-11-11"},
+            relative_strength=lambda code, market, window=60: {
+                "window": 60, "stock_return": 8.0, "index_return": -2.0,
+                "rs": 10.0, "as_of": "2026-11-11", "note": "跑赢大盘"},
+            _stake_from_account=lambda: 1500.0)
+        exec_manager.start()
+        self.addCleanup(exec_manager.stop)
 
     def test_all_faces_filled_and_saved(self):
         self._patch_all()

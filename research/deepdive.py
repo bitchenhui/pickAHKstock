@@ -216,6 +216,9 @@ def deep_dive(market: str, code: str, period: str = "", with_scan: bool = True,
     else:
         result.steps.append(Step(
             "盯的价格", "skip", f"{card.code} 不在价格映射表（WATCHLIST），该盯什么价需要人定"))
+    from .execution import fill_execution
+
+    run("执行层（流动性/相对强度）", fill_execution, card)
 
     if with_scan:
         # 扫描结果结构化留痕进卡片：终端会滚走，卡片才是资产
