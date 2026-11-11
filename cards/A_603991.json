@@ -247,28 +247,28 @@
     "对外担保出现代偿，或担保余额超过归母净资产 50%"
   ],
   "market_context": {
-    "close": 125.05,
-    "atr": 9.8629,
-    "atr_pct": 7.89,
-    "stop_reference": 105.324,
-    "bars": 447,
-    "bars_as_of": "2026-11-09",
+    "close": 128.46,
+    "atr": 9.9079,
+    "atr_pct": 7.71,
+    "stop_reference": 108.644,
+    "bars": 448,
+    "bars_as_of": "2026-11-10",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_603991/01/2026.js",
     "market_regime": {
-      "day": "2026-11-10",
-      "close": 4059.11,
-      "ma60": 4383.489666666666,
-      "change_20d": -0.050651592261347966,
+      "day": "2026-11-11",
+      "close": 4069.39,
+      "ma60": 4373.582999999999,
+      "change_20d": -0.03515913962178274,
       "state": "下行",
-      "note": "沪深300 4059，低于60 日均线 4383，20 日 -5.1%"
+      "note": "沪深300 4069，低于60 日均线 4374，20 日 -3.5%"
     },
     "industry": "半导体",
-    "price": 128.46,
-    "turnover": 308050000.0,
-    "market_cap": 19617000000.0,
-    "pe": 61.35,
-    "pb": 5.22,
-    "as_of": "20261110161500"
+    "price": 132.11,
+    "turnover": 382740000.0,
+    "market_cap": 20174000000.0,
+    "pe": 63.09,
+    "pb": 5.37,
+    "as_of": "20261111132917"
   },
   "financials": {
     "path": "已盈利",
@@ -603,7 +603,7 @@
     "path_evidence": [],
     "notes": [
       "数据已于 2026-10-28 取自同花顺 F10 财务主表",
-      "财务序列已于 2026-11-10 取自 https://basic.10jqka.com.cn/api/stock/finance/603991_main.json"
+      "财务序列已于 2026-11-11 取自 https://basic.10jqka.com.cn/api/stock/finance/603991_main.json"
     ]
   },
   "catalysts": [
@@ -840,7 +840,7 @@
     "source": "申万二级行业成分股 + 东方财富业绩预告"
   },
   "scans": {
-    "as_of": "2026-11-10",
+    "as_of": "2026-11-11",
     "days": 240,
     "risks": [
       {
@@ -958,10 +958,34 @@
       {
         "code": "603991",
         "name": "领先股份",
+        "title": "华泰联合证券有限责任公司关于重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之标的资产减值测试情况的核查意见",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164752.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "2025年度内部控制审计报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164738.PDF",
+        "category": "审计意见"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
         "title": "关于会计政策变更的公告",
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164706.PDF",
         "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "2025年度董事会审计委员会履职情况报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164703.PDF",
+        "category": "审计意见"
       },
       {
         "code": "603991",
@@ -1030,8 +1054,8 @@
       },
       {
         "category": "担保",
-        "detail": "统计区间 2025-11-10---2026-11-10：5 次，金额 271200.0（万元），占归母净资产 72.15%",
-        "date": "2026-11-10",
+        "detail": "统计区间 2025-11-11---2026-11-11：5 次，金额 271200.0（万元），占归母净资产 72.15%",
+        "date": "2026-11-11",
         "severity": "高",
         "source": "巨潮资讯 担保统计"
       }
@@ -1152,6 +1176,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-11-10",
+  "updated": "2026-11-11",
   "derived_level": "证据充分"
 }

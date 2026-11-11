@@ -61,31 +61,31 @@
   },
   "invalidation": [],
   "market_context": {
-    "price": 47.03,
-    "turnover": 197000000.0,
-    "market_cap": 10944000000.0,
-    "pe": 17.46,
-    "pb": 1.99,
-    "as_of": "20261110161447",
+    "price": 46.89,
+    "turnover": 110240000.0,
+    "market_cap": 10911000000.0,
+    "pe": 17.41,
+    "pb": 1.98,
+    "as_of": "20261111132839",
     "role": "市场确认与执行参考，不是业务证据",
     "industry": "电池",
     "resonance": "行业共振",
     "resonance_peers": 10,
     "resonance_same_sign": 10,
     "market_regime": {
-      "day": "2026-11-10",
-      "close": 4059.11,
-      "ma60": 4383.489666666666,
-      "change_20d": -0.050651592261347966,
+      "day": "2026-11-11",
+      "close": 4069.39,
+      "ma60": 4373.582999999999,
+      "change_20d": -0.03515913962178274,
       "state": "下行",
-      "note": "沪深300 4059，低于60 日均线 4383，20 日 -5.1%"
+      "note": "沪深300 4069，低于60 日均线 4374，20 日 -3.5%"
     },
-    "close": 47.05,
-    "atr": 2.3821,
-    "atr_pct": 5.06,
-    "stop_reference": 42.286,
-    "bars": 447,
-    "bars_as_of": "2026-11-09",
+    "close": 47.03,
+    "atr": 2.3271,
+    "atr_pct": 4.95,
+    "stop_reference": 42.376,
+    "bars": 448,
+    "bars_as_of": "2026-11-10",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_603026/01/2026.js"
   },
   "financials": {
@@ -420,7 +420,7 @@
     "working_capital_note": "",
     "path_evidence": [],
     "notes": [
-      "财务序列已于 2026-11-10 取自 https://basic.10jqka.com.cn/api/stock/finance/603026_main.json"
+      "财务序列已于 2026-11-11 取自 https://basic.10jqka.com.cn/api/stock/finance/603026_main.json"
     ]
   },
   "catalysts": [],
@@ -560,7 +560,7 @@
     "source": "申万二级行业成分股 + 东方财富业绩预告"
   },
   "scans": {
-    "as_of": "2026-11-10",
+    "as_of": "2026-11-11",
     "days": 240,
     "risks": [
       {
@@ -622,8 +622,8 @@
       },
       {
         "category": "担保",
-        "detail": "统计区间 2025-11-10---2026-11-10：12 次，金额 760000.0（万元），占归母净资产 137.99%",
-        "date": "2026-11-10",
+        "detail": "统计区间 2025-11-11---2026-11-11：12 次，金额 760000.0（万元），占归母净资产 137.99%",
+        "date": "2026-11-11",
         "severity": "高",
         "source": "巨潮资讯 担保统计"
       }
@@ -644,6 +644,6 @@
     }
   ],
   "created": "2026-11-10",
-  "updated": "2026-11-10",
+  "updated": "2026-11-11",
   "derived_level": "部分证据"
 }
