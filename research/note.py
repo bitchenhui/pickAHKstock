@@ -102,10 +102,16 @@ def _meter_rows(quarters: list[tuple[str, float]]) -> str:
 
 
 _CSS = """
-  :host, #xhs-root { max-width: 440px; margin: 0 auto; }
+  #xhs-root { max-width: 440px; margin: 0 auto; }
+  /* 研究台视图要放一张宽表：容器宽度随视图切换，xhs 视图保持窄屏卡片 */
+  #xhs-root[data-view="desk"] { max-width: 1080px; }
   #xhs-root { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI",
               "Microsoft YaHei", sans-serif; color: #333; line-height: 1.55;
-              -webkit-font-smoothing: antialiased; }
+              -webkit-font-smoothing: antialiased;
+              -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+              color-scheme: light; }
+  #xhs-root .legal, #xhs-root .tags, #xhs-root .kv span,
+  #xhs-root table.desk td, #xhs-root .sub { overflow-wrap: anywhere; }
   #xhs-root .feed { display: flex; flex-direction: column; gap: 12px; }
   #xhs-root .note { background: #fff; border-radius: 14px; padding: 18px 16px 12px;
                     box-shadow: 0 1px 3px rgba(0,0,0,.05); }
@@ -182,28 +188,48 @@ _CSS = """
                                    cursor: pointer; }
   #xhs-root .toolbar .seg button[aria-pressed="true"] { background: #1f1f1f; color: #fff; }
   #xhs-root .toolbar .export { border: 0; background: #fff; color: #ff2442; font-size: 13px;
-                               padding: 8px 16px; border-radius: 999px; cursor: pointer;
+                               padding: 6px 16px; border-radius: 999px; cursor: pointer;
                                box-shadow: 0 1px 3px rgba(0,0,0,.05); font-weight: 600; }
   #xhs-root .view-desk, #xhs-root .view-xhs { display: none; }
   #xhs-root[data-view="desk"] .view-desk { display: block; }
   #xhs-root[data-view="xhs"] .view-xhs { display: block; }
-  /* —— 研究台（正常渲染）视图：表格优先，中性配色 —— */
+  /* —— 研究台（正常渲染）视图：桌面表格，移动端卡片化 —— */
+  #xhs-root .desk-title { font-size: 14px; font-weight: 700; color: #1f1f1f;
+                          padding: 2px 2px 8px; }
+  #xhs-root .desk-card { background: #fff; border-radius: 12px; overflow: hidden;
+                         box-shadow: 0 1px 3px rgba(0,0,0,.05); }
   #xhs-root .desk-wrap { overflow-x: auto; }
-  #xhs-root table.desk { width: 100%; border-collapse: collapse; background: #fff;
-                         border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05);
-                         font-size: 13px; min-width: 880px; }
-  #xhs-root table.desk caption { text-align: left; padding: 12px 14px 4px; font-weight: 700;
-                                 color: #1f1f1f; font-size: 14px; }
-  #xhs-root table.desk th { text-align: left; padding: 10px 10px; background: #fafafa;
-                            color: #666; font-weight: 600; border-bottom: 1px solid #eee;
+  #xhs-root table.desk { width: 100%; border-collapse: collapse; font-size: 13px;
+                         min-width: 860px; }
+  #xhs-root table.desk th { text-align: left; padding: 10px 10px; background: #f5f5f7;
+                            color: #666; font-weight: 600; border-bottom: 1px solid #e4e4e8;
                             white-space: nowrap; }
   #xhs-root table.desk td { padding: 9px 10px; border-bottom: 1px solid #f4f4f6;
                             vertical-align: top; }
+  #xhs-root table.desk td.w-limit { max-width: 250px; }
   #xhs-root table.desk tr:last-child td { border-bottom: none; }
   #xhs-root .mono { font-variant-numeric: tabular-nums; }
   #xhs-root .muted { color: #999; }
   #xhs-root .pos { color: #c4322f; }
   #xhs-root .neg { color: #1a7f37; }
+  @media (max-width: 760px) {
+    /* 10 列表格在手机上没法读：每行转成卡片，列名由 data-label 提供 */
+    #xhs-root .desk-card { background: transparent; box-shadow: none; overflow: visible; }
+    #xhs-root table.desk, #xhs-root table.desk tbody, #xhs-root table.desk tr,
+    #xhs-root table.desk td { display: block; width: 100%; min-width: 0; }
+    #xhs-root table.desk { overflow: hidden; }   /* collapse 边框在 block 表格上的幽灵宽度 */
+    #xhs-root .desk-wrap { overflow-x: visible; }
+    #xhs-root table.desk thead { display: none; }
+    #xhs-root table.desk td.w-limit { max-width: none; }
+    #xhs-root table.desk tr { background: #fff; border-radius: 12px; padding: 6px 2px;
+                              margin-bottom: 10px;
+                              box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    #xhs-root table.desk td { border-bottom: 1px solid #f4f4f6; padding: 7px 14px; }
+    #xhs-root table.desk tr:last-child td { border-bottom: none; }
+    #xhs-root table.desk td[data-label]::before { content: attr(data-label) "：";
+                                                  color: #999; margin-right: 6px; }
+    #xhs-root table.desk td:first-child { padding-bottom: 2px; }
+  }
 """
 
 
@@ -481,7 +507,7 @@ def _xhs_feed(summaries: list[dict]) -> str:
 
 
 def _desk_table(summaries: list[dict]) -> str:
-    """研究台视图：一张表看全部卡片，桌面密度、移动端横向滚动。"""
+    """研究台视图：桌面一张表；<760px 每行转卡片（td 的 data-label 提供列名）。"""
     head = ("标的", "状态", "共振", "单季净利润", "经营现金流", "盯的价格",
             "红旗", "覆盖", "最近到期", "阻塞")
     body = []
@@ -490,33 +516,41 @@ def _desk_table(summaries: list[dict]) -> str:
         resonance = item["resonance"]
         quarters = item["quarters"]
         momentum = item["momentum"]
-        profit = (f'<span class="mono">{quarters[-1][1] / 1e8:.2f} 亿'
-                  f'<span class="muted"> ← {quarters[0][1] / 1e8:.2f}</span></span>'
-                  f' {momentum}') if quarters else "—"
-        red = (f'风险 {item["risk_count"]} · 高危治理 {item["high_flags"]}'
+        profit = (f'<span class="mono"><b>{quarters[-1][1] / 1e8:.2f} 亿</b> {momentum}</span>'
+                  f'<br><span class="muted mono">季初 {quarters[0][1] / 1e8:.2f} 亿'
+                  f'（{quarters[0][0]}）</span>') if quarters else "—"
+        red = (f'<span class="pos">风险公告 {item["risk_count"]}</span><br>'
+               f'<span class="muted">高危治理 {item["high_flags"]}</span>'
                if (item["risk_count"] or item["high_flags"]) else
                '<span class="muted">未留痕</span>')
-        body.append(
-            "<tr>"
-            f'<td><b>{_esc(card.name)}</b><br><span class="muted mono">{_esc(card.market)} '
-            f'{_esc(card.code)} · {_esc(card.derived_level())}</span></td>'
-            f"<td>{_status_badge(card.status)}</td>"
-            f'<td>{_esc(resonance.get("verdict", "—"))}'
+        cash = item["capital"].get("operating_cf_label", "—")
+        cash_cell = (f'<span class="pos">{_esc(cash)}</span>'
+                     if str(cash).strip().startswith("-") else _esc(cash))
+        cells = [
+            f'<td data-label="{head[0]}"><b>{_esc(card.name)}</b><br>'
+            f'<span class="muted mono">{_esc(card.market)} {_esc(card.code)} · '
+            f'{_esc(card.derived_level())}</span></td>',
+            f'<td data-label="{head[1]}">{_status_badge(card.status)}</td>',
+            f'<td data-label="{head[2]}">{_esc(resonance.get("verdict", "—"))}'
             + (f'<br><span class="muted">{_esc(resonance["industry"])}</span>'
-               if resonance.get("industry") else "") + "</td>"
-            f"<td>{profit}</td>"
-            f'<td class="mono">{_esc(item["capital"].get("operating_cf_label", "—"))}</td>'
-            f'<td class="mono">{_esc(_watch_line(card))}</td>'
-            f"<td>{red}</td>"
-            f'<td class="mono">{_esc(item["expectations"].get("coverage", "—"))}</td>'
-            f'<td class="mono">{_esc(_due(card) or "未定")}</td>'
-            + (f'<td class="pos">{item["blocks"]}</td>' if item["blocks"]
-               else '<td class="muted">0</td>')
-            + "</tr>")
-    return ('<div class="desk-wrap"><table class="desk">'
-            "<caption>全部研究卡片（观察/持仓在前，降级在后）</caption>"
+               if resonance.get("industry") else "") + "</td>",
+            f'<td data-label="{head[3]}">{profit}</td>',
+            f'<td data-label="{head[4]}" class="mono">{cash_cell}</td>',
+            f'<td data-label="{head[5]}" class="mono w-limit">'
+            f'{_esc(_watch_line(card)).replace(" ｜ ", "<br>")}</td>',
+            f'<td data-label="{head[6]}">{red}</td>',
+            f'<td data-label="{head[7]}" class="mono">'
+            f'{_esc(item["expectations"].get("coverage", "—"))}</td>',
+            f'<td data-label="{head[8]}" class="mono">{_esc(_due(card) or "未定")}</td>',
+            (f'<td data-label="{head[9]}" class="pos">{item["blocks"]}</td>'
+             if item["blocks"] else
+             f'<td data-label="{head[9]}" class="muted">0</td>'),
+        ]
+        body.append("<tr>" + "".join(cells) + "</tr>")
+    return ('<div class="desk-title">全部研究卡片（观察/持仓在前，降级在后）</div>'
+            '<div class="desk-card"><div class="desk-wrap"><table class="desk">'
             + "<thead><tr>" + "".join(f"<th>{h}</th>" for h in head) + "</tr></thead>"
-            + "<tbody>" + "".join(body) + "</tbody></table></div>")
+            + "<tbody>" + "".join(body) + "</tbody></table></div></div>")
 
 
 _JS = """
@@ -607,8 +641,11 @@ def save_document(fragment: str, path: Path, title: str) -> Path:
     document = (
         "<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        "<meta name=\"color-scheme\" content=\"light\">\n"
+        "<meta name=\"theme-color\" content=\"#f5f5f7\">\n"
         f"<title>{_esc(title)}</title>\n"
-        "<style>body{margin:0;padding:16px 10px;background:#f5f5f7;}</style>\n"
+        "<style>body{margin:0;padding:16px 10px;background:#f5f5f7;}"
+        "@media (max-width:760px){body{padding:10px 8px;}}</style>\n"
         "</head>\n<body>\n" + fragment + "\n</body>\n</html>\n")
     path.write_text(document, encoding="utf-8")
     return path
