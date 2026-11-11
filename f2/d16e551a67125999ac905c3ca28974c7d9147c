@@ -1,0 +1,18 @@
+cards/A_603026.json
+  h_69a2bad0f475d9 667-681,780
+cards/notes/A_603026.html
+  h_69a2bad0f475d9 129-145,231-239
+research/note.py
+  h_69a2bad0f475d9 227-237,543-554
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f2d16e551a67125999ac905c3ca28974c7d9147c",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
