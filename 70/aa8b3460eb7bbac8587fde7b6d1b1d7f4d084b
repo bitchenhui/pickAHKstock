@@ -1,0 +1,32 @@
+cards/A_000626.json
+  h_69a2bad0f475d9 749-770,1031
+cards/notes/A_000626.html
+  h_69a2bad0f475d9 129-134,220
+cards/notes/index.html
+  h_69a2bad0f475d9 129-134,220
+research/card.py
+  h_69a2bad0f475d9 185-186
+research/cli.py
+  h_69a2bad0f475d9 762-812,1108-1112
+research/llm.py
+  h_69a2bad0f475d9 1-253
+research/note.py
+  h_69a2bad0f475d9 221-226,427-443
+research/plain.py
+  h_69a2bad0f475d9 1-215
+research/sentinel.py
+  h_69a2bad0f475d9 36-41,94-95,143-198,288,297-308
+tests/test_plain_llm.py
+  h_69a2bad0f475d9 1-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "70aa8b3460eb7bbac8587fde7b6d1b1d7f4d084b",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
