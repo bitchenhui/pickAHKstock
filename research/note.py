@@ -172,6 +172,38 @@ _CSS = """
   #xhs-root .nb-stats .chip b { color: #ff2442; }
   #xhs-root .kv { display: flex; gap: 8px; font-size: 13px; color: #444; padding: 3px 0; }
   #xhs-root .kv .k { color: #999; flex: none; width: 74px; }
+  /* —— 视图切换与导出 —— */
+  #xhs-root .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+                       padding: 12px 0 4px; }
+  #xhs-root .toolbar .seg { display: inline-flex; background: #fff; border-radius: 999px;
+                            padding: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  #xhs-root .toolbar .seg button { border: 0; background: transparent; padding: 6px 16px;
+                                   border-radius: 999px; font-size: 13px; color: #666;
+                                   cursor: pointer; }
+  #xhs-root .toolbar .seg button[aria-pressed="true"] { background: #1f1f1f; color: #fff; }
+  #xhs-root .toolbar .export { border: 0; background: #fff; color: #ff2442; font-size: 13px;
+                               padding: 8px 16px; border-radius: 999px; cursor: pointer;
+                               box-shadow: 0 1px 3px rgba(0,0,0,.05); font-weight: 600; }
+  #xhs-root .view-desk, #xhs-root .view-xhs { display: none; }
+  #xhs-root[data-view="desk"] .view-desk { display: block; }
+  #xhs-root[data-view="xhs"] .view-xhs { display: block; }
+  /* —— 研究台（正常渲染）视图：表格优先，中性配色 —— */
+  #xhs-root .desk-wrap { overflow-x: auto; }
+  #xhs-root table.desk { width: 100%; border-collapse: collapse; background: #fff;
+                         border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05);
+                         font-size: 13px; min-width: 880px; }
+  #xhs-root table.desk caption { text-align: left; padding: 12px 14px 4px; font-weight: 700;
+                                 color: #1f1f1f; font-size: 14px; }
+  #xhs-root table.desk th { text-align: left; padding: 10px 10px; background: #fafafa;
+                            color: #666; font-weight: 600; border-bottom: 1px solid #eee;
+                            white-space: nowrap; }
+  #xhs-root table.desk td { padding: 9px 10px; border-bottom: 1px solid #f4f4f6;
+                            vertical-align: top; }
+  #xhs-root table.desk tr:last-child td { border-bottom: none; }
+  #xhs-root .mono { font-variant-numeric: tabular-nums; }
+  #xhs-root .muted { color: #999; }
+  #xhs-root .pos { color: #c4322f; }
+  #xhs-root .neg { color: #1a7f37; }
 """
 
 
@@ -392,8 +424,141 @@ def note_fragment(card: Card) -> str:
             + "".join(parts) + "</div>")
 
 
+def _card_summary(card: Card) -> dict:
+    """两种视图共用的每卡摘要（数据只提一遍，视图各自渲染）。"""
+    resonance = card.industry_context or {}
+    quarters = quarterly(card.financials, "净利润") if card.financials.metrics else []
+    scans = card.scans or {}
+    momentum = ""
+    if len(quarters) >= 2:
+        momentum = "逐季↓" if quarters[-1][1] < quarters[0][1] else (
+            "逐季↑" if quarters[-1][1] > quarters[0][1] else "持平")
+    return {
+        "card": card,
+        "resonance": resonance,
+        "quarters": quarters,
+        "momentum": momentum,
+        "high_flags": len([g for g in (scans.get("governance") or [])
+                           if g.get("severity") == "高"]),
+        "risk_count": len(scans.get("risks") or []),
+        "capital": card.capital or {},
+        "expectations": card.expectations or {},
+        "blocks": len(blocking(validate(card))),
+    }
+
+
+def _xhs_feed(summaries: list[dict]) -> str:
+    """小红书信息流视图（导出格式的来源）。"""
+    notes = []
+    for item in summaries:
+        card: Card = item["card"]
+        resonance = item["resonance"]
+        quarters = item["quarters"]
+        rows = [
+            ("共振", f"{resonance.get('verdict', '—')}" + (f"·{resonance.get('industry', '')}"
+                                                             if resonance.get("industry") else "")),
+            ("单季利润", (f"{item['momentum']}（{quarters[0][0]} {quarters[0][1] / 1e8:.2f} 亿 → "
+                          f"{quarters[-1][0]} {quarters[-1][1] / 1e8:.2f} 亿）") if quarters else "—"),
+            ("经营现金流", item["capital"].get("operating_cf_label", "—")),
+            ("盯价", _watch_line(card)),
+            ("红旗", f"风险公告 {item['risk_count']} 条 · 高severity治理 {item['high_flags']} 条"
+                     if (item["risk_count"] or item["high_flags"]) else "未扫描留痕"),
+            ("机构覆盖", str(item["expectations"].get("coverage", "—")) + " 家"),
+            ("最近到期", _due(card) or "未定"),
+        ]
+        kv = "".join(f'<div class="kv"><span class="k">{_esc(k)}</span>'
+                     f'<span>{_esc(v)}</span></div>' for k, v in rows)
+        head = (_esc(card.name) + _status_badge(card.status)
+                + (f' <span class="badge down">{item["blocks"]} 项阻塞</span>'
+                   if item["blocks"] else ""))
+        notes.append(f'<div class="note"><div class="cover" style="margin:0 0 10px">'
+                     f'<h2 style="font-size:16px">{head}</h2>'
+                     f'<p class="sub">{_esc(card.market)} {_esc(card.code)} · '
+                     f'{_esc(card.derived_level())} · 更新 {_esc(card.updated or card.created or "")}</p></div>'
+                     + kv + '<div class="actions" aria-hidden="true"><span>❤️</span>'
+                       '<span>⭐</span><span>💬</span></div></div>')
+    return f'<div class="feed">{"".join(notes)}</div>'
+
+
+def _desk_table(summaries: list[dict]) -> str:
+    """研究台视图：一张表看全部卡片，桌面密度、移动端横向滚动。"""
+    head = ("标的", "状态", "共振", "单季净利润", "经营现金流", "盯的价格",
+            "红旗", "覆盖", "最近到期", "阻塞")
+    body = []
+    for item in summaries:
+        card: Card = item["card"]
+        resonance = item["resonance"]
+        quarters = item["quarters"]
+        momentum = item["momentum"]
+        profit = (f'<span class="mono">{quarters[-1][1] / 1e8:.2f} 亿'
+                  f'<span class="muted"> ← {quarters[0][1] / 1e8:.2f}</span></span>'
+                  f' {momentum}') if quarters else "—"
+        red = (f'风险 {item["risk_count"]} · 高危治理 {item["high_flags"]}'
+               if (item["risk_count"] or item["high_flags"]) else
+               '<span class="muted">未留痕</span>')
+        body.append(
+            "<tr>"
+            f'<td><b>{_esc(card.name)}</b><br><span class="muted mono">{_esc(card.market)} '
+            f'{_esc(card.code)} · {_esc(card.derived_level())}</span></td>'
+            f"<td>{_status_badge(card.status)}</td>"
+            f'<td>{_esc(resonance.get("verdict", "—"))}'
+            + (f'<br><span class="muted">{_esc(resonance["industry"])}</span>'
+               if resonance.get("industry") else "") + "</td>"
+            f"<td>{profit}</td>"
+            f'<td class="mono">{_esc(item["capital"].get("operating_cf_label", "—"))}</td>'
+            f'<td class="mono">{_esc(_watch_line(card))}</td>'
+            f"<td>{red}</td>"
+            f'<td class="mono">{_esc(item["expectations"].get("coverage", "—"))}</td>'
+            f'<td class="mono">{_esc(_due(card) or "未定")}</td>'
+            + (f'<td class="pos">{item["blocks"]}</td>' if item["blocks"]
+               else '<td class="muted">0</td>')
+            + "</tr>")
+    return ('<div class="desk-wrap"><table class="desk">'
+            "<caption>全部研究卡片（观察/持仓在前，降级在后）</caption>"
+            + "<thead><tr>" + "".join(f"<th>{h}</th>" for h in head) + "</tr></thead>"
+            + "<tbody>" + "".join(body) + "</tbody></table></div>")
+
+
+_JS = """
+(function () {
+  var root = document.getElementById("xhs-root");
+  if (!root) return;
+  root.querySelectorAll("[data-view-btn]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      root.dataset.view = btn.getAttribute("data-view-btn");
+      root.querySelectorAll("[data-view-btn]").forEach(function (b) {
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+    });
+  });
+  var exportBtn = root.querySelector("[data-export-xhs]");
+  if (exportBtn) exportBtn.addEventListener("click", function () {
+    var view = root.querySelector(".view-xhs");
+    var style = root.querySelector("style") ? root.querySelector("style").outerHTML : "";
+    var doc = "<!doctype html>\\n<html lang=\\"zh-CN\\">\\n<head>\\n<meta charset=\\"utf-8\\">"
+      + "<meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1\\">"
+      + "<title>小红书笔记导出</title>"
+      + "<style>body{margin:0;padding:16px 10px;background:#f5f5f7;}</style>\\n</head>\\n<body>\\n"
+      + "<div id=\\"xhs-root\\" data-view=\\"xhs\\">" + style
+      + '<div class="view-xhs" style="display:block">' + view.innerHTML + "</div></div>"
+      + "\\n</body>\\n</html>";
+    try {
+      var blob = new Blob([doc], { type: "text/html" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "xhs-notebook-" + new Date().toISOString().slice(0, 10) + ".html";
+      document.body.appendChild(a); a.click(); a.remove();
+      exportBtn.textContent = "已导出 ✓";
+    } catch (err) {
+      exportBtn.textContent = "导出失败：请在浏览器独立打开本页后重试";
+    }
+  });
+})();
+"""
+
+
 def notebook_fragment(cards: list[Card]) -> str:
-    """全部卡片 → 一页信息流汇总。观察/持仓在前，降级/淘汰在后。"""
+    """全部卡片 → 汇总页。默认研究台视图（正常渲染），可切小红书笔记视图并导出。"""
     order = {"持仓研究": 0, "观察": 1, "降级": 2, "淘汰": 3}
     ranked = sorted(cards, key=lambda c: (order.get(c.status, 9), c.code))
     active = [c for c in ranked if c.status in ("观察", "持仓研究")]
@@ -413,52 +578,25 @@ def notebook_fragment(cards: list[Card]) -> str:
                                     f"（{_esc(regime.get('day', ''))}）")
                 break
     regime_state = " ｜ ".join(regime_parts)
+    summaries = [_card_summary(card) for card in ranked]
 
-    notes = []
-    for card in ranked:
-        resonance = card.industry_context or {}
-        quarters = quarterly(card.financials, "净利润") if card.financials.metrics else []
-        scans = card.scans or {}
-        high_flags = len([g for g in (scans.get("governance") or [])
-                          if g.get("severity") == "高"])
-        risk_count = len(scans.get("risks") or [])
-        capital = card.capital or {}
-        expectations = card.expectations or {}
-        momentum = ""
-        if len(quarters) >= 2:
-            momentum = "逐季↓" if quarters[-1][1] < quarters[0][1] else (
-                "逐季↑" if quarters[-1][1] > quarters[0][1] else "持平")
-        rows = [
-            ("共振", f"{resonance.get('verdict', '—')}" + (f"·{resonance.get('industry', '')}"
-                                                             if resonance.get("industry") else "")),
-            ("单季利润", (f"{momentum}（{quarters[0][0]} {quarters[0][1] / 1e8:.2f} 亿 → "
-                          f"{quarters[-1][0]} {quarters[-1][1] / 1e8:.2f} 亿）") if quarters else "—"),
-            ("经营现金流", capital.get("operating_cf_label", "—")),
-            ("盯价", _watch_line(card)),
-            ("红旗", f"风险公告 {risk_count} 条 · 高severity治理 {high_flags} 条"
-                     if (risk_count or high_flags) else "未扫描留痕"),
-            ("机构覆盖", str(expectations.get("coverage", "—")) + " 家"),
-            ("最近到期", _due(card) or "未定"),
-        ]
-        kv = "".join(f'<div class="kv"><span class="k">{_esc(k)}</span>'
-                     f'<span>{_esc(v)}</span></div>' for k, v in rows)
-        blocks = len(blocking(validate(card)))
-        head = (_esc(card.name) + _status_badge(card.status)
-                + (f' <span class="badge down">{blocks} 项阻塞</span>' if blocks else ""))
-        notes.append(f'<div class="note"><div class="cover" style="margin:0 0 10px">'
-                     f'<h2 style="font-size:16px">{head}</h2>'
-                     f'<p class="sub">{_esc(card.market)} {_esc(card.code)} · '
-                     f'{_esc(card.derived_level())} · 更新 {_esc(card.updated or card.created or "")}</p></div>'
-                     + kv + '<div class="actions" aria-hidden="true"><span>❤️</span>'
-                       '<span>⭐</span><span>💬</span></div></div>')
-    return (f'<div id="xhs-root"><style>{_CSS}</style>'
-            f'<div class="nb-head"><div class="title">小资金研究台 · 观察池信息流</div>'
+    return (f'<div id="xhs-root" data-view="desk"><style>{_CSS}</style>'
+            f'<div class="nb-head"><div class="title">小资金研究台</div>'
             f'<div class="sub">在册 {len(ranked)} 张 · 活跃 {len(active)} 张 · '
             f'{_esc(regime_state)}</div></div>'
             f'<div class="nb-stats">{chips}</div>'
-            f'<div class="feed">{"".join(notes)}</div>'
+            '<div class="toolbar">'
+            '<div class="seg" role="group" aria-label="视图切换">'
+            '<button type="button" data-view-btn="desk" aria-pressed="true">研究台</button>'
+            '<button type="button" data-view-btn="xhs" aria-pressed="false">小红书笔记</button>'
+            "</div>"
+            '<button type="button" class="export" data-export-xhs>导出小红书笔记 HTML</button>'
+            "</div>"
+            f'<div class="view-desk">{_desk_table(summaries)}</div>'
+            f'<div class="view-xhs">{_xhs_feed(summaries)}</div>'
             f'<p class="legal">研究工具输出，非投资建议 · 数据：巨潮/同花顺/东财 · '
-            f'生成于 {date.today().isoformat()}</p></div>')
+            f'生成于 {date.today().isoformat()}</p>'
+            f"<script>{_JS}</script></div>")
 
 
 def save_document(fragment: str, path: Path, title: str) -> Path:
