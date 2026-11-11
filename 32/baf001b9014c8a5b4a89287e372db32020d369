@@ -1,0 +1,16 @@
+cards/notes/index.html
+  h_69a2bad0f475d9 10,81-148
+research/note.py
+  h_69a2bad0f475d9 175-206,427-559,561,581,583-584,588-596,598-599
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "32baf001b9014c8a5b4a89287e372db32020d369",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
