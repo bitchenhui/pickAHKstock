@@ -28,10 +28,12 @@ def snapshot(price: float) -> Snapshot:
 class CheckTests(unittest.TestCase):
     def _run(self, cards, strength=None, commodity_stats=None):
         """统一打桩：快照价格 10.5（不触失效线），按需注入强度/盯价。"""
-        from research import commodity, execution
+        from research import backtest, commodity, execution
 
         patches = [unittest.mock.patch.object(sentinel, "fetch_snapshots",
-                                              lambda codes: {"600001": snapshot(10.5)})]
+                                              lambda codes: {"600001": snapshot(10.5)}),
+                   unittest.mock.patch.object(backtest, "prefetch_prices",
+                                              lambda *args, **kwargs: 0)]
         if strength is not None:
             patches.append(unittest.mock.patch.object(
                 execution, "relative_strength",
@@ -50,8 +52,12 @@ class CheckTests(unittest.TestCase):
             return sentinel.check_cards(cards)
 
     def test_stop_reference_triggers(self):
+        from research import backtest
+
         with unittest.mock.patch.object(sentinel, "fetch_snapshots",
-                                        lambda codes: {"600001": snapshot(8.8)}):
+                                        lambda codes: {"600001": snapshot(8.8)}), \
+             unittest.mock.patch.object(backtest, "prefetch_prices",
+                                        lambda *args, **kwargs: 0):
             alerts, checked = sentinel.check_cards([card()])
         self.assertEqual(checked, 1)
         self.assertEqual(len(alerts), 1)

@@ -18,7 +18,7 @@ on:
 jobs:
   sentinel:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25    # 冷缓存取价慢，留足余量；数据缓存热了以后每轮几分钟
     steps:
       - uses: actions/checkout@v4
 

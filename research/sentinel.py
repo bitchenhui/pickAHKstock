@@ -49,11 +49,19 @@ class Alert:
 
 def check_cards(cards: list[Card]) -> tuple[list[Alert], int]:
     """对照触发器检查全部卡片。返回 (alerts, 检查张数)。"""
+    from datetime import timedelta
+
+    from .backtest import prefetch_prices
     from .commodity import changes as commodity_changes
     from .commodity import series as commodity_series
     from .execution import relative_strength
 
     today = date.today().isoformat()
+    # CI 冷缓存时逐只串行取价会拖垮整轮检查：先并行预取全部日线
+    # （load_prices 有落盘缓存，预取后逐卡计算秒回；本地热缓存无感）
+    if cards:
+        prefetch_prices([c.code for c in cards],
+                        date.today() - timedelta(days=170), date.today(), workers=6)
     watch_codes = [(c.market, c.code) for c in cards]
     snapshots = fetch_snapshots(watch_codes) if watch_codes else {}
     alerts: list[Alert] = []
