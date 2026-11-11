@@ -697,20 +697,53 @@
   },
   "capital": {
     "code": "002044",
-    "periods": [],
-    "capex": [],
-    "operating_cf": [],
-    "construction": [],
-    "fixed_assets": [],
-    "source": "同花顺 F10 现金流量表与资产负债表",
-    "notes": [
-      "同花顺 F10 debt 获取失败 002044：502 Server Error: Bad Gateway for url: https://basic.10jqka.com.cn/api/stock/finance/002044_debt.json"
+    "periods": [
+      "2026-09-30",
+      "2026-06-30",
+      "2026-03-31",
+      "2025-12-31",
+      "2025-09-30",
+      "2025-06-30"
     ],
-    "capex_label": "—",
-    "operating_cf_label": "—",
-    "fcf_label": "—",
-    "construction_label": "—",
-    "fixed_assets_label": "—"
+    "capex": [
+      "4.13亿",
+      "2.30亿",
+      "1.03亿",
+      "4.19亿",
+      "3.36亿",
+      "2.40亿"
+    ],
+    "operating_cf": [
+      "-1.25亿",
+      "-4.29亿",
+      "-4.98亿",
+      "18.00亿",
+      "-1.82亿",
+      "-4.22亿"
+    ],
+    "construction": [
+      "8923.10万",
+      "1.02亿",
+      "7748.16万",
+      "8181.76万",
+      "1.03亿",
+      "1.05亿"
+    ],
+    "fixed_assets": [
+      "14.71亿",
+      "14.73亿",
+      "15.38亿",
+      "16.10亿",
+      "16.74亿",
+      "17.46亿"
+    ],
+    "source": "同花顺 F10 现金流量表与资产负债表",
+    "notes": [],
+    "capex_label": "+4.13 亿",
+    "operating_cf_label": "-1.25 亿",
+    "fcf_label": "-5.38 亿",
+    "construction_label": "8923.10万",
+    "fixed_assets_label": "14.71亿"
   },
   "peers": {
     "code": "002044",

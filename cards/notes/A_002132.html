@@ -3,15 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f5f7">
 <title>恒星科技（A 002132）研究笔记</title>
-<style>body{margin:0;padding:16px 10px;background:#f5f5f7;}</style>
+<style>body{margin:0;padding:16px 10px;background:#f5f5f7;}@media (max-width:760px){body{padding:10px 8px;}}</style>
 </head>
 <body>
 <div id="xhs-root"><style>
-  :host, #xhs-root { max-width: 440px; margin: 0 auto; }
+  #xhs-root { max-width: 440px; margin: 0 auto; }
+  /* 研究台视图要放一张宽表：容器宽度随视图切换，xhs 视图保持窄屏卡片 */
+  #xhs-root[data-view="desk"] { max-width: 1080px; }
   #xhs-root { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI",
               "Microsoft YaHei", sans-serif; color: #333; line-height: 1.55;
-              -webkit-font-smoothing: antialiased; }
+              -webkit-font-smoothing: antialiased;
+              -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+              color-scheme: light; }
+  #xhs-root .legal, #xhs-root .tags, #xhs-root .kv span,
+  #xhs-root table.desk td, #xhs-root .sub { overflow-wrap: anywhere; }
   #xhs-root .feed { display: flex; flex-direction: column; gap: 12px; }
   #xhs-root .note { background: #fff; border-radius: 14px; padding: 18px 16px 12px;
                     box-shadow: 0 1px 3px rgba(0,0,0,.05); }
@@ -88,28 +96,48 @@
                                    cursor: pointer; }
   #xhs-root .toolbar .seg button[aria-pressed="true"] { background: #1f1f1f; color: #fff; }
   #xhs-root .toolbar .export { border: 0; background: #fff; color: #ff2442; font-size: 13px;
-                               padding: 8px 16px; border-radius: 999px; cursor: pointer;
+                               padding: 6px 16px; border-radius: 999px; cursor: pointer;
                                box-shadow: 0 1px 3px rgba(0,0,0,.05); font-weight: 600; }
   #xhs-root .view-desk, #xhs-root .view-xhs { display: none; }
   #xhs-root[data-view="desk"] .view-desk { display: block; }
   #xhs-root[data-view="xhs"] .view-xhs { display: block; }
-  /* —— 研究台（正常渲染）视图：表格优先，中性配色 —— */
+  /* —— 研究台（正常渲染）视图：桌面表格，移动端卡片化 —— */
+  #xhs-root .desk-title { font-size: 14px; font-weight: 700; color: #1f1f1f;
+                          padding: 2px 2px 8px; }
+  #xhs-root .desk-card { background: #fff; border-radius: 12px; overflow: hidden;
+                         box-shadow: 0 1px 3px rgba(0,0,0,.05); }
   #xhs-root .desk-wrap { overflow-x: auto; }
-  #xhs-root table.desk { width: 100%; border-collapse: collapse; background: #fff;
-                         border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05);
-                         font-size: 13px; min-width: 880px; }
-  #xhs-root table.desk caption { text-align: left; padding: 12px 14px 4px; font-weight: 700;
-                                 color: #1f1f1f; font-size: 14px; }
-  #xhs-root table.desk th { text-align: left; padding: 10px 10px; background: #fafafa;
-                            color: #666; font-weight: 600; border-bottom: 1px solid #eee;
+  #xhs-root table.desk { width: 100%; border-collapse: collapse; font-size: 13px;
+                         min-width: 860px; }
+  #xhs-root table.desk th { text-align: left; padding: 10px 10px; background: #f5f5f7;
+                            color: #666; font-weight: 600; border-bottom: 1px solid #e4e4e8;
                             white-space: nowrap; }
   #xhs-root table.desk td { padding: 9px 10px; border-bottom: 1px solid #f4f4f6;
                             vertical-align: top; }
+  #xhs-root table.desk td.w-limit { max-width: 250px; }
   #xhs-root table.desk tr:last-child td { border-bottom: none; }
   #xhs-root .mono { font-variant-numeric: tabular-nums; }
   #xhs-root .muted { color: #999; }
   #xhs-root .pos { color: #c4322f; }
   #xhs-root .neg { color: #1a7f37; }
+  @media (max-width: 760px) {
+    /* 10 列表格在手机上没法读：每行转成卡片，列名由 data-label 提供 */
+    #xhs-root .desk-card { background: transparent; box-shadow: none; overflow: visible; }
+    #xhs-root table.desk, #xhs-root table.desk tbody, #xhs-root table.desk tr,
+    #xhs-root table.desk td { display: block; width: 100%; min-width: 0; }
+    #xhs-root table.desk { overflow: hidden; }   /* collapse 边框在 block 表格上的幽灵宽度 */
+    #xhs-root .desk-wrap { overflow-x: visible; }
+    #xhs-root table.desk thead { display: none; }
+    #xhs-root table.desk td.w-limit { max-width: none; }
+    #xhs-root table.desk tr { background: #fff; border-radius: 12px; padding: 6px 2px;
+                              margin-bottom: 10px;
+                              box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    #xhs-root table.desk td { border-bottom: 1px solid #f4f4f6; padding: 7px 14px; }
+    #xhs-root table.desk tr:last-child td { border-bottom: none; }
+    #xhs-root table.desk td[data-label]::before { content: attr(data-label) "：";
+                                                  color: #999; margin-right: 6px; }
+    #xhs-root table.desk td:first-child { padding-bottom: 2px; }
+  }
 </style><div class="note" id="note-A-002132"><div class="author"><div class="avatar" aria-hidden="true">研</div><div><div class="who">恒星科技（A 002132）</div><div class="meta">小资金研究台 · 降级池 · 更新 2026-11-11</div></div></div><div class="cover"><h2>恒星科技<span class="badge down">降级</span><br>单季利润<span class="hl">逐季减少</span>，先看再说话</h2><p class="sub">A 002132 ｜ 结论等级 证据充分｜ 最近到期 2026-10-30（已过期）</p></div><p class="tags">#A #002132 #通用设备 #介于两者之间 #降级</p><section><h3>1️⃣ 事件</h3><p class="fact">前三季度归母净利润 3200–4800 万元（同比 +58.87%~138.31%），扣非 2400–3600 万元（上年同期亏损 504.07 万元）</p><p class="fact">出处：巨潮资讯 / 恒星科技公告 2026037 号 · 2026-10-15 · <b>已核实</b></p></section><section><h3>2️⃣ 单季拆解：逐季减少</h3><div class="meter" role="img" aria-label="单季净利润：2026Q1 0.57 亿、2026Q2 0.27 亿、2026Q3 -0.44 亿"><div class="row"><span class="q">2026Q1</span><span class="track"><span class="bar" style="width:100%"></span></span><span class="v">0.57 亿</span></div><div class="row"><span class="q">2026Q2</span><span class="track"><span class="bar dim" style="width:48%"></span></span><span class="v">0.27 亿</span></div><div class="row"><span class="q">2026Q3</span><span class="track"><span class="bar dim2 neg" style="width:77%"></span></span><span class="v">-0.44 亿</span></div></div><p class="fact">销售毛利率（累计口径，近三期）：9.52% → 12.24% → 12.61%</p><p class="derived">单季值由累计披露相减推算，需回定期报告原文核对</p></section><section><h3>3️⃣ 行业还是公司</h3><p class="fact">行业：<b>通用设备</b> ｜ 同行业 3 家发预告，同向 2 家（同向率 67%）</p><div class="quote">判定：<b>介于两者之间</b>。共振高=行业给的；行业反转时会一起跌</div></section><section><h3>4️⃣ 利润之外的第三只眼</h3><p class="fact">经营现金流 +7.62 亿 ｜ 自由现金流 +7.47 亿 ｜ 资本开支 +0.15 亿</p><p class="fact">在建工程 7855.25万 ｜ 固定资产 43.09亿</p></section><section><h3>💰 盯的价格（行业给的就要盯行业）</h3><div class="kv"><span class="k">工业硅（有机硅 DMC 上游代理）</span><span><b>9540.0</b>（2026-11-11）｜30日 +0.8%｜一年 -1.3%｜一年区间位置 52%｜<span aria-hidden="true">▄▄▄▄▄▄▄▄▄▄</span></span></div><p class="derived">来源：akshare futures_spot_price_daily（期货品种对应现货价）；代理关系见名称标注</p></section><section><h3>🚩 红旗与留痕</h3><ul class="flags"><li><span class="m">⚠️</span><span>[资产质量] 2026-10-22 公司关于2026年前三季度计提资产减值准备的公告</span></li><li><span class="m">⚠️</span><span>[资产质量] 2026-08-27 公司关于2026年半年度计提资产减值准备的公告</span></li><li><span class="m">⚠️</span><span>[治理变动] 2026-08-27 公司关于副总经理辞职的公告</span></li><li><span class="m">⚠️</span><span>[账户与偿债] 2026-08-27 非经营性资金占用及其他关联资金往来情况汇总表</span></li><li><span class="m">⚠️</span><span>[股权质押] 2026-06-11 公司关于控股股东办理股票质押展期的公告</span></li><li><span class="m">⚠️</span><span>担保：统计区间 2025-11-11---2026-11-11：2 次，金额 360000.0（万元），占归母净资产 103.44%</span></li><li><span class="m">·</span><span>股东户数：20260930 股东 72702.0 户，上期 72959 户，增减 -0.35%；人均持股 19278.0 股</span></li></ul><p class="derived">扫描截至 2026-11-11；每条都要回原文确认（关键词会误报）</p></section><section><h3>👤 第三方预期</h3><p class="fact">覆盖机构 <b>0</b> 家 ｜ 最新评级 — ｜ 目标价 —</p><p class="fact">⚠ 无机构覆盖：缺第三方预期这条证据，需自行补</p></section><p class="discipline">仓位纪律：小仓多注（20 只 × 5%）；市场状态<b>下行</b>（2026-11-11，沪深300 4075.71）：此类票仓位按 0.5× 折算</p><div class="actions" aria-hidden="true"><span>❤️ 点赞</span><span>⭐ 收藏</span><span>💬 评论</span></div><p class="legal">研究工具输出，非投资建议 · 数据：巨潮/同花顺/东财 · 截至 2026-11-11</p></div></div>
 </body>
 </html>
