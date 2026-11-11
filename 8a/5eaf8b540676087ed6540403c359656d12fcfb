@@ -1,0 +1,22 @@
+cards/A_000626.json
+  h_69a2bad0f475d9 537,748,1000-1005
+cards/A_002132.json
+  h_69a2bad0f475d9 524,817,1020-1025
+research/cli.py
+  h_69a2bad0f475d9 733,740-746,750,755-756
+research/sentinel.py
+  h_69a2bad0f475d9 25,36-39,49,85-86,110-111,123-125,130-131,282-309
+tests/test_sentinel.py
+  h_69a2bad0f475d9 141-176
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a5eaf8b540676087ed6540403c359656d12fcfb",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
