@@ -1,0 +1,22 @@
+cards/notes/index.html
+  h_69a2bad0f475d9 50-64,110-111,248
+research/note.py
+  h_69a2bad0f475d9 20,143-157,203-204,754-780,816
+research/sentinel.py
+  h_69a2bad0f475d9 62-96,131-136
+research/shortlist.py
+  h_69a2bad0f475d9 1-136
+tests/test_shortlist.py
+  h_69a2bad0f475d9 1-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f85489cc78e0d65a08213b42b2e6f138fa014267",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
