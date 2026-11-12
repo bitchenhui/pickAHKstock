@@ -247,30 +247,30 @@
     "对外担保出现代偿，或担保余额超过归母净资产 50%"
   ],
   "market_context": {
-    "close": 134.57,
-    "atr": 9.8714,
-    "atr_pct": 7.34,
-    "stop_reference": 114.827,
+    "close": 133.61,
+    "atr": 9.9064,
+    "atr_pct": 7.41,
+    "stop_reference": 113.797,
     "bars": 449,
     "bars_as_of": "2026-11-11",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_603991/01/2026.js",
     "market_regime": {
-      "day": "2026-11-11",
-      "close": 4075.71,
-      "ma60": 4373.688333333333,
-      "change_20d": -0.03366068549534351,
+      "day": "2026-11-12",
+      "close": 4080.14,
+      "ma60": 4363.508666666666,
+      "change_20d": -0.02061204845883724,
       "state": "下行",
-      "note": "沪深300 4076，低于60 日均线 4374，20 日 -3.4%",
+      "note": "沪深300 4080，低于60 日均线 4364，20 日 -2.1%",
       "index": "沪深300",
       "caveat": ""
     },
     "industry": "半导体",
-    "price": 133.61,
-    "turnover": 519850000.0,
-    "market_cap": 20404000000.0,
-    "pe": 63.81,
-    "pb": 5.43,
-    "as_of": "20261111161450"
+    "price": 134.25,
+    "turnover": 204460000.0,
+    "market_cap": 20501000000.0,
+    "pe": 64.11,
+    "pb": 5.45,
+    "as_of": "20261112113329"
   },
   "financials": {
     "path": "已盈利",
@@ -605,7 +605,7 @@
     "path_evidence": [],
     "notes": [
       "数据已于 2026-10-28 取自同花顺 F10 财务主表",
-      "财务序列已于 2026-11-11 取自 https://basic.10jqka.com.cn/api/stock/finance/603991_main.json"
+      "财务序列已于 2026-11-12 取自 https://basic.10jqka.com.cn/api/stock/finance/603991_main.json"
     ]
   },
   "catalysts": [
@@ -842,8 +842,28 @@
     "source": "申万二级行业成分股 + 东方财富业绩预告"
   },
   "commodities": {},
+  "execution": {
+    "as_of": "2026-11-12",
+    "stake": null,
+    "liquidity": {
+      "avg_turnover": 33921162133.45,
+      "stake": null,
+      "level": "未评估",
+      "note": "20 日均成交额 339.21 亿；规则：单笔不超过其 5%"
+    },
+    "strength": {
+      "window": 60,
+      "stock_return": 0.5,
+      "index_return": -12.5,
+      "rs": 13.0,
+      "as_of": "2026-11-11",
+      "note": "跑赢大盘（60 日，前复权）"
+    }
+  },
+  "plain": {},
+  "debate": {},
   "scans": {
-    "as_of": "2026-11-11",
+    "as_of": "2026-11-12",
     "days": 240,
     "risks": [
       {
@@ -961,34 +981,10 @@
       {
         "code": "603991",
         "name": "领先股份",
-        "title": "华泰联合证券有限责任公司关于重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之标的资产减值测试情况的核查意见",
-        "published": "2026-04-23",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164752.PDF",
-        "category": "重组变更"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
-        "title": "2025年度内部控制审计报告",
-        "published": "2026-04-23",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164738.PDF",
-        "category": "审计意见"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
         "title": "关于会计政策变更的公告",
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164706.PDF",
         "category": "重组变更"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
-        "title": "2025年度董事会审计委员会履职情况报告",
-        "published": "2026-04-23",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164703.PDF",
-        "category": "审计意见"
       },
       {
         "code": "603991",
@@ -1021,6 +1017,30 @@
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164669.PDF",
         "category": "资产质量"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于变更投资者联系电话及传真的公告",
+        "published": "2026-04-17",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-18/1225115055.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于控股股东一致行动人部分股份质押的公告",
+        "published": "2026-04-16",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-17/1225109518.PDF",
+        "category": "股权质押"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于公司副总裁离任及董事长代行董事会秘书职责的公告",
+        "published": "2026-03-31",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-01/1225065678.PDF",
+        "category": "治理变动"
       }
     ],
     "governance": [
@@ -1033,8 +1053,8 @@
       },
       {
         "category": "担保",
-        "detail": "统计区间 2025-11-11---2026-11-11：5 次，金额 271200.0（万元），占归母净资产 72.15%",
-        "date": "2026-11-11",
+        "detail": "统计区间 2025-11-12---2026-11-12：5 次，金额 271200.0（万元），占归母净资产 72.15%",
+        "date": "2026-11-12",
         "severity": "高",
         "source": "巨潮资讯 担保统计"
       }
@@ -1155,6 +1175,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-11-11",
+  "updated": "2026-11-12",
   "derived_level": "证据充分"
 }

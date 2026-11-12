@@ -162,22 +162,22 @@
     "bars_as_of": "2026-11-11",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_002132/01/2026.js",
     "market_regime": {
-      "day": "2026-11-11",
-      "close": 4075.71,
-      "ma60": 4373.688333333333,
-      "change_20d": -0.03366068549534351,
+      "day": "2026-11-12",
+      "close": 4080.14,
+      "ma60": 4363.508666666666,
+      "change_20d": -0.02061204845883724,
       "state": "下行",
-      "note": "沪深300 4076，低于60 日均线 4374，20 日 -3.4%",
+      "note": "沪深300 4080，低于60 日均线 4364，20 日 -2.1%",
       "index": "沪深300",
       "caveat": ""
     },
     "industry": "通用设备",
-    "price": 3.46,
-    "turnover": 71690000.0,
-    "market_cap": 4849000000.0,
-    "pe": 124.86,
+    "price": 3.44,
+    "turnover": 32110000.0,
+    "market_cap": 4821000000.0,
+    "pe": 124.14,
     "pb": 1.39,
-    "as_of": "20261111161500"
+    "as_of": "20261112113230"
   },
   "financials": {
     "path": "已盈利",
@@ -512,7 +512,7 @@
     "path_evidence": [],
     "notes": [
       "数据已于 2026-10-28 取自同花顺 F10 财务主表",
-      "财务序列已于 2026-11-11 取自 https://basic.10jqka.com.cn/api/stock/finance/002132_main.json"
+      "财务序列已于 2026-11-12 取自 https://basic.10jqka.com.cn/api/stock/finance/002132_main.json"
     ]
   },
   "catalysts": [
@@ -744,7 +744,7 @@
     "source": "申万二级行业成分股 + 东方财富业绩预告"
   },
   "commodities": {
-    "as_of": "2026-11-11",
+    "as_of": "2026-11-12",
     "source": "akshare futures_spot_price_daily（期货品种对应现货价）",
     "items": {
       "SI": {
@@ -814,9 +814,28 @@
       }
     }
   },
-  "execution": {},
+  "execution": {
+    "as_of": "2026-11-12",
+    "stake": null,
+    "liquidity": {
+      "avg_turnover": 10543971719.05,
+      "stake": null,
+      "level": "未评估",
+      "note": "20 日均成交额 105.44 亿；规则：单笔不超过其 5%"
+    },
+    "strength": {
+      "window": 60,
+      "stock_return": -18.6,
+      "index_return": -12.5,
+      "rs": -6.1,
+      "as_of": "2026-11-11",
+      "note": "跑输大盘（60 日，前复权）"
+    }
+  },
+  "plain": {},
+  "debate": {},
   "scans": {
-    "as_of": "2026-11-11",
+    "as_of": "2026-11-12",
     "days": 240,
     "risks": [
       {
@@ -918,8 +937,8 @@
       },
       {
         "category": "担保",
-        "detail": "统计区间 2025-11-11---2026-11-11：2 次，金额 360000.0（万元），占归母净资产 103.44%",
-        "date": "2026-11-11",
+        "detail": "统计区间 2025-11-12---2026-11-12：2 次，金额 360000.0（万元），占归母净资产 103.44%",
+        "date": "2026-11-12",
         "severity": "高",
         "source": "巨潮资讯 担保统计"
       }
@@ -1026,6 +1045,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-11-11",
+  "updated": "2026-11-12",
   "derived_level": "证据充分"
 }
