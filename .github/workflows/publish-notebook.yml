@@ -68,9 +68,9 @@ jobs:
         run: |
           # A 股新候选：从最新报告期的 odds 筛选中，取结构条件通过且没有已有卡的
           python -m research.cli odds --period 2026-09-30 --limit 10 2>/dev/null | \
-            grep -oE "^[A-Za-z]+ [0-9]{6} " | while read market code _; do
-              [ -f "cards/${market}_${code}.json" ] && continue
-              echo "== 新候选立项 $market $code"
+            grep -oE "[0-9]{6}" | head -10 | while read code; do
+              [ -f "cards/A_${code}.json" ] && continue
+              echo "== 新候选立项 A $code"
               timeout 300 python -m research.cli new --codes "$code" 2>/dev/null || true
             done
           # 港股新候选：最近 60 天的盈警/盈喜

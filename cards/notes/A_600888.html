@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f5f7">
+<title>新疆众和（A 600888）研究笔记</title>
+<style>body{margin:0;padding:16px 10px;background:#f5f5f7;}@media (max-width:760px){body{padding:10px 8px;}}</style>
+</head>
+<body>
+<div id="xhs-root"><style>
+  #xhs-root { max-width: 440px; margin: 0 auto; }
+  /* 研究台视图：宽容器 + 深色金融终端风；xhs 视图保持浅色窄卡（导出格式） */
+  #xhs-root[data-view="desk"] { max-width: 1280px; }
+  #xhs-root { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI",
+              "Microsoft YaHei", sans-serif; color: #333; line-height: 1.55;
+              -webkit-font-smoothing: antialiased;
+              -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+              color-scheme: light; }
+  #xhs-root .legal, #xhs-root .tags, #xhs-root .kv span,
+  #xhs-root table.desk td, #xhs-root .sub { overflow-wrap: anywhere; }
+
+  /* ============ 研究台 · 绯红终端主题（暖黑底+绛红交互，涨跌红绿保持最亮） ============ */
+  #xhs-root[data-view="desk"] { color: #ece7e9; }
+  #xhs-root[data-view="desk"] .desk-shell { background:
+      radial-gradient(1200px 500px at 20% -10%, rgba(224,82,82,.14), transparent 60%),
+      radial-gradient(900px 420px at 90% 0%, rgba(255,255,255,.03), transparent 55%),
+      #150f11; border: 1px solid rgba(255,255,255,.07); border-radius: 16px;
+      padding: 22px clamp(14px, 2.5vw, 30px) 26px; margin-top: 14px; }
+  #xhs-root[data-view="desk"] .desk-topline { display: flex; justify-content: space-between;
+      align-items: baseline; flex-wrap: wrap; gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,.08); padding-bottom: 14px; }
+  #xhs-root[data-view="desk"] .desk-brand { font-size: 20px; font-weight: 700; color: #f7f2f4;
+      letter-spacing: .5px; }
+  #xhs-root[data-view="desk"] .desk-brand::after { content: ""; display: block;
+      width: 30px; height: 3px; background: #e05252; margin-top: 8px; }
+  #xhs-root[data-view="desk"] .desk-brand small { display: block; font-size: 10.5px;
+      font-weight: 500; color: #a8a0a4; letter-spacing: 2.5px; margin-top: 2px; }
+  #xhs-root[data-view="desk"] .desk-status { font-family: ui-monospace, SFMono-Regular, Menlo,
+      monospace; font-size: 11.5px; color: #a89aa0; letter-spacing: .3px; text-align: right; }
+  #xhs-root[data-view="desk"] .desk-status b { color: #f7f2f4; font-weight: 600; }
+  #xhs-root[data-view="desk"] .desk-status .up { color: #ff6b6b; }
+  #xhs-root[data-view="desk"] .desk-status .down-t { color: #3fd6a4; }
+  #xhs-root[data-view="desk"] .desk-title { font-size: 13px; font-weight: 600; color: #9fb2d0;
+      padding: 16px 2px 8px; letter-spacing: 1px; }
+  #xhs-root[data-view="desk"] .desk-card, #xhs-root[data-view="desk"] .desk-promo {
+      background: #1a1315; border: 1px solid rgba(255,255,255,.07); border-radius: 12px;
+      overflow: hidden; }
+  #xhs-root[data-view="desk"] .desk-shortlist { background: #1a1315;
+      border: 1px solid rgba(224,82,82,.5); border-radius: 12px;
+      margin-bottom: 14px; padding: 14px 16px; }
+  #xhs-root[data-view="desk"] .desk-shortlist h4 { margin: 0 0 4px; font-size: 14px;
+      color: #e05252; letter-spacing: 1px; font-weight: 700; }
+  #xhs-root[data-view="desk"] .sl-row { display: flex; gap: 10px; align-items: flex-start;
+      padding: 10px 0; border-top: 1px dashed rgba(224,82,82,.25); }
+  #xhs-root[data-view="desk"] .sl-row:first-of-type { border-top: 0; margin-top: 6px; }
+  #xhs-root[data-view="desk"] .sl-rank { font-size: 20px; font-weight: 800; color: #e05252;
+      min-width: 28px; text-align: center; flex: none; line-height: 1.2; }
+  #xhs-root[data-view="desk"] .sl-info { flex: 0 0 260px; }
+  #xhs-root[data-view="desk"] .sl-info b { color: #f7f2f4; font-size: 15px; }
+  #xhs-root[data-view="desk"] .sl-info .muted { font-size: 11px; }
+  #xhs-root[data-view="desk"] .sl-why { flex: 1; font-size: 12.5px; color: #a8b8d4;
+      line-height: 1.5; }
+  #xhs-root[data-view="desk"] .desk-promo { border-color: rgba(224,82,82,.45);
+      background: #1a1315; border-top: 2px solid #e05252;
+      margin-bottom: 16px; padding: 14px 16px; }
+  #xhs-root[data-view="desk"] .desk-promo h4 { margin: 0 0 4px; font-size: 13px;
+      color: #ece7e9; letter-spacing: 1.5px; font-weight: 700; }
+  #xhs-root[data-view="desk"] .desk-promo .promo-row { display: flex; gap: 14px;
+      flex-wrap: wrap; padding: 8px 0; border-top: 1px dashed rgba(224,82,82,.28); }
+  #xhs-root[data-view="desk"] .desk-promo .promo-row:first-of-type { border-top: 0; }
+  #xhs-root[data-view="desk"] .promo-name { min-width: 150px; }
+  #xhs-root[data-view="desk"] .promo-name b { color: #f7f2f4; font-size: 14px; }
+  #xhs-root[data-view="desk"] .promo-why { flex: 1; font-size: 12.5px; color: #a8b8d4; }
+  #xhs-root[data-view="desk"] .promo-why .gap { color: #d98f8f; }
+  #xhs-root[data-view="desk"] .promo-none { font-size: 12.5px; color: #a89aa0; padding: 4px 0; }
+  #xhs-root[data-view="desk"] table.desk th { background: #20171a; color: #b0a6ab;
+      border-bottom: 1px solid rgba(255,255,255,.09); }
+  #xhs-root[data-view="desk"] table.desk td { border-bottom: 1px solid rgba(255,255,255,.055); }
+  #xhs-root[data-view="desk"] table.desk tbody tr:hover td { background: rgba(224,82,82,.05); }
+  #xhs-root[data-view="desk"] .desk-title, #xhs-root[data-view="desk"] .muted { color: #a8a0a4; }
+  #xhs-root[data-view="desk"] .mono { font-family: ui-monospace, SFMono-Regular, Menlo,
+      monospace; }
+  #xhs-root[data-view="desk"] td b { color: #eef3fa; }
+  #xhs-root[data-view="desk"] .pos { color: #ff6b6b; }
+  #xhs-root[data-view="desk"] .neg { color: #3fd6a4; }
+  #xhs-root[data-view="desk"] .badge { border: 1px solid; background: transparent; }
+  #xhs-root[data-view="desk"] .badge.watch { color: #ff8f8f; border-color: rgba(255,107,107,.45); }
+  #xhs-root[data-view="desk"] .badge.down { color: #b0a6ab; border-color: rgba(163,149,154,.35); }
+  #xhs-root[data-view="desk"] .desk-foot { font-size: 11px; color: #8f8a8d; text-align: center;
+      padding-top: 14px; letter-spacing: .5px; }
+  #xhs-root[data-view="desk"] .toolbar .seg { background: #1a1315;
+      border: 1px solid rgba(255,255,255,.08); box-shadow: none; }
+  #xhs-root[data-view="desk"] .toolbar .seg button { color: #b0a6ab; }
+  #xhs-root[data-view="desk"] .toolbar .seg button[aria-pressed="true"] { background: #ece7e9;
+      color: #150f11; }
+  #xhs-root[data-view="desk"] .toolbar .export { background: transparent; color: #ece7e9;
+      border: 1px solid rgba(236,231,233,.4); box-shadow: none; }
+  #xhs-root[data-view="desk"] .nb-stats .chip { background: #1a1315; color: #9fb2d0;
+      border: 1px solid rgba(255,255,255,.08); box-shadow: none; }
+  #xhs-root[data-view="desk"] .nb-stats .chip b { color: #ece7e9; }
+  #xhs-root[data-view="desk"] .nb-head .title { color: #f7f2f4; }
+  #xhs-root[data-view="desk"] .nb-head .sub { color: #a8a0a4; }
+
+  @media (max-width: 760px) {
+    #xhs-root[data-view="desk"] table.desk tr { background: #1a1315;
+        border: 1px solid rgba(255,255,255,.07); box-shadow: none; }
+    #xhs-root[data-view="desk"] .desk-promo .promo-row { flex-direction: column; gap: 4px; }
+    #xhs-root[data-view="desk"] .sl-row { flex-direction: column; gap: 2px; }
+    #xhs-root[data-view="desk"] .sl-info { flex: none; }
+  }
+  #xhs-root .feed { display: flex; flex-direction: column; gap: 12px; }
+  #xhs-root .note { background: #fff; border-radius: 14px; padding: 18px 16px 12px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  #xhs-root .author { display: flex; align-items: center; gap: 10px; }
+  #xhs-root .avatar { width: 34px; height: 34px; border-radius: 50%;
+                      background: linear-gradient(135deg, #ff2442, #ff7a9c); color: #fff;
+                      font-size: 16px; font-weight: 600; display: flex; align-items: center;
+                      justify-content: center; flex: none; }
+  #xhs-root .author .who { font-size: 14px; font-weight: 600; }
+  #xhs-root .author .meta { font-size: 12px; color: #999; }
+  #xhs-root .cover { margin: 14px 0 4px; background: linear-gradient(160deg, #fff0f2, #fff);
+                     border-radius: 12px; padding: 16px 14px; }
+  #xhs-root .cover h2 { margin: 0 0 6px; font-size: 19px; line-height: 1.4; color: #1f1f1f; }
+  #xhs-root .cover h2 .hl { color: #ff2442; }
+  #xhs-root .cover .sub { font-size: 13px; color: #666; margin: 0; }
+  #xhs-root .tags { margin: 10px 0 4px; font-size: 13px; color: #ff2442; font-weight: 500; }
+  #xhs-root section { margin-top: 16px; }
+  #xhs-root h3 { margin: 0 0 8px; font-size: 15px; font-weight: 700; color: #1f1f1f; }
+  #xhs-root .fact { font-size: 13.5px; color: #444; margin: 3px 0; }
+  #xhs-root .fact b { color: #1f1f1f; }
+  #xhs-root .num { color: #ff2442; font-weight: 700; }
+  #xhs-root .warn { color: #c46a00; font-weight: 700; }
+  #xhs-root .meter .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  #xhs-root .meter .q { font-size: 12.5px; color: #666; width: 44px; flex: none; }
+  #xhs-root .meter .track { flex: 1; height: 14px; background: #f2f2f4; border-radius: 7px;
+                            overflow: hidden; }
+  #xhs-root .meter .bar { display: block; height: 100%; background: #ff2442; border-radius: 7px; }
+  #xhs-root .meter .bar.dim { background: #ff8fa3; }
+  #xhs-root .meter .bar.dim2 { background: #ffc2ce; }
+  #xhs-root .meter .bar.neg { background: #8e8e93; }
+  #xhs-root .meter .v { font-size: 12.5px; color: #1f1f1f; width: 74px; flex: none;
+                        text-align: right; font-variant-numeric: tabular-nums; }
+  #xhs-root .derived { font-size: 11.5px; color: #999; margin-top: 6px; }
+  #xhs-root .plain-box { background: #f4f9f4; border-radius: 10px; padding: 11px 12px;
+                         margin-top: 14px; }
+  #xhs-root .plain-box h3 { color: #2f7d4f; margin-bottom: 6px; }
+  #xhs-root .plain-line { font-size: 14px; color: #1f1f1f; line-height: 1.6; margin: 0 0 8px; }
+  #xhs-root .plain-box .flags li { border-bottom: 1px solid #e6efe8; font-size: 12.5px; }
+  #xhs-root .plain-box .flags li:last-child { border-bottom: none; }
+  #xhs-root .debate-box { background: #f7f5fb; border-radius: 10px; padding: 11px 12px;
+                         margin-top: 14px; }
+  #xhs-root .debate-box h3 { color: #5b4b8a; margin-bottom: 6px; }
+  #xhs-root .debate-verdict { font-size: 13.5px; color: #1f1f1f; line-height: 1.6;
+                              margin: 0 0 9px; }
+  #xhs-root .debate-side { background: #fff; border-radius: 8px; padding: 8px 10px;
+                           margin-bottom: 8px; font-size: 12.5px; color: #444; }
+  #xhs-root .debate-side b { color: #2f6f4f; font-size: 12px; }
+  #xhs-root .debate-side.bear b { color: #a33; }
+  #xhs-root .debate-side p { margin: 4px 0 0; line-height: 1.55; }
+  #xhs-root .debate-box .flags li { font-size: 12.5px; }
+  #xhs-root .quote { background: #fff7f0; border-radius: 10px; padding: 10px 12px;
+                     font-size: 13px; color: #7a4a12; margin-top: 8px; }
+  #xhs-root .flags { list-style: none; margin: 0; padding: 0; }
+  #xhs-root .flags li { font-size: 13.5px; color: #444; padding: 7px 0;
+                        border-bottom: 1px solid #f4f4f6; display: flex; gap: 8px; }
+  #xhs-root .flags li:last-child { border-bottom: none; }
+  #xhs-root .flags .m { flex: none; }
+  #xhs-root .todo { list-style: none; margin: 0; padding: 0; }
+  #xhs-root .todo li { display: flex; gap: 9px; align-items: flex-start; font-size: 13px;
+                       color: #444; padding: 5px 0; }
+  #xhs-root .todo .box { width: 15px; height: 15px; border: 1.5px solid #ff2442;
+                         border-radius: 4px; flex: none; margin-top: 2px; }
+  #xhs-root .badge { display: inline-block; font-size: 11.5px; padding: 1px 8px;
+                     border-radius: 999px; margin-left: 6px; vertical-align: 2px; }
+  #xhs-root .badge.watch { background: #fff0f2; color: #ff2442; }
+  #xhs-root .badge.down { background: #f2f2f4; color: #666; }
+  #xhs-root .discipline { margin-top: 12px; font-size: 12.5px; color: #666;
+                          border-top: 1px dashed #e8e8ec; padding-top: 10px; }
+  #xhs-root .actions { display: flex; justify-content: space-around; margin-top: 12px;
+                       padding-top: 10px; border-top: 1px solid #f0f0f2; font-size: 12.5px;
+                       color: #888; }
+  #xhs-root .legal { font-size: 11px; color: #aaa; margin-top: 8px; text-align: center; }
+  #xhs-root .nb-head { text-align: center; padding: 6px 0 2px; }
+  #xhs-root .nb-head .title { font-size: 18px; font-weight: 700; color: #1f1f1f; }
+  #xhs-root .nb-head .sub { font-size: 12.5px; color: #999; margin-top: 2px; }
+  #xhs-root .nb-stats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+                        padding: 10px 0; }
+  #xhs-root .nb-stats .chip { background: #fff; border-radius: 999px; font-size: 12.5px;
+                              color: #444; padding: 4px 12px;
+                              box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  #xhs-root .nb-stats .chip b { color: #ff2442; }
+  #xhs-root .kv { display: flex; gap: 8px; font-size: 13px; color: #444; padding: 3px 0; }
+  #xhs-root .kv .k { color: #999; flex: none; width: 74px; }
+  /* —— 视图切换与导出 —— */
+  #xhs-root .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+                       padding: 12px 0 4px; }
+  #xhs-root .toolbar .seg { display: inline-flex; background: #fff; border-radius: 999px;
+                            padding: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  #xhs-root .toolbar .seg button { border: 0; background: transparent; padding: 6px 16px;
+                                   border-radius: 999px; font-size: 13px; color: #666;
+                                   cursor: pointer; }
+  #xhs-root .toolbar .seg button[aria-pressed="true"] { background: #1f1f1f; color: #fff; }
+  #xhs-root .toolbar .export { border: 0; background: #fff; color: #ff2442; font-size: 13px;
+                               padding: 6px 16px; border-radius: 999px; cursor: pointer;
+                               box-shadow: 0 1px 3px rgba(0,0,0,.05); font-weight: 600; }
+  #xhs-root .view-desk, #xhs-root .view-xhs { display: none; }
+  #xhs-root[data-view="desk"] .view-desk { display: block; }
+  #xhs-root[data-view="xhs"] .view-xhs { display: block; }
+  /* —— 研究台（正常渲染）视图：桌面表格，移动端卡片化 —— */
+  #xhs-root .desk-title { font-size: 14px; font-weight: 700; color: #1f1f1f;
+                          padding: 2px 2px 8px; }
+  #xhs-root .desk-card { background: #fff; border-radius: 12px; overflow: hidden;
+                         box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  #xhs-root .desk-wrap { overflow-x: auto; }
+  #xhs-root table.desk { width: 100%; border-collapse: collapse; font-size: 13px;
+                         min-width: 860px; }
+  #xhs-root table.desk th { text-align: left; padding: 10px 10px; background: #f5f5f7;
+                            color: #666; font-weight: 600; border-bottom: 1px solid #e4e4e8;
+                            white-space: nowrap; }
+  #xhs-root table.desk td { padding: 9px 10px; border-bottom: 1px solid #f4f4f6;
+                            vertical-align: top; }
+  #xhs-root table.desk td.w-limit { max-width: 250px; }
+  #xhs-root table.desk tr:last-child td { border-bottom: none; }
+  #xhs-root .mono { font-variant-numeric: tabular-nums; }
+  #xhs-root .muted { color: #999; }
+  #xhs-root .pos { color: #c4322f; }
+  #xhs-root .neg { color: #1a7f37; }
+  @media (max-width: 760px) {
+    /* 10 列表格在手机上没法读：每行转成卡片，列名由 data-label 提供 */
+    #xhs-root .desk-card { background: transparent; box-shadow: none; overflow: visible; }
+    #xhs-root table.desk, #xhs-root table.desk tbody, #xhs-root table.desk tr,
+    #xhs-root table.desk td { display: block; width: 100%; min-width: 0; }
+    #xhs-root table.desk { overflow: hidden; }   /* collapse 边框在 block 表格上的幽灵宽度 */
+    #xhs-root .desk-wrap { overflow-x: visible; }
+    #xhs-root table.desk thead { display: none; }
+    #xhs-root table.desk td.w-limit { max-width: none; }
+    #xhs-root table.desk tr { background: #fff; border-radius: 12px; padding: 6px 2px;
+                              margin-bottom: 10px;
+                              box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    #xhs-root table.desk td { border-bottom: 1px solid #f4f4f6; padding: 7px 14px; }
+    #xhs-root table.desk tr:last-child td { border-bottom: none; }
+    #xhs-root table.desk td[data-label]::before { content: attr(data-label) "：";
+                                                  color: #999; margin-right: 6px; }
+    #xhs-root table.desk td:first-child { padding-bottom: 2px; }
+  }
+</style><div class="note" id="note-A-600888"><div class="author"><div class="avatar" aria-hidden="true">研</div><div><div class="who">新疆众和（A 600888）</div><div class="meta">小资金研究台 · 观察池 · 更新 2026-11-12</div></div></div><section class="plain-box"><h3>💬 人话版结论</h3><p class="plain-line">这家公司还没稳定赚钱；单个季度赚的钱从 2.65 亿变成 2.97 亿（最近在变强）；但这是整个行业一起变，涨跌跟着行业走——行业掉头它也会一起跌；现在大盘在跌，这类股票跌起来更凶，仓位要打折；判断还没写完，现在只能观察。</p><ul class="flags"><li><span class="m">·</span><span>公司属于「已盈利」还是「未盈利」路径：未分类</span></li><li><span class="m">·</span><span>最近三个季度赚的钱：2026Q1 2.65 亿 → 2026Q3 2.97 亿（变强）</span></li><li><span class="m">·</span><span>公司实际收到的钱：+6.86 亿（这是最硬的一条，纸面利润可以修饰，收到的钱很难）</span></li><li><span class="m">·</span><span>这是整个行业的行情，涨跌跟着行业走，行业反转它也会一起跌</span></li><li><span class="m">▶</span><span>该看：跟大盘比：弱 -2.7 个百分点（转弱时要重新看判断还成不成立）；大盘现在下行（这种行情里这类股票跌起来更凶，仓位要打折）</span></li><li><span class="m">✕</span><span>改主意的信号：股价跌到 7.944 附近：当初的判断可能已经不成立，去看卡片核对</span></li></ul></section><div class="cover"><h2>新疆众和<span class="badge watch">观察</span><br>单季利润<span class="hl">逐季增加</span>，先看再说话</h2><p class="sub">A 600888 ｜ 结论等级 部分证据｜ 最近到期 未定</p></div><p class="tags">#A #600888 #预增 #工业金属 #行业共振 #观察</p><section><h3>1️⃣ 事件</h3><p class="fact">新疆众和在2026-10-21披露的预增（归属于上市公司股东的净利润 ≥ 51%）</p><p class="fact">出处：巨潮资讯 / 公司公告 · 2026-10-21 · <b>已核实</b></p></section><section><h3>2️⃣ 单季拆解：逐季增加</h3><div class="meter" role="img" aria-label="单季净利润：2026Q1 2.65 亿、2026Q2 2.58 亿、2026Q3 2.97 亿"><div class="row"><span class="q">2026Q1</span><span class="track"><span class="bar" style="width:89%"></span></span><span class="v">2.65 亿</span></div><div class="row"><span class="q">2026Q2</span><span class="track"><span class="bar dim" style="width:87%"></span></span><span class="v">2.58 亿</span></div><div class="row"><span class="q">2026Q3</span><span class="track"><span class="bar dim2" style="width:100%"></span></span><span class="v">2.97 亿</span></div></div><p class="fact">销售毛利率（累计口径，近三期）：15.29% → 17.53% → 20.70%</p><p class="derived">单季值由累计披露相减推算，需回定期报告原文核对</p></section><section><h3>3️⃣ 行业还是公司</h3><p class="fact">行业：<b>工业金属</b> ｜ 同行业 3 家发预告，同向 3 家（同向率 100%）</p><div class="quote">判定：<b>行业共振</b>。共振高=行业给的；行业反转时会一起跌</div></section><section><h3>4️⃣ 利润之外的第三只眼</h3><p class="fact">经营现金流 +6.86 亿 ｜ 自由现金流 -7.87 亿 ｜ 资本开支 +14.73 亿</p><p class="fact">在建工程 2.03亿 ｜ 固定资产 105.04亿</p></section><section><h3>🚩 红旗与留痕</h3><ul class="flags"><li><span class="m">⚠️</span><span>[监管问询] 2026-07-21 新疆众和股份有限公司关于上海证券交易所对公司2025年年度报告的信息披露监管问询函的回复公告</span></li><li><span class="m">⚠️</span><span>[审计意见] 2026-03-30 新疆众和股份有限公司2025年度内控审计报告</span></li><li><span class="m">⚠️</span><span>[资产质量] 2026-03-30 新疆众和股份有限公司关于2025年度资产处置及减值的公告</span></li><li><span class="m">⚠️</span><span>[审计意见] 2026-03-30 新疆众和股份有限公司2025年度审计报告</span></li><li><span class="m">⚠️</span><span>[审计意见] 2026-03-30 新疆众和股份有限公司董事会审计委员会2025年度履职情况报告</span></li><li><span class="m">·</span><span>股东户数：20260930 股东 76529.0 户，上期 75568 户，增减 1.27%；人均持股 20294.0 股</span></li></ul><p class="derived">扫描截至 2026-11-12；每条都要回原文确认（关键词会误报）</p></section><section><h3>👤 第三方预期</h3><p class="fact">覆盖机构 <b>1</b> 家 ｜ 最新评级 — ｜ 目标价 —</p></section><section class="debate-box"><h3>⚖ 多空对辩（模型，只用卡片事实）</h3><p class="debate-verdict">当前证据混合：盈利连续且行业共振，但自由现金流为负、治理风险待核；可进持仓研究，尚不足形成持仓结论。</p><div class="debate-side"><b>多方</b><p>2026Q1—Q3单季净利润依次为2.65亿、2.58亿、2.97亿，盈利连续性较强，Q3环比抬升。工业金属形成行业共振，3家同行业公司发预告且3家同向。经营现金流+6.86亿、资本开支+14.73亿，现金产出支持持续投入。现价8.65高于2ATR参考失效线7.944；日均额为单笔135倍，小资金进出无冲击。多头最怕的是：自由现金流-7.87亿，且市场下行、60日相对强度-2.7pct。</p></div><div class="debate-side bear"><b>空方</b><p>现金流是核心裂缝：2026Q1/Q2/Q3净利2.65/2.58/2.97亿元，但经营现金流仅+6.86亿元，覆盖不了+14.73亿元资本开支，自由现金流-7.87亿元，盈利未转化为自由现金。需求端仅见工业金属共振（同业3家预告、3家同向），缺少公司销量/订单证据；60日相对指数-2.7pct，行业beta主导下仍无超额，市场处下行（沪深300 4075.71）。治理侧有上交所年报问询回复、资产处置及减值、董事及高管辞职公告，标题层风险需回原文核验；机构仅1家且无评级，外部验证偏弱。</p></div><ul class="flags"><li><span class="m">?</span><span>核对2026Q1—Q3单季净利润2.65亿、2.58亿、2.97亿，以及Q3环比抬升。</span></li><li><span class="m">?</span><span>核对经营现金流+6.86亿、资本开支+14.73亿、自由现金流-7.87亿的现金转化关系。</span></li><li><span class="m">?</span><span>核对工业金属行业共振情况：同业3家发预告、3家同向，并确认公司销量、订单证据是否仍缺失。</span></li><li><span class="m">?</span><span>回原文核对2026-07-21上交所年报问询函回复，以及2026-03-30内控审计、资产处置及减值等公告和2026-03-24董事、高管辞职公告。</span></li></ul><p class="derived">结论不引入卡片之外的数字，不给概率与目标价</p></section><section><h3>🎯 行动条件（触发器，不是买卖点）</h3><div class="kv"><span class="k">何时看</span><span>相对强度转向（当前 -2.7pct vs 大盘）</span></div><div class="kv"><span class="k">何时动</span><span>质量门还有 8 项阻塞；市场状态 下行（仓位按 0.5×）；流动性 无忧</span></div><div class="kv"><span class="k">何时撤</span><span>收盘跌破 2ATR 参考线 7.944（参考失效，不是保证成交）</span></div><p class="derived">条件出现是行动信号，点位由你与券商确定；本区不预测涨跌</p></section><section><h3>✍️ 这张卡还欠的判断（工具不代填）</h3><ul class="todo"><li><span class="box" aria-hidden="true"></span><span>[阻塞] view：缺少当前判断</span></li><li><span class="box" aria-hidden="true"></span><span>[阻塞] evidence[E2]：标记已核实但没有出处链接</span></li><li><span class="box" aria-hidden="true"></span><span>[阻塞] scenarios[基准]：情景缺少叙述或驱动因素</span></li><li><span class="box" aria-hidden="true"></span><span>[阻塞] scenarios[乐观]：情景缺少叙述或驱动因素</span></li><li><span class="box" aria-hidden="true"></span><span>[阻塞] scenarios[失败]：情景缺少叙述或驱动因素</span></li><li><span class="box" aria-hidden="true"></span><span>[阻塞] counter：缺少最强失败路径</span></li></ul></section><p class="discipline">仓位纪律：小仓多注（20 只 × 5%）；市场状态<b>下行</b>（2026-11-11，沪深300 4075.71）：此类票仓位按 0.5× 折算</p><div class="actions" aria-hidden="true"><span>❤️ 点赞</span><span>⭐ 收藏</span><span>💬 评论</span></div><p class="legal">研究工具输出，非投资建议 · 数据：巨潮/同花顺/东财 · 截至 2026-11-12</p></div></div>
+</body>
+</html>
