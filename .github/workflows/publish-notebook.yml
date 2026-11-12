@@ -62,6 +62,25 @@ jobs:
             timeout 360 python -m research.cli deep-dive "$market" "$code" || echo "!! $market $code 超时/失败，沿用仓库数据"
           done
 
+      - name: 发现层新候选自动立项（不靠手动）
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/pycache
+        run: |
+          # A 股新候选：从最新报告期的 odds 筛选中，取结构条件通过且没有已有卡的
+          python -m research.cli odds --period 2026-09-30 --limit 10 2>/dev/null | \
+            grep -oE "^[A-Za-z]+ [0-9]{6} " | while read market code _; do
+              [ -f "cards/${market}_${code}.json" ] && continue
+              echo "== 新候选立项 $market $code"
+              timeout 300 python -m research.cli new --codes "$code" 2>/dev/null || true
+            done
+          # 港股新候选：最近 60 天的盈警/盈喜
+          python -m research.cli hk-discover --source alerts --days 60 --limit 5 2>/dev/null | \
+            grep -oE "^. ([0-9]{5}) " | sed 's/^. //' | while read code; do
+              [ -f "cards/HK_${code}.json" ] && continue
+              echo "== 港股新候选立项 HK $code"
+              timeout 300 python -m research.cli new --market HK --codes "$code" 2>/dev/null || true
+            done
+
       - name: 生成单卡笔记与汇总页
         env:
           PYTHONPYCACHEPREFIX: /tmp/pycache
