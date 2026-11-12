@@ -17,6 +17,7 @@ from datetime import date
 from pathlib import Path
 
 from .card import Card, blocking, validate
+from .shortlist import ShortlistEntry, build_shortlist
 
 NOTE_DIR = Path(__file__).resolve().parent.parent / "cards" / "notes"
 
@@ -139,6 +140,21 @@ _CSS = """
   #xhs-root[data-view="desk"] .desk-card, #xhs-root[data-view="desk"] .desk-promo {
       background: #1a1315; border: 1px solid rgba(255,255,255,.07); border-radius: 12px;
       overflow: hidden; }
+  #xhs-root[data-view="desk"] .desk-shortlist { background: #1a1315;
+      border: 1px solid rgba(224,82,82,.5); border-radius: 12px;
+      margin-bottom: 14px; padding: 14px 16px; }
+  #xhs-root[data-view="desk"] .desk-shortlist h4 { margin: 0 0 4px; font-size: 14px;
+      color: #e05252; letter-spacing: 1px; font-weight: 700; }
+  #xhs-root[data-view="desk"] .sl-row { display: flex; gap: 10px; align-items: flex-start;
+      padding: 10px 0; border-top: 1px dashed rgba(224,82,82,.25); }
+  #xhs-root[data-view="desk"] .sl-row:first-of-type { border-top: 0; margin-top: 6px; }
+  #xhs-root[data-view="desk"] .sl-rank { font-size: 20px; font-weight: 800; color: #e05252;
+      min-width: 28px; text-align: center; flex: none; line-height: 1.2; }
+  #xhs-root[data-view="desk"] .sl-info { flex: 0 0 260px; }
+  #xhs-root[data-view="desk"] .sl-info b { color: #f7f2f4; font-size: 15px; }
+  #xhs-root[data-view="desk"] .sl-info .muted { font-size: 11px; }
+  #xhs-root[data-view="desk"] .sl-why { flex: 1; font-size: 12.5px; color: #a8b8d4;
+      line-height: 1.5; }
   #xhs-root[data-view="desk"] .desk-promo { border-color: rgba(224,82,82,.45);
       background: #1a1315; border-top: 2px solid #e05252;
       margin-bottom: 16px; padding: 14px 16px; }
@@ -184,6 +200,8 @@ _CSS = """
     #xhs-root[data-view="desk"] table.desk tr { background: #1a1315;
         border: 1px solid rgba(255,255,255,.07); box-shadow: none; }
     #xhs-root[data-view="desk"] .desk-promo .promo-row { flex-direction: column; gap: 4px; }
+    #xhs-root[data-view="desk"] .sl-row { flex-direction: column; gap: 2px; }
+    #xhs-root[data-view="desk"] .sl-info { flex: none; }
   }
   #xhs-root .feed { display: flex; flex-direction: column; gap: 12px; }
   #xhs-root .note { background: #fff; border-radius: 14px; padding: 18px 16px 12px;
@@ -733,6 +751,33 @@ def _due_html(card: Card) -> str:
 def _desk_view(summaries: list[dict], regime_parts: list[str], ranked_count: int,
                active_count: int) -> str:
     """研究台绯红终端视图：状态条 + 持仓候选 + 全卡表。"""
+    shortlist = build_shortlist([item["card"] for item in summaries])
+    sl_rows = []
+    for i, entry in enumerate(shortlist, 1):
+        card = entry.card
+        context = card.market_context or {}
+        quote = []
+        if context.get("price"):
+            quote.append(f"现价 {context['price']}")
+        if context.get("market_cap"):
+            quote.append(f"市值 {context['market_cap'] / 1e8:.0f}亿")
+        sl_rows.append(
+            f'<div class="sl-row"><div class="sl-rank">{i}</div>'
+            f'<div class="sl-info"><b>{_esc(card.name)}</b>'
+            f'<span class="muted mono"> {_esc(card.market)} {_esc(card.code)}'
+            f' · {_esc(entry.factor_line())}</span>'
+            + (f'<span class="mono"> · {" ｜ ".join(quote)}</span>' if quote else "")
+            + f'</div>'
+            f'<div class="sl-why">{_esc(entry.plain)}</div></div>')
+    shortlist_html = (
+        '<div class="desk-shortlist"><h4>🎯 今日推荐 · 最合适的几只（自动进出，硬门槛=证据充分+零阻塞）</h4>'
+        + ("".join(sl_rows) if sl_rows else
+           '<p class="promo-none">当前没有同时过门槛的卡——这是纪律不是缺口</p>')
+        + '<div class="desk-foot" style="text-align:left;padding-top:8px">'
+        '排序信号：公司特有＞行业共振 ｜ 跑赢大盘＞跑输 ｜ 催化剂近的优先 ｜ '
+        'AI 可进持仓加分 ｜ 行业价格顺风加分；降级或排除自动掉出</div></div>'
+    ) if shortlist else ""
+
     candidates = _hold_candidates(summaries)
     if candidates:
         rows = []
@@ -768,7 +813,7 @@ def _desk_view(summaries: list[dict], regime_parts: list[str], ranked_count: int
         f'<div class="desk-status">{_esc(status_line)}<br>'
         f"<b>{ranked_count}</b> 张在册 · 活跃 <b>{active_count}</b> · "
         "非投资建议</div></div>"
-        f"{promo}{_desk_table(summaries)}"
+        f"{shortlist_html}{promo}{_desk_table(summaries)}"
         '<div class="desk-foot">研究工具输出，非投资建议 · 数据：巨潮 / 同花顺 / 东财 / akshare'
         f" · {_esc(date.today().isoformat())}</div>"
         "</div>")

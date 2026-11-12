@@ -59,6 +59,41 @@ class Alert:
                 f" → {self.action_hint}")
 
 
+def shortlist_alert(cards: list[Card]) -> Alert | None:
+    """推荐清单变化：有新面孔进来或有人掉出 → 推一条汇总。"""
+    from .shortlist import build_shortlist
+
+    shortlist = build_shortlist(cards)
+    curr = {e.card.code: e for e in shortlist}
+    state: dict = {}
+    try:
+        state = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        state = {}
+    prev_codes = set(state.get("shortlist", []))
+    curr_codes = set(curr.keys())
+    if prev_codes == curr_codes:
+        return None    # 清单没变，安静
+    entered = curr_codes - prev_codes
+    exited = prev_codes - curr_codes
+    parts = []
+    if entered:
+        parts.append("新进：" + "、".join(
+            f"{curr[c].card.name}({curr[c].score}分)" for c in entered))
+    if exited:
+        parts.append("掉出：" + "、".join(sorted(exited)))
+    state["shortlist"] = sorted(curr_codes)
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+    if not parts:
+        return None
+    return Alert(
+        "A", "INDEX", "推荐清单", "清单变化",
+        "；".join(parts),
+        "打开汇总页看完整清单与排序理由",
+        fingerprint="shortlist:change")
+
+
 def check_cards(cards: list[Card]) -> tuple[list[Alert], int]:
     """对照触发器检查全部卡片。返回 (alerts, 检查张数)。"""
     from datetime import timedelta
@@ -92,6 +127,12 @@ def check_cards(cards: list[Card]) -> tuple[list[Alert], int]:
                 fingerprint=f"stop:{card.market}:{card.code}"))
 
         alerts.extend(intraday_triggers(card, price))
+
+        # 推荐清单变化检查（只做一次，不在循环里）
+    if card is cards[-1]:
+        sl_alert = shortlist_alert(cards)
+        if sl_alert:
+            alerts.append(sl_alert)
 
         prev_rs = ((card.execution or {}).get("strength") or {}).get("rs")
         if prev_rs is not None:
