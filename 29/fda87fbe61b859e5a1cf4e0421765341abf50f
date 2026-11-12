@@ -1,0 +1,34 @@
+.github/workflows/publish-notebook.yml
+  h_69a2bad0f475d9 71-73
+cards/A_000603.json
+  h_69a2bad0f475d9 1-867
+cards/A_600409.json
+  h_69a2bad0f475d9 1-759
+cards/A_600888.json
+  h_69a2bad0f475d9 1-715
+cards/_snapshots/2026-11-12_A_000603.json
+  h_69a2bad0f475d9 1-12
+cards/_snapshots/2026-11-12_A_600409.json
+  h_69a2bad0f475d9 1-12
+cards/_snapshots/2026-11-12_A_600888.json
+  h_69a2bad0f475d9 1-12
+cards/notes/A_000603.html
+  h_69a2bad0f475d9 1-250
+cards/notes/A_600409.html
+  h_69a2bad0f475d9 1-250
+cards/notes/A_600888.html
+  h_69a2bad0f475d9 1-250
+cards/notes/index.html
+  h_69a2bad0f475d9 248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "29fda87fbe61b859e5a1cf4e0421765341abf50f",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
