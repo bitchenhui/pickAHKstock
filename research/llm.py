@@ -189,20 +189,28 @@ def _call_anthropic(base_url: str, api_key: str, model: str, system: str,
 
 def _call_openai(base_url: str, api_key: str, model: str, system: str,
                   user: str) -> str:
-    response = requests.post(
-        f"{base_url.rstrip('/')}/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}",
-                 "Content-Type": "application/json"},
-        json={"model": model, "max_tokens": 4096, "temperature": 0.3,
-              "messages": [{"role": "system", "content": system},
-                           {"role": "user", "content": user}]},
-        timeout=TIMEOUT)
-    response.raise_for_status()
-    payload = response.json()
-    choices = payload.get("choices") or []
-    if not choices:
-        return ""
-    return (choices[0].get("message") or {}).get("content", "").strip()
+    import time as _time
+    for attempt in range(3):
+        response = requests.post(
+            f"{base_url.rstrip('/')}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}",
+                     "Content-Type": "application/json"},
+            json={"model": model, "max_tokens": 8192, "temperature": 0.3,
+                  "messages": [{"role": "system", "content": system},
+                               {"role": "user", "content": user}]},
+            timeout=TIMEOUT)
+        response.raise_for_status()
+        payload = response.json()
+        choices = payload.get("choices") or []
+        if not choices:
+            _time.sleep(3)
+            continue
+        content = (choices[0].get("message") or {}).get("content") or ""
+        content = content.strip()
+        if content:              # 推理模型可能首轮 content 为空（token 耗在推理）
+            return content
+        _time.sleep(3)           # 空结果 → 等几秒重试
+    return ""
 
 
 def _call(system: str, user: str) -> str:
@@ -237,6 +245,156 @@ def debate(card: Card) -> Debate:
             [verdict["abandon_if"]] if verdict.get("abandon_if") else []) + (
             [verdict["caveat"]] if verdict.get("caveat") else []),
         source=f"{os.environ.get('LLM_MODEL', DEFAULT_MODEL)}/{os.environ.get('LLM_PROTOCOL', 'anthropic')}")
+
+
+JUDGE_PROMPT = """基于下面的事实清单，为这只股票写出研究卡片的全部判断字段。
+
+要求：
+1. 只使用事实清单里的信息与数字；如果事实清单没给某个字段需要的信息，
+   就写「数据缺失，待补」——不编造
+2. 情景必须三个都填（基准/乐观/失败），每个有叙述和驱动因素
+3. 失效条件必须含数字或日期（如「跌破 X 元」「Q4 转负」「应收超 X 天」）
+4. 最强反证必须具体（有数字），不能泛泛写「有风险」
+5. 判断语气：直接说结论，不写「建议关注」这类废话
+
+按以下 JSON 输出（不要 markdown 代码块）：
+{{
+  "view": "一句话当前判断",
+  "horizon": "以什么事件为主线",
+  "scenarios": [
+    {{"name": "基准", "narrative": "...", "drivers": ["驱动1", "驱动2"]}},
+    {{"name": "乐观", "narrative": "...", "drivers": ["驱动1", "驱动2"]}},
+    {{"name": "失败", "narrative": "...", "drivers": ["驱动1", "驱动2"]}}
+  ],
+  "strongest_failure": "最强反证（含数字）",
+  "exit_trigger": "退出触发（什么事实出现就放弃）",
+  "where_wrong": "我可能错在哪",
+  "invalidation": ["失效条件1（含数字/日期）", "失效条件2", "失效条件3"],
+  "path": "已盈利",
+  "recurring_judgment": "收入/毛利变化是否可持续",
+  "cyclical_judgment": "景气反弹还是竞争力提升",
+  "catalyst_event": "最近该验证的事",
+  "catalyst_date": "YYYY-MM-DD"
+}}
+
+事实清单：
+{facts}"""
+
+
+def auto_judge(card: Card) -> dict:
+    """用 LLM 自动生成判断字段。拆成多次短调用（长 JSON 不稳定）。"""
+    if not configured():
+        raise LLMError("未配置 LLM_API_KEY")
+    facts = _card_facts(card)
+    sys = "你是严谨的买方分析师，只用给定事实写判断。判断必须具体、含数字、不含模糊语言。"
+
+    def ask(prompt: str) -> str:
+        raw = _call(sys, prompt + "\n\n事实清单：\n" + facts)
+        if not raw:
+            raise LLMError("LLM 返回为空")
+        return raw.strip()
+
+    result: dict = {}
+    result["view"] = ask("写一句当前判断（60字内，直接说结论）")
+    result["horizon"] = ask("写一句研究主线：以什么事件或数据为轴验证（30字内）")
+    result["strongest_failure"] = ask("写最强反证：最有力的反对理由，必须含数字（80字内）")
+    result["exit_trigger"] = ask("写退出触发条件：什么事实出现就放弃这只（含数字，30字内）")
+    result["where_wrong"] = ask("写「我可能错在哪」：最脆弱的一个假设（50字内）")
+    result["path"] = ask("这家公司是已盈利还是未盈利？只回答「已盈利」或「未盈利」")
+    result["recurring_judgment"] = ask("收入/毛利的变化是否可重复？由什么驱动？（50字内）")
+    result["cyclical_judgment"] = ask("是景气周期反弹还是竞争力提升？（50字内）")
+
+    # 三情景：一次调用，逐条提取
+    sc = ask("写三个情景（基准/乐观/失败），每个一句话+一个驱动因素。格式：\n"
+             "基准：叙述 | 驱动\n乐观：叙述 | 驱动\n失败：叙述 | 驱动")
+    scenarios = []
+    for name in ("基准", "乐观", "失败"):
+        import re as _re
+        match = _re.search(rf"{name}[：:]\s*(.+)", sc)
+        if match:
+            parts = match.group(1).split("|")
+            scenarios.append({"name": name, "narrative": parts[0].strip(),
+                              "drivers": [parts[1].strip()] if len(parts) > 1 else []})
+        else:
+            scenarios.append({"name": name, "narrative": "", "drivers": []})
+    result["scenarios"] = scenarios
+
+    # 失效条件：一次调用，按行拆
+    inv = ask("写三条失效条件（每条含数字或日期，一行一条）")
+    result["invalidation"] = [line.strip() for line in inv.split("\n")
+                              if line.strip() and len(line.strip()) > 5][:5]
+
+    # 催化剂
+    cat = ask("最近该验证的一件事是什么？预计什么时候？（格式：事件描述 | YYYY-MM-DD）")
+    parts = cat.split("|")
+    result["catalyst_event"] = parts[0].strip()
+    result["catalyst_date"] = parts[1].strip() if len(parts) > 1 else ""
+
+    return result
+
+
+def fill_judgment(card: Card) -> bool:
+    """自动写入判断字段（只在卡片判断不完整时写，不覆盖已写的）。
+
+    返回 True 表示写入成功。写完后 quality gate 会自动判定是否过门。
+    log 里留痕「AI 自动判断」，用户可复核可改。
+    """
+    from .card import Catalyst, LogEntry, Scenario
+
+    # 已有完整判断就不覆盖
+    if (card.view.strip() and card.scenarios and card.counter.strongest_failure
+            and card.invalidation):
+        return False
+
+    try:
+        judgment = auto_judge(card)
+    except Exception as exc:
+        card.gaps = list(card.gaps or []) + [f"AI 自动判断失败：{exc}"]
+        card.save()
+        return False
+
+    from datetime import date as _date
+    today = _date.today().isoformat()
+
+    if not card.view.strip():
+        card.view = judgment.get("view", "")
+    if not card.horizon.strip():
+        card.horizon = judgment.get("horizon", "")
+    if not card.scenarios or not all(s.narrative for s in card.scenarios):
+        raw_scenarios = judgment.get("scenarios", [])
+        card.scenarios = []
+        for i, name in enumerate(("基准", "乐观", "失败")):
+            data = raw_scenarios[i] if i < len(raw_scenarios) else {}
+            card.scenarios.append(Scenario(
+                name=data.get("name", name),
+                narrative=data.get("narrative", ""),
+                drivers=data.get("drivers", [])))
+    if not card.counter.strongest_failure:
+        card.counter.strongest_failure = judgment.get("strongest_failure", "")
+    if not card.counter.exit_trigger:
+        card.counter.exit_trigger = judgment.get("exit_trigger", "")
+    if not card.counter.where_wrong:
+        card.counter.where_wrong = judgment.get("where_wrong", "")
+    if not card.invalidation:
+        card.invalidation = judgment.get("invalidation", [])
+    if card.financials.path == "未分类":
+        card.financials.path = judgment.get("path", "未分类")
+    if not card.financials.recurring_judgment:
+        card.financials.recurring_judgment = judgment.get("recurring_judgment", "")
+    if not card.financials.cyclical_judgment:
+        card.financials.cyclical_judgment = judgment.get("cyclical_judgment", "")
+    if not card.catalysts:
+        event = judgment.get("catalyst_event", "")
+        due = judgment.get("catalyst_date", "")
+        if event and due:
+            card.catalysts = [Catalyst(event=event, date=due)]
+
+    card.log.append(LogEntry(
+        at=today, event="AI 自动判断（LLM 生成，用户可改可否决）",
+        from_status=card.status, to_status=card.status))
+    card.updated = today
+    card.save()
+    return True
 
 
 def analyze(card: Card) -> dict:

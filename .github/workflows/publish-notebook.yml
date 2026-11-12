@@ -81,6 +81,25 @@ jobs:
               timeout 300 python -m research.cli new --market HK --codes "$code" 2>/dev/null || true
             done
 
+      - name: AI 自动判断 + 多空对辩（判断未写完的卡片自动补全）
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/pycache
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          LLM_PROTOCOL: ${{ secrets.LLM_PROTOCOL }}
+        run: |
+          # 自动补全判断 → 过质量门 → 进推荐清单
+          timeout 600 python -m research.cli auto-judge 2>/dev/null || echo "auto-judge 超时，不挡发布"
+          # 对全部卡片跑多空对辩（有 LLM key 时）
+          for f in cards/A_*.json cards/HK_*.json; do
+            [ -e "$f" ] || continue
+            base=$(basename "$f" .json)
+            market=${base%%_*}
+            code=${base#*_}
+            timeout 120 python -m research.cli analyze "$market" "$code" >/dev/null 2>&1 || true
+          done
+
       - name: 生成单卡笔记与汇总页
         env:
           PYTHONPYCACHEPREFIX: /tmp/pycache

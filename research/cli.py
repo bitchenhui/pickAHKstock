@@ -810,6 +810,41 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_auto_judge(args: argparse.Namespace) -> int:
+    """AI 自动补全判断：对判断未写完的卡片调 LLM 生成 view/情景/反证/失效条件。
+
+    不覆盖已写的字段；log 留痕「AI 自动判断，用户可改可否决」。
+    补完后 check 自动判定是否过质量门 → 过门即进推荐清单。
+    """
+    from .llm import fill_judgment
+
+    cards = _load_all_cards()
+    pending = [c for c in cards
+               if not (c.view.strip() and c.scenarios and c.counter.strongest_failure
+                       and c.invalidation)]
+    if not pending:
+        print("全部卡片判断已完整，无需自动补全。")
+        return 0
+    print(f"待补全 {len(pending)} 张卡片：")
+    for card in pending:
+        print(f"  {card.market} {card.code} {card.name}")
+    print()
+    for card in pending:
+        print(f"== {card.name}（{card.market} {card.code}）")
+        ok = fill_judgment(card)
+        if ok:
+            findings = validate(card)
+            blocks = blocking(findings)
+            level = card.derived_level()
+            print(f"  ✓ 判断已写入，结论等级={level}，阻塞={len(blocks)}")
+            if blocks:
+                for f in blocks[:3]:
+                    print(f"    阻塞：{f}")
+        else:
+            print(f"  ✗ 补全失败")
+    return 0
+
+
 def cmd_backtest_report(args: argparse.Namespace) -> int:
     """定期回测报告：跑八期事件研究 + 组合层 + 分期拆解。"""
     import runpy
@@ -1112,6 +1147,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p_sent = sub.add_parser("sentinel", help="哨兵：触发器命中检查 + 多渠道通知")
     p_sent.set_defaults(func=cmd_sentinel)
+
+    p_j = sub.add_parser("auto-judge", help="AI 自动补全未写完的判断字段（不覆盖已写的）")
+    p_j.set_defaults(func=cmd_auto_judge)
 
     p_odds = sub.add_parser("odds", help="高赔率候选：结构条件筛选 + 10x 需要什么为真")
     p_odds.add_argument("--period", default="2026-09-30", help="业绩预告的报告期")
