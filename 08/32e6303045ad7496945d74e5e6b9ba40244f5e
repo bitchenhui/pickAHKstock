@@ -1,0 +1,20 @@
+cards/A_002044.json
+  h_69a2bad0f475d9 822-858,1308
+cards/A_603026.json
+  h_69a2bad0f475d9 668-689,691-693,695-701,703
+cards/notes/index.html
+  h_69a2bad0f475d9 135-145,231
+research/llm.py
+  h_69a2bad0f475d9 30-31,178,196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0832e6303045ad7496945d74e5e6b9ba40244f5e",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
