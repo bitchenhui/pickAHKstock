@@ -1,4 +1,5 @@
 import unittest
+import unittest.mock
 
 from research.card import Card, Catalyst
 from research.shortlist import MAX_SHORTLIST, build_shortlist
@@ -7,21 +8,8 @@ from research.shortlist import MAX_SHORTLIST, build_shortlist
 def qualified_card(code="600001", name="测试", rs=9.0, verdict="公司特有",
                    catalyst_days=20, debate="可进持仓研究", commodity_up=True):
     card = Card(market="A", code=code, name=name, status="观察", view="判断" * 10)
-    card.evidence = [type("E", (), {
-        "id": "E1", "claim": "c", "kind": "披露", "publisher": "p", "title": "t",
-        "published": "2026-01-01", "url": "http://x", "observed": "2026-01-02",
-        "status": "已核实", "alternative": "", "next_check": "", "note": ""})()]
-    card.scenarios = [type("S", (), {"name": n, "narrative": "n" * 5, "drivers": ["d"],
-                                     "is_filled": lambda: True})()
-                      for n in ("基准", "乐观", "失败")]
-    card.counter = type("C", (), {"strongest_failure": "x" * 20, "exit_trigger": "跌破 10",
-                                  "where_wrong": "y"})()
-    card.invalidation = ["2026Q4 跌破 10 元"]
-    card.financials = type("F", (), {
-        "path": "已盈利", "source": "test", "periods": ["a", "b", "c", "d"],
-        "recurring_judgment": "r", "cyclical_judgment": "c",
-        "quarter_periods": [], "metrics": {}, "quarter_metrics": {},
-        "working_capital_note": "", "path_evidence": [], "notes": []})()
+    # 直接 patch derived_level 和 validate（测试排序逻辑，不测质量门）
+    card.derived_level = lambda: "证据充分"
     card.industry_context = {"verdict": verdict}
     card.execution = {
         "strength": {"rs": rs},
@@ -45,6 +33,12 @@ def downgraded_card(code="600999"):
 
 
 class ShortlistTests(unittest.TestCase):
+    def setUp(self):
+        # 排序逻辑的测试不测质量门：patch validate 让所有卡过门
+        patcher = unittest.mock.patch("research.shortlist.validate", return_value=[])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_hard_gate_blocks_downgraded(self):
         result = build_shortlist([qualified_card(), downgraded_card()])
         codes = [e.card.code for e in result]
