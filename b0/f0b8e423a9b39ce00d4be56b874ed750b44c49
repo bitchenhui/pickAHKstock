@@ -1,0 +1,32 @@
+.github/workflows/publish-notebook.yml
+  h_69a2bad0f475d9 84-102
+cards/A_000603.json
+  h_69a2bad0f475d9 6-7,31,43-46,50-53,57-60,64-66,68-72,104,430-431,438-446,632,634,641,646-648,653-664,891-896,901
+cards/A_600409.json
+  h_69a2bad0f475d9 6-7,43-46,50-53,57-60,64-66,68-72,104,430-431,438-446,660,662,669,674-676,681-692,776-778,785-790,795
+cards/A_600888.json
+  h_69a2bad0f475d9 6-7,31,43-48,52-57,61-66,70-72,74-78,110,436-437,444-452,629,631,638,643-645,650-652,654-660,737-742
+cards/notes/A_000603.html
+  h_69a2bad0f475d9 248-250
+cards/notes/A_600409.html
+  h_69a2bad0f475d9 248-250
+cards/notes/A_600888.html
+  h_69a2bad0f475d9 248-250
+cards/notes/index.html
+  h_69a2bad0f475d9 248
+research/cli.py
+  h_69a2bad0f475d9 813-847,1151-1153
+research/llm.py
+  h_69a2bad0f475d9 192-213,250-399
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b0f0b8e423a9b39ce00d4be56b874ed750b44c49",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
