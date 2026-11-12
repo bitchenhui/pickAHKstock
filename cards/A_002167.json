@@ -1,0 +1,125 @@
+{
+  "market": "A",
+  "code": "002167",
+  "name": "东方锆业",
+  "status": "观察",
+  "view": "",
+  "horizon": "",
+  "evidence": [
+    {
+      "id": "E1",
+      "claim": "东方锆业在2026-10-15披露的预增（归属于上市公司股东的净利润 ≥ 262%）",
+      "kind": "披露",
+      "publisher": "巨潮资讯 / 公司公告",
+      "title": "2026年前三季度业绩预告",
+      "published": "2026-10-15",
+      "url": "http://static.cninfo.com.cn/finalpage/2026-10-15/1225604360.PDF",
+      "observed": "2026-11-12",
+      "value": "",
+      "alternative": "报告期内,公司归属于上市公司股东的净利润同比实现大幅增长,主要原因如下:1、锆材料下游新兴应用领域需求快速增长,国产替代进程加快,公司主要产品量价齐升,带动营业收入实现较快增长。2、公司加强内部管理,深入推进降本增效,通过工艺改良和设备改造降低原辅材料单耗与能源消耗,系统优化主要原材料采购策略,有效压降生产成本。3、公司持续优化产品结构,强化精细化运营和费用管控,产能利用率进一步提升,有效摊薄单位",
+      "next_check": "",
+      "status": "已核实",
+      "note": "原始出处未取得链接前不得据此下结论"
+    },
+    {
+      "id": "E2",
+      "claim": "同业共振（行业共振）：小金属 行业同报告期 5 家发预告，其中 5 家与本公司业绩变动同向",
+      "kind": "第三方数据",
+      "publisher": "申万二级行业成分股 + 东方财富业绩预告",
+      "title": "行业共振判定：行业共振",
+      "published": "2026-10-15",
+      "url": "",
+      "observed": "2026-11-12",
+      "value": "",
+      "alternative": "方向一致不等于因果：可能同受行业景气、补贴或订单影响",
+      "next_check": "行业景气与公司单独因素要分开验证，别把行业给的当成公司挣的",
+      "status": "已核实",
+      "note": "行业共振高说明这个「好」是行业给的；低才说明是公司自己的事"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "基准",
+      "narrative": "",
+      "drivers": []
+    },
+    {
+      "name": "乐观",
+      "narrative": "",
+      "drivers": []
+    },
+    {
+      "name": "失败",
+      "narrative": "",
+      "drivers": []
+    }
+  ],
+  "counter": {
+    "strongest_failure": "",
+    "exit_trigger": "",
+    "where_wrong": ""
+  },
+  "invalidation": [],
+  "market_context": {
+    "price": 14.04,
+    "turnover": 296530000.0,
+    "market_cap": 10876000000.0,
+    "pe": 60.2,
+    "pb": 5.67,
+    "as_of": "20261112130018",
+    "role": "市场确认与执行参考，不是业务证据",
+    "industry": "小金属",
+    "resonance": "行业共振",
+    "resonance_peers": 5,
+    "resonance_same_sign": 5,
+    "market_regime": {
+      "day": "2026-11-12",
+      "close": 4080.14,
+      "ma60": 4363.508666666666,
+      "change_20d": -0.02061204845883724,
+      "state": "下行",
+      "note": "沪深300 4080，低于60 日均线 4364，20 日 -2.1%",
+      "index": "沪深300",
+      "caveat": ""
+    }
+  },
+  "financials": {
+    "path": "未分类",
+    "source": "",
+    "periods": [],
+    "quarter_periods": [],
+    "metrics": {},
+    "quarter_metrics": {},
+    "recurring_judgment": "",
+    "cyclical_judgment": "",
+    "working_capital_note": "",
+    "path_evidence": [],
+    "notes": []
+  },
+  "catalysts": [],
+  "judgments": [],
+  "expectations": {},
+  "capital": {},
+  "peers": {},
+  "industry_context": {},
+  "commodities": {},
+  "execution": {},
+  "plain": {},
+  "debate": {},
+  "scans": {},
+  "risks": [],
+  "provenance": {},
+  "account_checks": [],
+  "gaps": [],
+  "log": [
+    {
+      "at": "2026-11-12",
+      "event": "由发现层生成草稿",
+      "from_status": "",
+      "to_status": "观察"
+    }
+  ],
+  "created": "2026-11-12",
+  "updated": "2026-11-12",
+  "derived_level": "部分证据"
+}

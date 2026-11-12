@@ -73,12 +73,12 @@
     "resonance_peers": 3,
     "resonance_same_sign": 3,
     "market_regime": {
-      "day": "2026-11-11",
-      "close": 4075.71,
-      "ma60": 4373.688333333333,
-      "change_20d": -0.03366068549534351,
+      "day": "2026-11-12",
+      "close": 4080.14,
+      "ma60": 4363.508666666666,
+      "change_20d": -0.02061204845883724,
       "state": "下行",
-      "note": "沪深300 4076，低于60 日均线 4374，20 日 -3.4%",
+      "note": "沪深300 4080，低于60 日均线 4364，20 日 -2.1%",
       "index": "沪深300",
       "caveat": ""
     },
@@ -560,7 +560,7 @@
     "market_same_sign_rate": 0.8421052631578947,
     "lift": 1.1875,
     "penetration": 0.05084745762711865,
-    "market_penetration": 0.01819574794100747,
+    "market_penetration": 0.018192263500574492,
     "median_change_industry": 104.6,
     "median_change_market": 96.2,
     "same_sign_peers": [
@@ -585,13 +585,12 @@
   "commodities": {},
   "execution": {
     "as_of": "2026-11-12",
-    "stake": 20000.0,
+    "stake": null,
     "liquidity": {
       "avg_turnover": 27063256206.4,
-      "stake": 20000.0,
-      "ratio": 1353162.8,
-      "level": "无忧",
-      "note": "日均额为单笔的 135 万倍：小资金进出无冲击"
+      "stake": null,
+      "level": "未评估",
+      "note": "20 日均成交额 270.63 亿；规则：单笔不超过其 5%"
     },
     "strength": {
       "window": 60,

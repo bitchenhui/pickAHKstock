@@ -190,7 +190,7 @@
     "market_cap": 3663000000.0000005,
     "pe": 20.51,
     "pb": 1.55,
-    "as_of": "20261112113112"
+    "as_of": "20261112120512"
   },
   "financials": {
     "path": "已盈利",
@@ -868,6 +868,14 @@
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225163913.PDF",
         "category": "审计意见"
+      },
+      {
+        "code": "000626",
+        "name": "远大控股",
+        "title": "董事会关于会计政策变更的说明",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225163909.PDF",
+        "category": "重组变更"
       },
       {
         "code": "000626",

@@ -172,14 +172,14 @@
   "market_context": {
     "price": 32.81,
     "market_cap": 25336000000.0,
-    "as_of": "20261112113402",
+    "as_of": "20261112120532",
     "role": "市场确认与执行参考，不是业务证据",
-    "close": 32.32,
-    "atr": 2.0657,
-    "atr_pct": 6.39,
-    "stop_reference": 28.189,
-    "bars": 449,
-    "bars_as_of": "2026-11-11",
+    "close": 33.43,
+    "atr": 1.9014,
+    "atr_pct": 5.69,
+    "stop_reference": 29.627,
+    "bars": 450,
+    "bars_as_of": "2026-11-12",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_605358/01/2026.js",
     "market_regime": {
       "day": "2026-11-12",
@@ -882,10 +882,10 @@
     "as_of": "2026-11-12",
     "stake": null,
     "liquidity": {
-      "avg_turnover": 99595677632.95,
+      "avg_turnover": 97066274359.05,
       "stake": null,
       "level": "未评估",
-      "note": "20 日均成交额 995.96 亿；规则：单笔不超过其 5%"
+      "note": "20 日均成交额 970.66 亿；规则：单笔不超过其 5%"
     },
     "strength": {
       "window": 60,
