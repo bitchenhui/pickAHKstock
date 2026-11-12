@@ -1,0 +1,14 @@
+tests/test_shortlist.py
+  h_69a2bad0f475d9 2,11-12,36-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5926605d58ebebef668cd89efbbd49ab10c31141",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
