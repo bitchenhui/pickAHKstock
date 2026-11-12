@@ -27,8 +27,8 @@ import requests
 from .card import Card
 from .plain import plain_conclusion
 
-DEFAULT_BASE_URL = "https://api.minimaxi.com/anthropic"
-DEFAULT_MODEL = "MiniMax-M3.1"
+DEFAULT_BASE_URL = "https://api.minimaxi.com/v1"
+DEFAULT_MODEL = "MiniMax-M3.1-Flash"
 TIMEOUT = 120
 
 
@@ -175,7 +175,7 @@ def _call_anthropic(base_url: str, api_key: str, model: str, system: str,
         f"{base_url.rstrip('/')}/v1/messages",
         headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
                  "Content-Type": "application/json"},
-        json={"model": model, "max_tokens": 1200, "temperature": 0.3,
+        json={"model": model, "max_tokens": 4096, "temperature": 0.3,
               "system": system, "messages": [{"role": "user", "content": user}]},
         timeout=TIMEOUT)
     response.raise_for_status()
@@ -193,7 +193,7 @@ def _call_openai(base_url: str, api_key: str, model: str, system: str,
         f"{base_url.rstrip('/')}/chat/completions",
         headers={"Authorization": f"Bearer {api_key}",
                  "Content-Type": "application/json"},
-        json={"model": model, "max_tokens": 1200, "temperature": 0.3,
+        json={"model": model, "max_tokens": 4096, "temperature": 0.3,
               "messages": [{"role": "system", "content": system},
                            {"role": "user", "content": user}]},
         timeout=TIMEOUT)
