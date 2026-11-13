@@ -20,7 +20,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -91,13 +91,15 @@ jobs:
         run: |
           # 自动补全判断 → 过质量门 → 进推荐清单
           timeout 600 python -m research.cli auto-judge 2>/dev/null || echo "auto-judge 超时，不挡发布"
-          # 对全部卡片跑多空对辩（有 LLM key 时）
+          # 只对没有 debate 的卡跑多空对辩（已有的不重复跑，省时间）
           for f in cards/A_*.json cards/HK_*.json; do
             [ -e "$f" ] || continue
             base=$(basename "$f" .json)
             market=${base%%_*}
             code=${base#*_}
-            timeout 120 python -m research.cli analyze "$market" "$code" >/dev/null 2>&1 || true
+            grep -q '"verdict": "..*"' "$f" && continue
+            echo "== 对辩 $market $code"
+            timeout 180 python -m research.cli analyze "$market" "$code" >/dev/null 2>&1 || true
           done
 
       - name: 生成单卡笔记与汇总页
