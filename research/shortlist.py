@@ -63,6 +63,33 @@ def _score_card(card: Card) -> tuple[int, list[tuple[str, int, str]], str]:
         else:
             factors.append(("强度", 0, f"相对大盘 {rs:+.0f}pct"))
 
+    # ①b 估值分位：历史低位加分（安全边际），高位扣分（贵）
+    inputs = card.inputs or {}
+    valuation = inputs.get("valuation") or {}
+    pe_pct = valuation.get("pe_percentile") or valuation.get("pb_percentile")
+    if pe_pct is not None:
+        if pe_pct <= 30:
+            factors.append(("估值", 2, f"PE 处于历史 {pe_pct:.0f}% 分位（偏低，安全边际好）"))
+        elif pe_pct >= 70:
+            factors.append(("估值", -1, f"PE 处于历史 {pe_pct:.0f}% 分位（偏高，贵）"))
+        else:
+            factors.append(("估值", 0, f"PE 历史分位 {pe_pct:.0f}%"))
+
+    # ①c 股东增减持：净增持加分（信心），净减持扣分（红旗）
+    holders = inputs.get("holders") or {}
+    if holders.get("net_signal", 0) > 0:
+        factors.append(("股东", 2, f"近期净增持 {holders['buy_count']} 次（信心信号）"))
+    elif holders.get("net_signal", 0) < 0:
+        factors.append(("股东", -2, f"近期净减持 {holders['sell_count']} 次（红旗）"))
+
+    # ①d 成交量趋势：放量加分（关注升温），缩量扣分（消退）
+    volume = inputs.get("volume") or {}
+    trend = volume.get("trend", "")
+    if trend in ("显著放量", "温和放量"):
+        factors.append(("量能", 1, f"成交量{trend}（比 60 日均值 {volume.get('vol_ratio_20_60', '—')} 倍）"))
+    elif trend in ("显著缩量",):
+        factors.append(("量能", -1, f"成交量{trend}（关注度消退）"))
+
     # ②b RSI：超买扣分（数据支持）、超卖加分（温和）
     rsi_val = (card.execution or {}).get("rsi")
     if rsi_val is not None:
