@@ -1,0 +1,38 @@
+cards/A_000603.json
+  h_69a2bad0f475d9 629-630,901
+cards/A_002044.json
+  h_69a2bad0f475d9 821-822,1310
+cards/A_600409.json
+  h_69a2bad0f475d9 657-658,795
+cards/A_600888.json
+  h_69a2bad0f475d9 626-627,747
+cards/A_603026.json
+  h_69a2bad0f475d9 683-684,821
+cards/A_605358.json
+  h_69a2bad0f475d9 897-898,1125
+cards/HK_03323.json
+  h_69a2bad0f475d9 692-696,865
+cards/HK_09696.json
+  h_69a2bad0f475d9 620-624,781
+cards/notes/index.html
+  h_69a2bad0f475d9 248
+research/execution.py
+  h_69a2bad0f475d9 137-165
+research/shortlist.py
+  h_69a2bad0f475d9 46-47,49,51,55-56,59-62,64-74
+scripts/factor_check.py
+  h_69a2bad0f475d9 1-182
+scripts/rsi_check.py
+  h_69a2bad0f475d9 1-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bc754f1ebdba4815320ca5738d4b4cfcf1a2c042",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
