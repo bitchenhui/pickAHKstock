@@ -134,3 +134,32 @@ def fill_execution(card) -> dict:
     out["strength"] = strength or {}
     card.execution = out
     return out
+
+
+def rsi_14(closes: list[float]) -> float | None:
+    """标准 Wilder 14 期 RSI。"""
+    if len(closes) < 15:
+        return None
+    gains, losses = [], []
+    for prev, curr in zip(closes[-15:-1], closes[-14:]):
+        diff = curr - prev
+        gains.append(max(diff, 0))
+        losses.append(max(-diff, 0))
+    avg_gain = sum(gains) / 14
+    avg_loss = sum(losses) / 14
+    if avg_loss == 0:
+        return 100.0
+    return 100 - 100 / (1 + avg_gain / avg_loss)
+
+
+def rsi_current(code: str, market: str) -> float | None:
+    """当前 RSI（14 期，前复权日线）。"""
+    from .backtest import hk_index_bars, index_bars, load_prices
+    from datetime import timedelta
+
+    today = date.today()
+    start = today - timedelta(days=80)
+    bars = load_prices(code, start, today)
+    if len(bars) < 15:
+        return None
+    return rsi_14([b["close"] for b in bars])

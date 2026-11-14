@@ -43,22 +43,35 @@ def _score_card(card: Card) -> tuple[int, list[tuple[str, int, str]], str]:
 
     # ① 共振类型：公司自己的事最值钱，行业 beta 是放大器不是 alpha
     verdict = resonance.get("verdict", "")
+    # 数据检验：公司特有 vs 行业共振无收益差异（factor_check 8 期）
+    # → 不给共振类型加分，只做信息标注
     if verdict == "公司特有":
-        factors.append(("共振", 2, "同行没这动静，是它自己的事"))
+        factors.append(("共振", 0, "同行没这动静（注意：数据未显示比行业行情更好）"))
     elif verdict and verdict != "行业共振":
-        factors.append(("共振", 1, "同行样本少，判断不了是不是行业行情"))
+        factors.append(("共振", 0, "同行样本少，判断不了"))
     else:
         factors.append(("共振", 0, "行业行情，涨跌跟着行业走"))
 
-    # ② 相对强度：跑赢大盘才值得优先看
+    # ② 相对强度：数据检验显示已涨过的反而更差（追高陷阱）
+    # → 跑输大盘的温和加分（没涨过头），跑赢太多的扣分
     rs = strength.get("rs")
     if rs is not None:
-        if rs > 5:
-            factors.append(("强度", 2, f"跑赢大盘 {rs:+.0f}pct"))
-        elif rs > 0:
-            factors.append(("强度", 1, f"跑赢大盘 {rs:+.0f}pct"))
+        if rs < -5:
+            factors.append(("强度", 1, f"跑输大盘 {rs:+.0f}pct（未涨过头）"))
+        elif rs > 15:
+            factors.append(("强度", -1, f"跑赢大盘 {rs:+.0f}pct（已涨过多，追高陷阱）"))
         else:
-            factors.append(("强度", 0, f"跑输大盘 {rs:+.0f}pct"))
+            factors.append(("强度", 0, f"相对大盘 {rs:+.0f}pct"))
+
+    # ②b RSI：超买扣分（数据支持）、超卖加分（温和）
+    rsi_val = (card.execution or {}).get("rsi")
+    if rsi_val is not None:
+        if rsi_val > 70:
+            factors.append(("RSI", -2, f"RSI {rsi_val:.0f} 超买"))
+        elif rsi_val < 30:
+            factors.append(("RSI", 1, f"RSI {rsi_val:.0f} 超卖（反弹潜力）"))
+        else:
+            factors.append(("RSI", 0, f"RSI {rsi_val:.0f}"))
 
     # ③ 催化剂距离：近的先看（该验证的事到了）
     today = date.today()
