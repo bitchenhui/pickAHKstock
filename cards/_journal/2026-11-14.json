@@ -1,0 +1,88 @@
+[
+  {
+    "day": "2026-11-14",
+    "code": "002044",
+    "name": "美年健康",
+    "market": "A",
+    "rank": 1,
+    "total_score": 3,
+    "factors": {
+      "共振": 0,
+      "强度": 0,
+      "RSI": 0,
+      "催化": 1,
+      "AI": 2
+    },
+    "price_at_call": 4.95,
+    "status": "观察"
+  },
+  {
+    "day": "2026-11-14",
+    "code": "605358",
+    "name": "立昂微",
+    "market": "A",
+    "rank": 2,
+    "total_score": 3,
+    "factors": {
+      "共振": 0,
+      "强度": 1,
+      "RSI": 0,
+      "催化": 1,
+      "盯价": 1
+    },
+    "price_at_call": 32.81,
+    "status": "观察"
+  },
+  {
+    "day": "2026-11-14",
+    "code": "600409",
+    "name": "三友化工",
+    "market": "A",
+    "rank": 3,
+    "total_score": 2,
+    "factors": {
+      "共振": 0,
+      "强度": 1,
+      "RSI": 0,
+      "催化": 2,
+      "AI": -1
+    },
+    "price_at_call": 5.39,
+    "status": "观察"
+  },
+  {
+    "day": "2026-11-14",
+    "code": "000603",
+    "name": "盛达资源",
+    "market": "A",
+    "rank": 4,
+    "total_score": 1,
+    "factors": {
+      "共振": 0,
+      "强度": 0,
+      "RSI": 0,
+      "催化": 2,
+      "AI": -1
+    },
+    "price_at_call": 27.77,
+    "status": "观察"
+  },
+  {
+    "day": "2026-11-14",
+    "code": "603026",
+    "name": "石大胜华",
+    "market": "A",
+    "rank": 5,
+    "total_score": 1,
+    "factors": {
+      "共振": 0,
+      "强度": 1,
+      "RSI": 0,
+      "催化": 1,
+      "AI": -1,
+      "盯价": 0
+    },
+    "price_at_call": 47.15,
+    "status": "观察"
+  }
+]

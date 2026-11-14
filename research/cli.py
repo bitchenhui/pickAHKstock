@@ -845,6 +845,67 @@ def cmd_auto_judge(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_evolve(args: argparse.Namespace) -> int:
+    """AI 迭代进化：记录今日预测 → 归因历史因子 → 调整权重。"""
+    from .shortlist import build_shortlist
+    from .evolution import Evolution, Prediction
+
+    evo = Evolution()
+    cards = _load_all_cards()
+    shortlist = build_shortlist(cards)
+
+    # 1) 记录今日预测
+    if shortlist:
+        today = date.today().isoformat()
+        preds = []
+        for i, entry in enumerate(shortlist, 1):
+            card = entry.card
+            ctx = card.market_context or {}
+            preds.append(Prediction(
+                day=today, code=card.code, name=card.name, market=card.market,
+                rank=i, total_score=entry.score,
+                factors={name: score for name, score, _ in entry.factors},
+                price_at_call=float(ctx.get("price") or 0),
+                status=card.status))
+        evo.log_predictions(preds)
+        print(f"今日预测已记录：{len(preds)} 只（写入 cards/_journal/）")
+    else:
+        print("今日无推荐，不记录。")
+
+    # 2) 归因（如果有到期的预测）
+    journal = evo.load_journal()
+    print(f"\n预测日志：{len(journal)} 条")
+    if len(journal) < 10:
+        print("样本不足，需积累更多预测（至少 10 条且满 60 交易日）。")
+        print(f"当前权重（第 {evo.generation} 代）：{evo.weights}")
+        return 0
+
+    outcomes = evo.compute_outcomes(journal)
+    print(f"到期结果：{len(outcomes)} 条\n")
+    attribution = evo.attribute(outcomes)
+    if "error" in attribution:
+        print(attribution["error"])
+        return 0
+    for name, result in attribution.items():
+        if result.get("status") == "样本少":
+            print(f"  {name}: 样本少（高分组 {result['high_n']}，低分组 {result['low_n']}）")
+        else:
+            print(f"  {name}: {result['status']}（高分组均值 {result['high_avg']}% vs "
+                  f"低分组 {result['low_avg']}%，差 {result['diff']}pct）"
+                  f" → 建议{result['recommendation']}")
+
+    # 3) 调整权重
+    result = evo.adjust_weights(attribution)
+    if result.get("adjusted"):
+        print(f"\n权重已调整（第 {result['generation']} 代）：")
+        for name, change in result["changes"].items():
+            print(f"  {name}: {change['from']} → {change['to']}（{change['reason']}）")
+    else:
+        print(f"\n本轮无需调整（或 {result.get('error', '所有因子都在正常范围')}）")
+    print(f"\n当前权重：{evo.weights}")
+    return 0
+
+
 def cmd_backtest_report(args: argparse.Namespace) -> int:
     """定期回测报告：跑八期事件研究 + 组合层 + 分期拆解。"""
     import runpy
@@ -1144,6 +1205,9 @@ def main(argv: list[str] | None = None) -> int:
     p_an.add_argument("market")
     p_an.add_argument("code")
     p_an.set_defaults(func=cmd_analyze)
+
+    p_evo = sub.add_parser("evolve", help="AI 迭代进化：记录预测 → 归因因子 → 调整权重")
+    p_evo.set_defaults(func=cmd_evolve)
 
     p_sent = sub.add_parser("sentinel", help="哨兵：触发器命中检查 + 多渠道通知")
     p_sent.set_defaults(func=cmd_sentinel)

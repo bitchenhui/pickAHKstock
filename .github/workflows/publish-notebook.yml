@@ -102,6 +102,12 @@ jobs:
             timeout 180 python -m research.cli analyze "$market" "$code" >/dev/null 2>&1 || true
           done
 
+      - name: AI 进化循环（记录预测 + 到期归因 + 权重调整）
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/pycache
+        run: |
+          timeout 300 python -m research.cli evolve 2>/dev/null || echo "evolve 超时，不挡发布"
+
       - name: 生成单卡笔记与汇总页
         env:
           PYTHONPYCACHEPREFIX: /tmp/pycache
