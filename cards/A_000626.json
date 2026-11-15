@@ -167,12 +167,12 @@
     "担保代偿金额超过归母净资产的 10%，或担保对手方集中度显著上升"
   ],
   "market_context": {
-    "close": 7.18,
+    "close": 6.97,
     "atr": 0.2436,
-    "atr_pct": 3.39,
-    "stop_reference": 6.693,
-    "bars": 450,
-    "bars_as_of": "2026-11-12",
+    "atr_pct": 3.49,
+    "stop_reference": 6.483,
+    "bars": 451,
+    "bars_as_of": "2026-11-13",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_000626/01/2026.js",
     "market_regime": {
       "day": "2026-11-13",
@@ -525,7 +525,7 @@
     "path_evidence": [],
     "notes": [
       "数据已于 2026-10-28 取自同花顺 F10 财务主表",
-      "财务序列已于 2026-11-13 取自 https://basic.10jqka.com.cn/api/stock/finance/000626_main.json"
+      "财务序列已于 2026-11-15 取自 https://basic.10jqka.com.cn/api/stock/finance/000626_main.json"
     ]
   },
   "catalysts": [
@@ -746,21 +746,48 @@
   },
   "commodities": {},
   "execution": {
-    "as_of": "2026-11-13",
+    "as_of": "2026-11-15",
     "stake": null,
     "liquidity": {
-      "avg_turnover": 10253879235.95,
+      "avg_turnover": 8534259561.15,
       "stake": null,
       "level": "未评估",
-      "note": "20 日均成交额 102.54 亿；规则：单笔不超过其 5%"
+      "note": "20 日均成交额 85.34 亿；规则：单笔不超过其 5%"
     },
     "strength": {
       "window": 60,
-      "stock_return": -4.9,
+      "stock_return": -6.6,
       "index_return": -13.9,
-      "rs": 9.0,
-      "as_of": "2026-11-12",
+      "rs": 7.4,
+      "as_of": "2026-11-13",
       "note": "跑赢大盘（60 日，前复权）"
+    }
+  },
+  "inputs": {
+    "as_of": "2026-11-15",
+    "valuation": {
+      "pe": null,
+      "pb": 1.49312169,
+      "pe_percentile": null,
+      "pb_percentile": 39.4,
+      "history_len": 2150,
+      "as_of": "2026-11-15",
+      "source": "东财估值数据"
+    },
+    "holders": {
+      "recent_buys": [],
+      "recent_sells": [],
+      "recent_buybacks": [],
+      "buy_count": 0,
+      "sell_count": 0,
+      "net_signal": 0,
+      "note": "正=净增持（信心信号），负=净减持（红旗）"
+    },
+    "volume": {},
+    "demand": {
+      "industry": "物流",
+      "status": "未映射",
+      "note": "该行业暂无下游需求映射，需手动补充"
     }
   },
   "plain": {
@@ -786,9 +813,17 @@
   },
   "debate": {},
   "scans": {
-    "as_of": "2026-11-13",
+    "as_of": "2026-11-15",
     "days": 240,
     "risks": [
+      {
+        "code": "000626",
+        "name": "远大控股",
+        "title": "关于审计机构变更签字注册会计师的公告",
+        "published": "2026-11-13",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-11-14/1225670246.PDF",
+        "category": "审计意见"
+      },
       {
         "code": "000626",
         "name": "远大控股",
@@ -872,6 +907,14 @@
       {
         "code": "000626",
         "name": "远大控股",
+        "title": "董事会关于会计政策变更的说明",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225163909.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "000626",
+        "name": "远大控股",
         "title": "关于远大产业控股股份有限公司会计政策变更的说明",
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225163908.PDF",
@@ -920,8 +963,8 @@
       },
       {
         "category": "担保",
-        "detail": "统计区间 2025-11-13---2026-11-13：111 次，金额 2215494.0（万元），占归母净资产 936.8%",
-        "date": "2026-11-13",
+        "detail": "统计区间 2025-11-15---2026-11-15：111 次，金额 2215494.0（万元），占归母净资产 936.8%",
+        "date": "2026-11-15",
         "severity": "高",
         "source": "巨潮资讯 担保统计"
       }
@@ -1029,6 +1072,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-11-13",
+  "updated": "2026-11-15",
   "derived_level": "证据充分"
 }

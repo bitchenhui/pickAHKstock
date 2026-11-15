@@ -154,12 +154,12 @@
     "对外担保被担保方出现代偿，或担保余额进一步上升超过归母净资产 120%"
   ],
   "market_context": {
-    "close": 3.39,
-    "atr": 0.1164,
-    "atr_pct": 3.43,
-    "stop_reference": 3.157,
-    "bars": 450,
-    "bars_as_of": "2026-11-12",
+    "close": 3.3,
+    "atr": 0.115,
+    "atr_pct": 3.48,
+    "stop_reference": 3.07,
+    "bars": 451,
+    "bars_as_of": "2026-11-13",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_002132/01/2026.js",
     "market_regime": {
       "day": "2026-11-13",
@@ -512,7 +512,7 @@
     "path_evidence": [],
     "notes": [
       "数据已于 2026-10-28 取自同花顺 F10 财务主表",
-      "财务序列已于 2026-11-13 取自 https://basic.10jqka.com.cn/api/stock/finance/002132_main.json"
+      "财务序列已于 2026-11-15 取自 https://basic.10jqka.com.cn/api/stock/finance/002132_main.json"
     ]
   },
   "catalysts": [
@@ -815,27 +815,54 @@
     }
   },
   "execution": {
-    "as_of": "2026-11-13",
+    "as_of": "2026-11-15",
     "stake": null,
     "liquidity": {
-      "avg_turnover": 10335070972.3,
+      "avg_turnover": 10211359053.55,
       "stake": null,
       "level": "未评估",
-      "note": "20 日均成交额 103.35 亿；规则：单笔不超过其 5%"
+      "note": "20 日均成交额 102.11 亿；规则：单笔不超过其 5%"
     },
     "strength": {
       "window": 60,
-      "stock_return": -20.6,
+      "stock_return": -25.0,
       "index_return": -13.9,
-      "rs": -6.7,
-      "as_of": "2026-11-12",
+      "rs": -11.1,
+      "as_of": "2026-11-13",
       "note": "跑输大盘（60 日，前复权）"
+    }
+  },
+  "inputs": {
+    "as_of": "2026-11-15",
+    "valuation": {
+      "pe": null,
+      "pb": 1.32897619,
+      "pe_percentile": null,
+      "pb_percentile": 34.6,
+      "history_len": 2150,
+      "as_of": "2026-11-15",
+      "source": "东财估值数据"
+    },
+    "holders": {
+      "recent_buys": [],
+      "recent_sells": [],
+      "recent_buybacks": [],
+      "buy_count": 0,
+      "sell_count": 0,
+      "net_signal": 0,
+      "note": "正=净增持（信心信号），负=净减持（红旗）"
+    },
+    "volume": {},
+    "demand": {
+      "industry": "通用设备",
+      "status": "未映射",
+      "note": "该行业暂无下游需求映射，需手动补充"
     }
   },
   "plain": {},
   "debate": {},
   "scans": {
-    "as_of": "2026-11-13",
+    "as_of": "2026-11-15",
     "days": 240,
     "risks": [
       {
@@ -937,8 +964,8 @@
       },
       {
         "category": "担保",
-        "detail": "统计区间 2025-11-13---2026-11-13：2 次，金额 360000.0（万元），占归母净资产 103.44%",
-        "date": "2026-11-13",
+        "detail": "统计区间 2025-11-15---2026-11-15：2 次，金额 360000.0（万元），占归母净资产 103.44%",
+        "date": "2026-11-15",
         "severity": "高",
         "source": "巨潮资讯 担保统计"
       }
@@ -1045,6 +1072,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-11-13",
+  "updated": "2026-11-15",
   "derived_level": "证据充分"
 }
