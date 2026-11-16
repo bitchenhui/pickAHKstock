@@ -78,33 +78,33 @@
     "2026 年报应收账款周转天数超过 130 天"
   ],
   "market_context": {
-    "price": 44.6,
-    "turnover": 198330000.0,
-    "market_cap": 10378000000.0,
-    "pe": 16.56,
-    "pb": 1.88,
-    "as_of": "20261113161500",
+    "price": 43.74,
+    "turnover": 154340000.0,
+    "market_cap": 10178000000.0,
+    "pe": 16.24,
+    "pb": 1.85,
+    "as_of": "20261116134340",
     "role": "市场确认与执行参考，不是业务证据",
     "industry": "电池",
     "resonance": "行业共振",
     "resonance_peers": 10,
     "resonance_same_sign": 10,
     "market_regime": {
-      "day": "2026-11-13",
-      "close": 4016.29,
-      "ma60": 4352.110833333332,
-      "change_20d": -0.03700178151397515,
+      "day": "2026-11-16",
+      "close": 3981.41,
+      "ma60": 4340.702999999999,
+      "change_20d": -0.04626149530605839,
       "state": "下行",
-      "note": "沪深300 4016，低于60 日均线 4352，20 日 -3.7%",
+      "note": "沪深300 3981，低于60 日均线 4341，20 日 -4.6%",
       "index": "沪深300",
       "caveat": ""
     },
-    "close": 44.6,
-    "atr": 2.1464,
+    "close": 44.1,
+    "atr": 2.1193,
     "atr_pct": 4.81,
-    "stop_reference": 40.307,
-    "bars": 451,
-    "bars_as_of": "2026-11-13",
+    "stop_reference": 39.861,
+    "bars": 452,
+    "bars_as_of": "2026-11-16",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_603026/01/2026.js"
   },
   "financials": {
@@ -439,7 +439,7 @@
     "working_capital_note": "应收账款周转天数 64.95 → 113.03 天（2024 年报 → 2026 三季），经营现金流 -11.13 亿与利润 5.49 亿严重背离——收入扩张建立在赊销上，警惕 Q4 报表的回款与坏账风险。",
     "path_evidence": [],
     "notes": [
-      "财务序列已于 2026-11-15 取自 https://basic.10jqka.com.cn/api/stock/finance/603026_main.json"
+      "财务序列已于 2026-11-16 取自 https://basic.10jqka.com.cn/api/stock/finance/603026_main.json"
     ]
   },
   "catalysts": [
@@ -665,7 +665,7 @@
     }
   },
   "execution": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "stake": null,
     "liquidity": {
       "avg_turnover": 28050321068.7,
@@ -676,21 +676,21 @@
     "strength": {
       "window": 60,
       "stock_return": -33.9,
-      "index_return": -13.9,
-      "rs": -19.9,
+      "index_return": -16.0,
+      "rs": -17.8,
       "as_of": "2026-11-13",
       "note": "跑输大盘（60 日，前复权）"
     }
   },
   "inputs": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "valuation": {
       "pe": null,
       "pb": 1.88441517,
       "pe_percentile": null,
       "pb_percentile": 10.3,
       "history_len": 2150,
-      "as_of": "2026-11-15",
+      "as_of": "2026-11-16",
       "source": "东财估值数据"
     },
     "holders": {
@@ -750,7 +750,7 @@
     "source": "MiniMax-M3.1-Flash/openai"
   },
   "scans": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "days": 240,
     "risks": [
       {
@@ -812,8 +812,8 @@
       },
       {
         "category": "担保",
-        "detail": "统计区间 2025-11-15---2026-11-15：12 次，金额 760000.0（万元），占归母净资产 137.99%",
-        "date": "2026-11-15",
+        "detail": "统计区间 2025-11-16---2026-11-16：12 次，金额 760000.0（万元），占归母净资产 137.99%",
+        "date": "2026-11-16",
         "severity": "高",
         "source": "巨潮资讯 担保统计"
       }
@@ -847,6 +847,6 @@
     }
   ],
   "created": "2026-11-10",
-  "updated": "2026-11-15",
+  "updated": "2026-11-16",
   "derived_level": "证据充分"
 }

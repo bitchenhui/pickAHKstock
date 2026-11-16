@@ -77,24 +77,24 @@
     "股价跌破7.944元（2ATR参考失效线；现价8.65元）"
   ],
   "market_context": {
-    "price": 8.23,
-    "turnover": 318040000.0,
-    "market_cap": 12782000000.0,
-    "pe": 13.43,
-    "pb": 0.97,
-    "as_of": "20261113161434",
+    "price": 8.09,
+    "turnover": 161730000.0,
+    "market_cap": 12564000000.0,
+    "pe": 13.21,
+    "pb": 0.95,
+    "as_of": "20261116134301",
     "role": "市场确认与执行参考，不是业务证据",
     "industry": "工业金属",
     "resonance": "行业共振",
     "resonance_peers": 3,
     "resonance_same_sign": 3,
     "market_regime": {
-      "day": "2026-11-13",
-      "close": 4016.29,
-      "ma60": 4352.110833333332,
-      "change_20d": -0.03700178151397515,
+      "day": "2026-11-16",
+      "close": 3981.41,
+      "ma60": 4340.702999999999,
+      "change_20d": -0.04626149530605839,
       "state": "下行",
-      "note": "沪深300 4016，低于60 日均线 4352，20 日 -3.7%",
+      "note": "沪深300 3981，低于60 日均线 4341，20 日 -4.6%",
       "index": "沪深300",
       "caveat": ""
     },
@@ -438,7 +438,7 @@
     "working_capital_note": "",
     "path_evidence": [],
     "notes": [
-      "财务序列已于 2026-11-15 取自 https://basic.10jqka.com.cn/api/stock/finance/600888_main.json"
+      "财务序列已于 2026-11-16 取自 https://basic.10jqka.com.cn/api/stock/finance/600888_main.json"
     ]
   },
   "catalysts": [
@@ -608,7 +608,7 @@
   },
   "commodities": {},
   "execution": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "stake": null,
     "liquidity": {
       "avg_turnover": 27431334464.3,
@@ -619,21 +619,21 @@
     "strength": {
       "window": 60,
       "stock_return": -20.6,
-      "index_return": -13.9,
-      "rs": -6.7,
+      "index_return": -16.0,
+      "rs": -4.6,
       "as_of": "2026-11-13",
       "note": "跑输大盘（60 日，前复权）"
     }
   },
   "inputs": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "valuation": {
       "pe": null,
       "pb": 0.96606932,
       "pe_percentile": null,
       "pb_percentile": 13.6,
       "history_len": 2150,
-      "as_of": "2026-11-15",
+      "as_of": "2026-11-16",
       "source": "东财估值数据"
     },
     "holders": {
@@ -692,7 +692,7 @@
     "source": "MiniMax-M3.1-Flash/openai"
   },
   "scans": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "days": 240,
     "risks": [
       {
@@ -773,6 +773,6 @@
     }
   ],
   "created": "2026-11-12",
-  "updated": "2026-11-15",
+  "updated": "2026-11-16",
   "derived_level": "部分证据"
 }

@@ -71,24 +71,24 @@
     "3. 下一同口径报告期自由现金流低于-1.57亿元（当前为-1.57亿元，经营现金流+0.92亿元、资本开支+2.49亿元）。"
   ],
   "market_context": {
-    "price": 22.42,
-    "turnover": 469280000.0,
-    "market_cap": 10726000000.0,
-    "pe": 27.11,
-    "pb": 2.78,
-    "as_of": "20261113161430",
+    "price": 20.78,
+    "turnover": 263150000.0,
+    "market_cap": 9941000000.0,
+    "pe": 25.13,
+    "pb": 2.57,
+    "as_of": "20261116134133",
     "role": "市场确认与执行参考，不是业务证据",
     "industry": "塑料",
     "resonance": "介于两者之间",
     "resonance_peers": 6,
     "resonance_same_sign": 5,
     "market_regime": {
-      "day": "2026-11-13",
-      "close": 4016.29,
-      "ma60": 4352.110833333332,
-      "change_20d": -0.03700178151397515,
+      "day": "2026-11-16",
+      "close": 3981.41,
+      "ma60": 4340.702999999999,
+      "change_20d": -0.04626149530605839,
       "state": "下行",
-      "note": "沪深300 4016，低于60 日均线 4352，20 日 -3.7%",
+      "note": "沪深300 3981，低于60 日均线 4341，20 日 -4.6%",
       "index": "沪深300",
       "caveat": ""
     },
@@ -432,7 +432,7 @@
     "working_capital_note": "",
     "path_evidence": [],
     "notes": [
-      "财务序列已于 2026-11-15 取自 https://basic.10jqka.com.cn/api/stock/finance/002838_main.json"
+      "财务序列已于 2026-11-16 取自 https://basic.10jqka.com.cn/api/stock/finance/002838_main.json"
     ]
   },
   "catalysts": [
@@ -627,7 +627,7 @@
   },
   "commodities": {},
   "execution": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "stake": null,
     "liquidity": {
       "avg_turnover": 15791890611.05,
@@ -638,21 +638,21 @@
     "strength": {
       "window": 60,
       "stock_return": -8.8,
-      "index_return": -13.9,
-      "rs": 5.2,
+      "index_return": -16.0,
+      "rs": 7.3,
       "as_of": "2026-11-13",
       "note": "跑赢大盘（60 日，前复权）"
     }
   },
   "inputs": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "valuation": {
       "pe": null,
       "pb": 2.72793747,
       "pe_percentile": null,
       "pb_percentile": 26.6,
       "history_len": 2150,
-      "as_of": "2026-11-15",
+      "as_of": "2026-11-16",
       "source": "东财估值数据"
     },
     "holders": {
@@ -674,7 +674,7 @@
   "plain": {},
   "debate": {},
   "scans": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "days": 240,
     "risks": [
       {
@@ -864,8 +864,8 @@
       },
       {
         "category": "担保",
-        "detail": "统计区间 2025-11-15---2026-11-15：14 次，金额 139400.0（万元），占归母净资产 35.45%",
-        "date": "2026-11-15",
+        "detail": "统计区间 2025-11-16---2026-11-16：14 次，金额 139400.0（万元），占归母净资产 35.45%",
+        "date": "2026-11-16",
         "severity": "高",
         "source": "巨潮资讯 担保统计"
       }
@@ -890,6 +890,6 @@
     }
   ],
   "created": "2026-11-12",
-  "updated": "2026-11-15",
+  "updated": "2026-11-16",
   "derived_level": "证据充分"
 }

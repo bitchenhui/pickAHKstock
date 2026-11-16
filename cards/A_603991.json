@@ -255,22 +255,22 @@
     "bars_as_of": "2026-11-13",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_603991/01/2026.js",
     "market_regime": {
-      "day": "2026-11-13",
-      "close": 4016.29,
-      "ma60": 4352.110833333332,
-      "change_20d": -0.03700178151397515,
+      "day": "2026-11-16",
+      "close": 3981.41,
+      "ma60": 4340.702999999999,
+      "change_20d": -0.04626149530605839,
       "state": "下行",
-      "note": "沪深300 4016，低于60 日均线 4352，20 日 -3.7%",
+      "note": "沪深300 3981，低于60 日均线 4341，20 日 -4.6%",
       "index": "沪深300",
       "caveat": ""
     },
     "industry": "半导体",
-    "price": 124.1,
-    "turnover": 275630000.0,
-    "market_cap": 18951000000.0,
-    "pe": 59.26,
-    "pb": 5.04,
-    "as_of": "20261113161442"
+    "price": 116.66,
+    "turnover": 170010000.0,
+    "market_cap": 17815000000.0,
+    "pe": 55.71,
+    "pb": 4.74,
+    "as_of": "20261116134419"
   },
   "financials": {
     "path": "已盈利",
@@ -605,7 +605,7 @@
     "path_evidence": [],
     "notes": [
       "数据已于 2026-10-28 取自同花顺 F10 财务主表",
-      "财务序列已于 2026-11-15 取自 https://basic.10jqka.com.cn/api/stock/finance/603991_main.json"
+      "财务序列已于 2026-11-16 取自 https://basic.10jqka.com.cn/api/stock/finance/603991_main.json"
     ]
   },
   "catalysts": [
@@ -843,7 +843,7 @@
   },
   "commodities": {},
   "execution": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "stake": null,
     "liquidity": {
       "avg_turnover": 33784677962.25,
@@ -854,21 +854,21 @@
     "strength": {
       "window": 60,
       "stock_return": -8.0,
-      "index_return": -13.9,
-      "rs": 6.0,
+      "index_return": -16.0,
+      "rs": 8.1,
       "as_of": "2026-11-13",
       "note": "跑赢大盘（60 日，前复权）"
     }
   },
   "inputs": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "valuation": {
       "pe": null,
       "pb": 5.04198422,
       "pe_percentile": null,
       "pb_percentile": 31.5,
       "history_len": 2150,
-      "as_of": "2026-11-15",
+      "as_of": "2026-11-16",
       "source": "东财估值数据"
     },
     "holders": {
@@ -893,7 +893,7 @@
   "plain": {},
   "debate": {},
   "scans": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "days": 240,
     "risks": [
       {
@@ -1011,6 +1011,22 @@
       {
         "code": "603991",
         "name": "领先股份",
+        "title": "华泰联合证券有限责任公司关于重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之标的资产减值测试情况的核查意见",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164752.PDF",
+        "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "2025年度内部控制审计报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164738.PDF",
+        "category": "审计意见"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
         "title": "关于会计政策变更的公告",
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164706.PDF",
@@ -1035,9 +1051,25 @@
       {
         "code": "603991",
         "name": "领先股份",
+        "title": "2025年度审计报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164684.PDF",
+        "category": "审计意见"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
         "title": "关于计提资产减值准备的公告",
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164671.PDF",
+        "category": "资产质量"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "关于先进封装材料国际有限公司2025年12月31日99.97%股东权益的减值测试报告之专项审核报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164669.PDF",
         "category": "资产质量"
       }
     ],
@@ -1051,8 +1083,8 @@
       },
       {
         "category": "担保",
-        "detail": "统计区间 2025-11-15---2026-11-15：5 次，金额 271200.0（万元），占归母净资产 72.15%",
-        "date": "2026-11-15",
+        "detail": "统计区间 2025-11-16---2026-11-16：5 次，金额 271200.0（万元），占归母净资产 72.15%",
+        "date": "2026-11-16",
         "severity": "高",
         "source": "巨潮资讯 担保统计"
       }
@@ -1173,6 +1205,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-11-15",
+  "updated": "2026-11-16",
   "derived_level": "证据充分"
 }

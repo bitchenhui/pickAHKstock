@@ -190,22 +190,22 @@
     "bars_as_of": "2026-11-13",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_002044/01/2026.js",
     "market_regime": {
-      "day": "2026-11-13",
-      "close": 4016.29,
-      "ma60": 4352.110833333332,
-      "change_20d": -0.03700178151397515,
+      "day": "2026-11-16",
+      "close": 3981.41,
+      "ma60": 4340.702999999999,
+      "change_20d": -0.04626149530605839,
       "state": "下行",
-      "note": "沪深300 4016，低于60 日均线 4352，20 日 -3.7%",
+      "note": "沪深300 3981，低于60 日均线 4341，20 日 -4.6%",
       "index": "沪深300",
       "caveat": ""
     },
     "industry": "医疗服务",
-    "price": 4.74,
-    "turnover": 436120000.0,
-    "market_cap": 18554000000.0,
-    "pe": 56.24,
-    "pb": 2.25,
-    "as_of": "20261113161433"
+    "price": 4.72,
+    "turnover": 328400000.0,
+    "market_cap": 18475000000.0,
+    "pe": 56.01,
+    "pb": 2.24,
+    "as_of": "20261116133936"
   },
   "financials": {
     "path": "已盈利",
@@ -540,7 +540,7 @@
     "path_evidence": [],
     "notes": [
       "数据已于 2026-10-28 取自同花顺 F10 财务主表",
-      "财务序列已于 2026-11-15 取自 https://basic.10jqka.com.cn/api/stock/finance/002044_main.json"
+      "财务序列已于 2026-11-16 取自 https://basic.10jqka.com.cn/api/stock/finance/002044_main.json"
     ]
   },
   "catalysts": [
@@ -803,7 +803,7 @@
   },
   "commodities": {},
   "execution": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "stake": null,
     "liquidity": {
       "avg_turnover": 56354277728.0,
@@ -814,21 +814,21 @@
     "strength": {
       "window": 60,
       "stock_return": -5.8,
-      "index_return": -13.9,
-      "rs": 8.2,
+      "index_return": -16.0,
+      "rs": 10.3,
       "as_of": "2026-11-13",
       "note": "跑赢大盘（60 日，前复权）"
     }
   },
   "inputs": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "valuation": {
       "pe": null,
       "pb": 2.25350187,
       "pe_percentile": null,
       "pb_percentile": 8.1,
       "history_len": 2150,
-      "as_of": "2026-11-15",
+      "as_of": "2026-11-16",
       "source": "东财估值数据"
     },
     "holders": {
@@ -888,7 +888,7 @@
     "source": "MiniMax-M3.1-Flash/openai"
   },
   "scans": {
-    "as_of": "2026-11-15",
+    "as_of": "2026-11-16",
     "days": 240,
     "risks": [
       {
@@ -1238,8 +1238,8 @@
       },
       {
         "category": "担保",
-        "detail": "统计区间 2025-11-15---2026-11-15：107 次，金额 662901.09（万元），占归母净资产 80.52%",
-        "date": "2026-11-15",
+        "detail": "统计区间 2025-11-16---2026-11-16：107 次，金额 662901.09（万元），占归母净资产 80.52%",
+        "date": "2026-11-16",
         "severity": "高",
         "source": "巨潮资讯 担保统计"
       }
@@ -1336,6 +1336,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-11-15",
+  "updated": "2026-11-16",
   "derived_level": "证据充分"
 }
