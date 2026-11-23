@@ -247,30 +247,30 @@
     "对外担保出现代偿，或担保余额超过归母净资产 50%"
   ],
   "market_context": {
-    "close": 117.07,
-    "atr": 9.235,
-    "atr_pct": 7.89,
-    "stop_reference": 98.6,
-    "bars": 455,
-    "bars_as_of": "2026-11-19",
+    "close": 108.37,
+    "atr": 9.23,
+    "atr_pct": 8.52,
+    "stop_reference": 89.91,
+    "bars": 456,
+    "bars_as_of": "2026-11-20",
     "bars_source": "https://d.10jqka.com.cn/v6/line/hs_603991/01/2026.js",
     "market_regime": {
-      "day": "2026-11-20",
-      "close": 3917.9,
-      "ma60": 4294.252999999998,
-      "change_20d": -0.045655282279378206,
+      "day": "2026-11-23",
+      "close": 3947.56,
+      "ma60": 4283.675166666664,
+      "change_20d": -0.03801108311360435,
       "state": "下行",
-      "note": "沪深300 3918，低于60 日均线 4294，20 日 -4.6%",
+      "note": "沪深300 3948，低于60 日均线 4284，20 日 -3.8%",
       "index": "沪深300",
       "caveat": ""
     },
     "industry": "半导体",
-    "price": 110.22,
-    "turnover": 186010000.0,
-    "market_cap": 16832000000.0,
-    "pe": 52.64,
-    "pb": 4.48,
-    "as_of": "20261120143755"
+    "price": 109.93,
+    "turnover": 262480000.0,
+    "market_cap": 16787000000.0,
+    "pe": 52.5,
+    "pb": 4.47,
+    "as_of": "20261123144608"
   },
   "financials": {
     "path": "已盈利",
@@ -775,21 +775,21 @@
     "rank": "156.0/188",
     "rows": {
       "PEG": NaN,
-      "市盈率-TTM": 55.90675487,
+      "市盈率-TTM": 51.75207162,
       "市盈率-25E": NaN,
       "市盈率-26E": NaN,
       "市盈率-27E": NaN,
-      "市销率-24A": 32.487781419513,
-      "市销率-TTM": 5.06801061,
+      "市销率-24A": 30.073467775115,
+      "市销率-TTM": 4.69138387,
       "市销率-25E": NaN,
       "市销率-26E": NaN,
       "市销率-27E": NaN,
-      "市净率-24A": 5.111781080324,
-      "市净率-MRQ": 4.75636658,
-      "市现率1-24A": -1269.02931657,
-      "市现率1-TTM": 60.16929448,
-      "市现率2-24A": 14.88895859,
-      "市现率2-TTM": 24.41026192,
+      "市净率-24A": 4.731901560389,
+      "市净率-MRQ": 4.40289952,
+      "市现率1-24A": -1174.72202133,
+      "市现率1-TTM": 55.69784268,
+      "市现率2-24A": 13.78249289,
+      "市现率2-TTM": 22.5962252,
       "EV/EBITDA-24A": -590.896298657521
     },
     "source": "东方财富 A股估值比较",
@@ -843,32 +843,32 @@
   },
   "commodities": {},
   "execution": {
-    "as_of": "2026-11-20",
+    "as_of": "2026-11-23",
     "stake": null,
     "liquidity": {
-      "avg_turnover": 32938916083.75,
+      "avg_turnover": 31914387977.55,
       "stake": null,
       "level": "未评估",
-      "note": "20 日均成交额 329.39 亿；规则：单笔不超过其 5%"
+      "note": "20 日均成交额 319.14 亿；规则：单笔不超过其 5%"
     },
     "strength": {
       "window": 60,
-      "stock_return": -12.5,
-      "index_return": -15.0,
-      "rs": 2.5,
-      "as_of": "2026-11-19",
-      "note": "跑赢大盘（60 日，前复权）"
+      "stock_return": -19.5,
+      "index_return": -13.5,
+      "rs": -5.9,
+      "as_of": "2026-11-20",
+      "note": "跑输大盘（60 日，前复权）"
     }
   },
   "inputs": {
-    "as_of": "2026-11-20",
+    "as_of": "2026-11-23",
     "valuation": {
       "pe": null,
-      "pb": 4.75636658,
+      "pb": 4.40289952,
       "pe_percentile": null,
-      "pb_percentile": 29.9,
-      "history_len": 2154,
-      "as_of": "2026-11-20",
+      "pb_percentile": 26.9,
+      "history_len": 2155,
+      "as_of": "2026-11-23",
       "source": "东财估值数据"
     },
     "holders": {
@@ -893,7 +893,7 @@
   "plain": {},
   "debate": {},
   "scans": {
-    "as_of": "2026-11-20",
+    "as_of": "2026-11-23",
     "days": 240,
     "risks": [
       {
@@ -979,22 +979,6 @@
       {
         "code": "603991",
         "name": "领先股份",
-        "title": "公司证券简称变更实施公告",
-        "published": "2026-05-25",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-05-26/1225328799.PDF",
-        "category": "重组变更"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
-        "title": "关于变更公司注册地址及修订《公司章程》的公告",
-        "published": "2026-05-18",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-05-19/1225312224.PDF",
-        "category": "重组变更"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
         "title": "关于拟变更公司证券简称的公告",
         "published": "2026-05-18",
         "url": "http://static.cninfo.com.cn/finalpage/2026-05-19/1225312223.PDF",
@@ -1011,10 +995,18 @@
       {
         "code": "603991",
         "name": "领先股份",
-        "title": "关于会计政策变更的公告",
+        "title": "华泰联合证券有限责任公司关于重大资产置换、发行股份及支付现金购买资产并募集配套资金暨关联交易之标的资产减值测试情况的核查意见",
         "published": "2026-04-23",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164706.PDF",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164752.PDF",
         "category": "重组变更"
+      },
+      {
+        "code": "603991",
+        "name": "领先股份",
+        "title": "2025年度内部控制审计报告",
+        "published": "2026-04-23",
+        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164738.PDF",
+        "category": "审计意见"
       },
       {
         "code": "603991",
@@ -1027,50 +1019,10 @@
       {
         "code": "603991",
         "name": "领先股份",
-        "title": "2025年度审计报告",
-        "published": "2026-04-23",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164684.PDF",
-        "category": "审计意见"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
         "title": "关于计提资产减值准备的公告",
         "published": "2026-04-23",
         "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164671.PDF",
         "category": "资产质量"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
-        "title": "关于先进封装材料国际有限公司2025年12月31日99.97%股东权益的减值测试报告之专项审核报告",
-        "published": "2026-04-23",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-24/1225164669.PDF",
-        "category": "资产质量"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
-        "title": "关于变更投资者联系电话及传真的公告",
-        "published": "2026-04-17",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-18/1225115055.PDF",
-        "category": "重组变更"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
-        "title": "关于控股股东一致行动人部分股份质押的公告",
-        "published": "2026-04-16",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-17/1225109518.PDF",
-        "category": "股权质押"
-      },
-      {
-        "code": "603991",
-        "name": "领先股份",
-        "title": "关于公司副总裁离任及董事长代行董事会秘书职责的公告",
-        "published": "2026-03-31",
-        "url": "http://static.cninfo.com.cn/finalpage/2026-04-01/1225065678.PDF",
-        "category": "治理变动"
       }
     ],
     "governance": [
@@ -1080,6 +1032,13 @@
         "date": "2026-09-30",
         "severity": "低",
         "source": "巨潮资讯 股东户数（20260930）"
+      },
+      {
+        "category": "担保",
+        "detail": "统计区间 2025-11-23---2026-11-23：5 次，金额 271200.0（万元），占归母净资产 72.15%",
+        "date": "2026-11-23",
+        "severity": "高",
+        "source": "巨潮资讯 担保统计"
       }
     ]
   },
@@ -1198,6 +1157,6 @@
     }
   ],
   "created": "2026-10-28",
-  "updated": "2026-11-20",
+  "updated": "2026-11-23",
   "derived_level": "证据充分"
 }
