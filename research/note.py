@@ -160,6 +160,11 @@ _CSS = """
   #xhs-root[data-view="desk"] .sl-row:first-of-type { border-top: 0; margin-top: 6px; }
   #xhs-root[data-view="desk"] .sl-rank { font-size: 20px; font-weight: 800; color: #e05252;
       min-width: 28px; text-align: center; flex: none; line-height: 1.2; }
+  /* 股票名称链接到它的单卡页（完整的证据、情景、对辩、失效条件） */
+  #xhs-root[data-view="desk"] .card-link { color: inherit; text-decoration: none;
+      border-bottom: 1px dashed rgba(224,82,82,.6); }
+  #xhs-root[data-view="desk"] .card-link:active { background: rgba(224,82,82,.14); }
+  #xhs-root[data-view="desk"] .card-link::after { content: " ›"; color: #b0a6ab; }
   /* 没有名次时行首显示 AI 对辩的表态：▲ 正面（红）▼ 负面（绿）· 没表态（灰） */
   #xhs-root[data-view="desk"] .sl-rank.stance-pos { color: #ff6b6b; }
   #xhs-root[data-view="desk"] .sl-rank.stance-neg { color: #3fd6a4; }
@@ -853,7 +858,7 @@ def _desk_view(summaries: list[dict], regime_parts: list[str], ranked_count: int
             lead = f'<div class="sl-rank stance-{tone}">{mark}</div>'
         sl_rows.append(
             f'<div class="sl-row">{lead}'
-            f'<div class="sl-info"><b>{_esc(card.name)}</b>{tag}'
+            f'<div class="sl-info"><b>{_card_link(card, card.name)}</b>{tag}'
             f'<span class="muted mono"> {_esc(card.market)} {_esc(card.code)}'
             f' · {_esc(entry.factor_line())}</span>'
             + (f'<span class="mono"> · {" ｜ ".join(quote)}</span>' if quote else "")
@@ -965,6 +970,16 @@ def _due_html(card: Card) -> str:
     return _esc(due)
 
 
+def _card_link(card: Card, text: str) -> str:
+    """股票名称 → 它的单卡页（与本页同目录的 {市场}_{代码}.html）。
+
+    单卡页还没生成时不加链接（本地单独渲染、或那张卡的笔记生成失败），免得点进去是 404。
+    """
+    if not (NOTE_DIR / f"{card.market}_{card.code}.html").exists():
+        return _esc(text)
+    return f'<a class="card-link" href="{card.market}_{card.code}.html">{_esc(text)}</a>'
+
+
 def _desk_table(summaries: list[dict]) -> str:
     """研究台全卡表：桌面一张表；<760px 每行转卡片（td 的 data-label 提供列名）。"""
     head = ("标的", "状态", "共振", "单季净利润", "经营现金流", "盯的价格",
@@ -988,7 +1003,7 @@ def _desk_table(summaries: list[dict]) -> str:
         cash_cell = (f'<span class="pos">{_esc(cash)}</span>'
                      if str(cash).strip().startswith("-") else _esc(cash))
         cells = [
-            f'<td data-label="{head[0]}"><b>{_esc(card.name)}</b><br>'
+            f'<td data-label="{head[0]}"><b>{_card_link(card, card.name)}</b><br>'
             f'<span class="muted mono">{_esc(card.market)} {_esc(card.code)} · '
             f'{_esc(card.derived_level())}</span></td>',
             f'<td data-label="{head[1]}">{_status_badge(card.status)}</td>',

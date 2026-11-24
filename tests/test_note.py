@@ -1,5 +1,7 @@
+import tempfile
 import unittest
 import unittest.mock
+from pathlib import Path
 
 from research import evolution
 from research.card import Card, CounterCase, Evidence, FinancialTrack, Scenario
@@ -160,6 +162,19 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn('<div class="sl-rank">1</div>', fragment)
         self.assertIn("这个先后同样没有经过历史检验", fragment)
         self.assertNotIn("今日推荐", fragment)
+
+    def test_names_link_to_their_card_pages_when_those_exist(self):
+        # 汇总页原来一个链接都没有：从清单点不进单卡页（完整的证据、对辩、失效条件）
+        card = self._full_card()
+        card.market_context = {"market_regime": {"state": "上行", "day": "2026-11-24"}}
+        # 单卡页没生成：不加死链
+        self.assertEqual(notebook_fragment([card]).count('<a class="card-link"'), 0)
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "A_600001.html").write_text("x", encoding="utf-8")
+            with unittest.mock.patch("research.note.NOTE_DIR", Path(tmp)):
+                fragment = notebook_fragment([card])
+        # 清单里一行、全卡表里一行
+        self.assertEqual(fragment.count('<a class="card-link" href="A_600001.html">测试股</a>'), 2)
 
     def test_hold_candidates_skip_down_market_and_incomplete_cards(self):
         from research.note import _hold_candidates

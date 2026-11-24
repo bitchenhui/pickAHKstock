@@ -408,9 +408,9 @@ class HealthTests(unittest.TestCase):
     def write(self, name="A_600001", **overrides):
         card = Card(market="A", code="600001", name="测试", status="观察", view="判断")
         card.market_context = {"as_of": date.today().strftime("%Y%m%d%H%M%S")}
-        card.execution = {"rsi": 50.0}
+        card.execution = {"rsi": 50.0, "as_of": date.today().isoformat()}
         card.inputs = {"valuation": {"status": "有数据"}, "volume": {"trend": "持平"},
-                       "holders": {"net_signal": 0}}
+                       "holders": {"net_signal": 0}, "as_of": date.today().isoformat()}
         card.scans = {"as_of": date.today().isoformat(), "days": 240}
         for field, value in overrides.items():
             setattr(card, field, value)
@@ -431,6 +431,21 @@ class HealthTests(unittest.TestCase):
         self.write(execution={}, inputs={})
         with unittest.mock.patch("sys.stdout"):
             self.assertEqual(cli.cmd_health(self.args()), 1)
+
+    def test_a_face_that_stopped_being_refreshed_fails_the_check(self):
+        # 线上出过：数据面因接口 502 失败，卡片里留着上一次的旧值，检查只看「有没有值」没发现
+        stale = (date.today() - timedelta(days=6)).isoformat()
+        self.write(execution={"rsi": 50.0, "as_of": stale})
+        with unittest.mock.patch("sys.stdout"):
+            self.assertEqual(cli.cmd_health(self.args()), 1)
+        self.write(inputs={"valuation": {"status": "有数据"}, "volume": {"trend": "持平"},
+                           "holders": {"net_signal": 0}, "as_of": stale})
+        with unittest.mock.patch("sys.stdout"):
+            self.assertEqual(cli.cmd_health(self.args()), 1)
+        # 落后一两天不算问题：偶发失败会保留上一次的数据
+        self.write(execution={"rsi": 50.0, "as_of": (date.today() - timedelta(days=1)).isoformat()})
+        with unittest.mock.patch("sys.stdout"):
+            self.assertEqual(cli.cmd_health(self.args()), 0)
 
     def test_listed_card_without_a_fresh_debate_fails_the_check(self):
         import research.shortlist as shortlist

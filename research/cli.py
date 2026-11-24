@@ -1048,6 +1048,13 @@ def cmd_health(args: argparse.Namespace) -> int:
         valuation = (inputs.get("valuation") or {}).get("status") or ""
         holders = inputs.get("holders")
         scanned = scans.get("as_of") or ""
+        # 这两面的数据天天变，取数日期落后太久说明连续几天都没取到（偶发失败保留上一次的
+        # 数据，不算问题）。线上出过：两张卡的面因接口 502 失败，旧值还在，检查没发现。
+        for label, section in (("执行层（流动性/RSI）", execution), ("输入补全（估值/量能）", inputs)):
+            stamp = _as_of_day(section.get("as_of"))
+            if stamp is None or stamp < cutoff:
+                problems.append(f"{card.market} {card.code} {card.name}：{label}的数据停在 "
+                                f"{section.get('as_of') or '从未'}")
         if card.market == "A":
             if rsi is None:
                 problems.append(f"{card.market} {card.code} {card.name}：RSI 没取到")
