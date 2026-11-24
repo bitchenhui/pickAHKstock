@@ -1,265 +1,295 @@
 # -*- coding: utf-8 -*-
-"""AI 自我迭代进化：预测 → 跟踪 → 归因 → 调权 → 更好的预测。
+"""AI 迭代进化：预测 → 跟踪 → 归因 → 调权 → 下一轮预测。
 
-这就是一个简化版的在线学习系统：
-1. **预测日志**：每天推荐清单生成时，记录当时每只票的因子分数
-2. **结果跟踪**：60 个交易日后，对照实际收益
-3. **因子归因**：哪些因子分数高的票真的表现好？哪些因子是噪音？
-4. **权重调整**：有效的因子加权，无效的降权，反向的翻号
-5. **循环**：调整后的权重用于下一轮推荐
+这是简化版的在线学习：
+1. **预测日志**：每天清单生成时，记录每只票当时各因子的**原始信号**
+2. **结果跟踪**：满 60 个交易日后，对照实际收益与指数超额
+3. **因子归因**：哪个因子的正信号组真的比负信号组/中性组好
+4. **权重调整**：方向对的加权，方向反的减权，看不出的减半
+5. **循环**：shortlist 直接读这里的权重，所以调整会反映到下一轮排序
+
+权重的唯一来源是 DEFAULT_WEIGHTS（经历史检验定下的初始值）叠加
+evolution_state.json 里的历次调整。shortlist 用 得分 = 权重 × 原始信号，
+所以调权不需要改排序代码。
 
 诚实边界：
-- 需要至少 60 个交易日的数据才能做第一轮归因（现在刚开始积累）
-- 简单线性归因（不用神经网络），保证可解释
-- 每轮调整有幅度上限（防过拟合）
-- 所有调整留痕，用户可回退
-
-权重存储在 evolution_state.json，格式：
-{
-  "generation": 1,
-  "weights": {"共振": 0, "强度": 1, "RSI": -2, "催化": 1.5, "AI": 2, ...},
-  "history": [{...归因记录...}]
-}
+- 首轮归因要等 60 个交易日（最早 2027-02）
+- 归因是最简单的分组均值比较，不做回归，保证可解释
+- 每轮每个因子最多调 0.5，且每组至少 15 条样本才动，防止小样本乱调
+- 每一代的调整原因都记在 history 里，可回退
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
 
 STATE_FILE = Path(__file__).resolve().parent.parent / "evolution_state.json"
 JOURNAL_DIR = Path(__file__).resolve().parent.parent / "cards" / "_journal"
 
-# 初始权重（与 shortlist.py 的硬编码一致，进化会从这里出发）
-DEFAULT_WEIGHTS = {
-    "共振": 0,        # factor_check：无差异
-    "强度": 1,         # factor_check：跑输的反而好（方向已翻）
-    "RSI": -2,         # rsi_check：超买扣分
-    "催化": 2,         # 逻辑合理（未单独检验）
-    "AI": 2,           # 前瞻验证中
-    "盯价": 1,         # 未检验
-    "流动性": 1,       # 逻辑合理
+# 因子的初始权重。**现在全部是 0**：2026-11-24 用 13 个报告期、3101 条样本做了
+# 检验（scripts/factor_validation.py → docs/factor-validation.md），能检验的三个
+# 因子（强度、RSI、估值）六个检验项的置信区间全部跨 0，没有一项通过事先登记
+# 的规则；其余因子没法用历史数据检验。所以清单目前没有先后之分，各因子只作
+# 信息显示。因子要拿回权重只有两条路：重跑检验并通过，或前瞻记录
+# （compute_outcomes → attribute）显示它的方向对。
+# 这张表不要凭手感改。
+DEFAULT_WEIGHTS: dict[str, float] = {
+    "共振": 0.0,
+    "强度": 0.0,
+    "RSI": 0.0,
+    "估值": 0.0,
+    "股东": 0.0,
+    "量能": 0.0,
+    "催化": 0.0,
+    "AI": 0.0,
+    "盯价": 0.0,
+    "流动性": 0.0,
 }
 
-MAX_ADJUSTMENT = 0.5     # 每轮权重调整上限（防过拟合）
-MIN_SAMPLE = 10          # 归因需要的最少样本数
+# 每个因子权重的依据（页面与 CLI 都会显示，避免把未检验的因子当成结论）
+WEIGHT_EVIDENCE: dict[str, str] = {
+    "共振": "8 期检验：公司特有与行业共振的后续收益无差异",
+    "强度": "13 期检验未通过：跑输侧逐期差 −0.40 个点 [−3.01, +2.20]；"
+            "跑赢侧 −2.96 [−6.49, +0.57]，区间都跨 0",
+    "RSI": "13 期检验未通过：超卖侧 −0.40 [−3.59, +2.79]；超买侧 +1.83 [−2.53, +6.20]，"
+           "区间都跨 0",
+    "估值": "13 期检验未通过：PB 低分位侧 +0.46 [−1.15, +2.07]；"
+            "高分位侧 −0.63 [−4.98, +3.71]，区间都跨 0",
+    "股东": "未做历史检验（需要逐只抓历史公告），等前瞻记录",
+    "量能": "未做历史检验，等前瞻记录",
+    "催化": "没法用历史数据检验（催化剂日期来自卡片判断），等前瞻记录",
+    "AI": "没法用历史数据检验（模型可能知道后来的走势，回测不可信），等前瞻记录",
+    "盯价": "未做历史检验，等前瞻记录",
+    "流动性": "不计分；进出困难的卡直接不进清单",
+}
+
+MAX_ADJUSTMENT = 0.5     # 每轮每个因子最多调多少
+MIN_GROUP = 15           # 每组至少多少条到期结果才动权重
+EFFECT_SIZE = 1.0        # 组间差超过多少个百分点才算「有方向」（超额收益 pct）
+WEIGHT_CAP = 3.0
 
 
 @dataclass
 class Prediction:
-    """一条预测记录：某天推荐清单里的某只票。"""
-    day: str                 # 推荐日期
+    """一条预测记录：某天清单里的某只票。"""
+    day: str                 # 记录日期
     code: str                # 股票代码
     name: str                # 名称
     market: str
     rank: int                # 当时的排名
     total_score: float       # 当时的总分
-    factors: dict            # {因子名: 分}（不含权重）
-    price_at_call: float     # 推荐当日价格
+    factors: dict            # {因子名: 原始信号}，不含权重
+    price_at_call: float     # 记录时的价格（非交易日可能是上一个交易日的）
     status: str              # 当时的卡片状态
 
     def to_dict(self) -> dict:
-        return {k: v for k, v in self.__dict__.items()}
+        return dict(self.__dict__)
 
 
 @dataclass
 class Outcome:
-    """一条结果记录：预测之后实际发生了什么。"""
+    """一条到期结果：买入价到持有满窗口那天的收盘价。"""
     prediction: Prediction
-    days_later: int
-    return_pct: float | None      # 绝对收益
-    excess_pct: float | None      # 相对指数超额
+    return_pct: float
+    excess_pct: float | None
+
+
+def _load_state() -> dict:
+    if STATE_FILE.exists():
+        try:
+            state = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+            if isinstance(state, dict) and isinstance(state.get("weights", {}), dict):
+                return state
+        except (ValueError, OSError):
+            pass
+    return {"generation": 0, "weights": {}, "history": []}
+
+
+def current_weights() -> tuple[dict[str, float], int]:
+    """排序该用的权重 = 初始权重 + 历次进化调整。返回 (权重, 代数)。"""
+    state = _load_state()
+    weights = dict(DEFAULT_WEIGHTS)
+    weights.update({k: v for k, v in state["weights"].items() if k in weights})
+    return weights, state.get("generation", 0)
 
 
 class Evolution:
-    """进化引擎：管理预测日志 → 归因 → 调权。"""
+    """进化引擎：预测日志 → 到期结果 → 因子归因 → 调权。"""
 
     def __init__(self):
-        self.state = self._load_state()
-
-    def _load_state(self) -> dict:
-        if STATE_FILE.exists():
-            try:
-                return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-            except (ValueError, OSError):
-                pass
-        return {"generation": 0, "weights": dict(DEFAULT_WEIGHTS), "history": []}
-
-    def save_state(self):
-        STATE_FILE.write_text(
-            json.dumps(self.state, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8")
+        self.state = _load_state()
 
     @property
     def weights(self) -> dict:
-        return self.state["weights"]
+        weights, _ = current_weights()
+        return weights
 
     @property
     def generation(self) -> int:
-        return self.state["generation"]
+        return self.state.get("generation", 0)
+
+    def save_state(self):
+        STATE_FILE.write_text(
+            json.dumps(self.state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     # ---------- 预测日志 ----------
 
     def log_predictions(self, entries: list[Prediction]):
-        """把当天的推荐清单写入日志。"""
+        """把当天的清单写入日志（同一天同一只票只留最新一条）。"""
+        if not entries:
+            return
         JOURNAL_DIR.mkdir(parents=True, exist_ok=True)
-        day = entries[0].day if entries else date.today().isoformat()
-        path = JOURNAL_DIR / f"{day}.json"
-        existing = []
+        path = JOURNAL_DIR / f"{entries[0].day}.json"
+        existing: dict[str, dict] = {}
         if path.exists():
             try:
-                existing = json.loads(path.read_text(encoding="utf-8"))
-            except (ValueError, OSError):
-                existing = []
-        # 按 code 去重（同一天只留最新）
-        by_code = {e["code"]: e for e in existing}
+                existing = {row["code"]: row
+                            for row in json.loads(path.read_text(encoding="utf-8"))}
+            except (ValueError, OSError, KeyError, TypeError):
+                existing = {}
         for entry in entries:
-            by_code[entry.code] = entry.to_dict()
+            existing[entry.code] = entry.to_dict()
         path.write_text(
-            json.dumps(list(by_code.values()), ensure_ascii=False, indent=2) + "\n",
+            json.dumps(list(existing.values()), ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8")
 
     def load_journal(self) -> list[Prediction]:
-        """读全部预测日志。"""
-        all_preds = []
+        rows: list[Prediction] = []
         if not JOURNAL_DIR.exists():
-            return all_preds
+            return rows
+        fields = Prediction.__dataclass_fields__
         for path in sorted(JOURNAL_DIR.glob("*.json")):
             try:
-                rows = json.loads(path.read_text(encoding="utf-8"))
-                for row in rows:
-                    all_preds.append(Prediction(**{
-                        k: v for k, v in row.items()
-                        if k in Prediction.__dataclass_fields__}))
+                for row in json.loads(path.read_text(encoding="utf-8")):
+                    rows.append(Prediction(**{k: v for k, v in row.items() if k in fields}))
             except (ValueError, OSError, TypeError):
                 continue
-        return all_preds
+        return rows
 
     # ---------- 结果跟踪 ----------
 
     def compute_outcomes(self, predictions: list[Prediction],
                          window: int = 60) -> list[Outcome]:
-        """计算每条预测的前瞻收益。"""
-        from .backtest import load_prices, index_bars, hk_index_bars
+        """满 window 个交易日的预测才算：买入后第 window 根日线的收盘价对买入价。
 
-        outcomes = []
+        买入价 = 记录日之后第一根日线的收盘价。没满 window 根的不计入，
+        所以一条预测的结果是固定的，不会随着时间推移而变。
+        """
+        from .backtest import hk_index_bars, index_bars, load_prices
+
+        if not predictions:
+            return []
+        today = date.today()
+        earliest = min(date.fromisoformat(p.day) for p in predictions) - timedelta(days=10)
+        index_cache: dict[str, list] = {}
+        outcomes: list[Outcome] = []
         for pred in predictions:
-            pred_date = date.fromisoformat(pred.day)
-            expiry = pred_date + timedelta(days=int(window * 1.6))
-            if date.today() < expiry:
-                continue    # 还没到期，跳过
-            bars = load_prices(pred.code, pred_date - timedelta(days=5), date.today())
-            if not bars:
+            if pred.market not in index_cache:
+                index_cache[pred.market] = (
+                    hk_index_bars if pred.market == "HK" else index_bars)(earliest, today)
+            index = index_cache[pred.market]
+            pred_day = date.fromisoformat(pred.day)
+            try:
+                bars = load_prices(pred.code, pred_day - timedelta(days=10), today)
+            except Exception:
                 continue
-            entry_bars = [b for b in bars if b["day"] > pred.day]
-            if not entry_bars:
+            entry = next((i for i, bar in enumerate(bars) if bar["day"] > pred.day), None)
+            if entry is None or entry + window >= len(bars):
+                continue                        # 还没持有满 window 个交易日
+            exit_day = bars[entry + window]["day"]
+            entry_price = bars[entry]["close"]
+            if entry_price <= 0:
                 continue
-            entry = entry_bars[0]["close"]
-            exit_bars = bars[-window:] if len(bars) >= window else bars
-            if not exit_bars or entry <= 0:
-                continue
-            exit_price = exit_bars[-1]["close"]
-            ret = exit_price / entry - 1
-            # 指数基准
-            index = (hk_index_bars if pred.market == "HK" else index_bars)(
-                pred_date - timedelta(days=5), date.today())
-            idx_entry = [b for b in index if b["day"] > pred.day]
-            idx_exit = index[-window:] if len(index) >= window else index
-            if idx_entry and idx_exit and idx_entry[0]["close"] > 0:
-                idx_ret = idx_exit[-1]["close"] / idx_entry[0]["close"] - 1
-                excess = ret - idx_ret
-            else:
-                excess = None
+            ret = bars[entry + window]["close"] / entry_price - 1
+            idx_entry = next((i for i, bar in enumerate(index) if bar["day"] > pred.day), None)
+            idx_exit = max((i for i, bar in enumerate(index) if bar["day"] <= exit_day), default=None)
+            excess = None
+            if idx_entry is not None and idx_exit is not None and idx_exit >= idx_entry:
+                base = index[idx_entry]["close"]
+                if base > 0:
+                    excess = (index[idx_exit]["close"] / base - 1)
             outcomes.append(Outcome(
-                prediction=pred, days_later=len(exit_bars),
-                return_pct=round(ret * 100, 2),
-                excess_pct=round(excess * 100, 2) if excess is not None else None))
+                prediction=pred, return_pct=round(ret * 100, 2),
+                excess_pct=round((ret - excess) * 100, 2) if excess is not None else None))
         return outcomes
 
     # ---------- 因子归因 ----------
 
     def attribute(self, outcomes: list[Outcome]) -> dict:
-        """哪些因子的分数与实际收益正相关？哪些是噪音？
+        """每个因子：正信号组、负信号组、中性组，谁的后续超额收益更高。
 
-        方法：对每个因子，比较「该因子高分」vs「该因子低分/零分」的
-        平均超额收益差。正相关 → 该因子有效，负相关 → 方向反了。
+        有正有负时比「正 − 负」；只有一侧时比「那一侧 − 中性」。
+        组间差 ≥ +1 个百分点算方向对，≤ −1 算方向反，中间算看不出。
         """
-        if len(outcomes) < MIN_SAMPLE:
-            return {"error": f"样本不足（{len(outcomes)}/{MIN_SAMPLE}），"
-                             f"需等检验集积累到至少 {MIN_SAMPLE} 条到期预测"}
-
-        factor_names = set()
-        for o in outcomes:
-            factor_names.update(o.prediction.factors.keys())
-        factor_names.discard("流动性")  # 流动性是门槛不是信号
-
-        attribution = {}
-        for name in sorted(factor_names):
-            high, low = [], []
-            for o in outcomes:
-                score = o.prediction.factors.get(name, 0)
-                excess = o.excess_pct if o.excess_pct is not None else o.return_pct
+        if len(outcomes) < MIN_GROUP:
+            return {"error": f"到期结果只有 {len(outcomes)} 条，"
+                             f"至少 {MIN_GROUP} 条才做归因"}
+        names: set[str] = set()
+        for outcome in outcomes:
+            names.update(outcome.prediction.factors.keys())
+        attribution: dict = {}
+        for name in sorted(names):
+            positive, negative, neutral = [], [], []
+            for outcome in outcomes:
+                excess = outcome.excess_pct
                 if excess is None:
                     continue
-                if score > 0:
-                    high.append(excess)
-                else:
-                    low.append(excess)
-            if len(high) < 3 or len(low) < 3:
-                attribution[name] = {"status": "样本少", "high_n": len(high), "low_n": len(low)}
+                signal = outcome.prediction.factors.get(name, 0)
+                (positive if signal > 0 else negative if signal < 0 else neutral).append(excess)
+            if len(positive) >= MIN_GROUP and len(negative) >= MIN_GROUP:
+                first, second, label = positive, negative, "正信号 − 负信号"
+            elif len(positive) >= MIN_GROUP and len(neutral) >= MIN_GROUP:
+                first, second, label = positive, neutral, "正信号 − 中性"
+            elif len(negative) >= MIN_GROUP and len(neutral) >= MIN_GROUP:
+                first, second, label = neutral, negative, "中性 − 负信号"
+            else:
+                attribution[name] = {"status": "样本少", "n_pos": len(positive),
+                                     "n_neg": len(negative), "n_neu": len(neutral)}
                 continue
-            high_avg = sum(high) / len(high)
-            low_avg = sum(low) / len(low)
-            diff = high_avg - low_avg
+            diff = sum(first) / len(first) - sum(second) / len(second)
             attribution[name] = {
-                "status": "有效" if diff > 0.5 else ("反向" if diff < -0.5 else "噪音"),
-                "high_n": len(high), "low_n": len(low),
-                "high_avg": round(high_avg, 2), "low_avg": round(low_avg, 2),
-                "diff": round(diff, 2),
-                "recommendation": "加权" if diff > 0.5 else
-                                  ("翻转" if diff < -0.5 else "降权"),
+                "status": "方向对" if diff >= EFFECT_SIZE else
+                          ("方向反" if diff <= -EFFECT_SIZE else "看不出"),
+                "compare": label, "n_pos": len(positive), "n_neg": len(negative),
+                "n_neu": len(neutral), "diff": round(diff, 2),
             }
         return attribution
 
     # ---------- 权重调整 ----------
 
     def adjust_weights(self, attribution: dict) -> dict:
-        """根据归因结果调整权重（有幅度上限）。"""
+        """按归因结果调权：方向对 +0.5，方向反 −0.5，看不出 ×0.5。样本少不动。"""
         if "error" in attribution:
-            return {"error": attribution["error"], "adjusted": False}
-        old_weights = dict(self.weights)
-        adjustments = {}
+            return {"adjusted": False, "error": attribution["error"]}
+        weights = dict(self.weights)
+        changes = {}
         for name, result in attribution.items():
-            if result.get("status") == "样本少":
+            if result.get("status") == "样本少" or name not in weights:
                 continue
-            rec = result.get("recommendation", "")
-            current = self.weights.get(name, 0)
-            if rec == "加权":
-                new_w = current + MAX_ADJUSTMENT
-            elif rec == "翻转":
-                new_w = -current  # 方向翻转
-            elif rec == "降权":
-                new_w = current * 0.5  # 减半
+            old = weights[name]
+            if result["status"] == "方向对":
+                new = min(old + MAX_ADJUSTMENT, WEIGHT_CAP)
+            elif result["status"] == "方向反":
+                new = max(old - MAX_ADJUSTMENT, -WEIGHT_CAP)
             else:
-                new_w = current
-            # 限制幅度
-            new_w = max(-5, min(5, new_w))
-            if new_w != current:
-                adjustments[name] = {"from": current, "to": round(new_w, 2),
-                                     "reason": rec,
-                                     "diff": result.get("diff")}
-                self.weights[name] = round(new_w, 2)
-        if adjustments:
-            self.state["generation"] += 1
-            self.state["history"].append({
-                "date": date.today().isoformat(),
-                "generation": self.state["generation"],
-                "sample_size": sum(r.get("high_n", 0) + r.get("low_n", 0)
-                                   for r in attribution.values()),
-                "adjustments": adjustments,
-            })
-            self.save_state()
-        return {"adjusted": bool(adjustments), "changes": adjustments,
-                "generation": self.state["generation"]}
+                new = round(old * 0.5, 2)
+            if abs(new - old) > 1e-9:
+                weights[name] = new
+                changes[name] = {"from": old, "to": new, "why": result["status"],
+                                 "diff": result["diff"]}
+        if not changes:
+            return {"adjusted": False, "changes": {}, "generation": self.generation}
+        self.state["generation"] = self.generation + 1
+        self.state["weights"] = weights
+        self.state.setdefault("history", []).append({
+            "date": date.today().isoformat(),
+            "generation": self.state["generation"],
+            "outcomes": sum(max(r.get("n_pos", 0) + r.get("n_neg", 0) + r.get("n_neu", 0), 0)
+                            for r in attribution.values()) // max(1, len(attribution)),
+            "changes": changes,
+        })
+        self.save_state()
+        return {"adjusted": True, "changes": changes, "generation": self.generation}

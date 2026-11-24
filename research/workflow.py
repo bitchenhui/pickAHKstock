@@ -57,13 +57,19 @@ def _regime_note(market: str = "A") -> dict:
         return {}
 
 
+# 行业共振用到的业绩预告数据来源页（东财业绩预告）
+FORECAST_SOURCE_URL = "https://data.eastmoney.com/bbsj/yjyg.html"
+
+
 def scaffold(candidate: Candidate, source: str = "发现层") -> Card:
     """按 §22 五要素把一条披露事件变成卡片草稿：变化、公开时间、原始出处、可替代解释、下一验证节点。"""
     today = date.today().isoformat()
+    # 扭亏类预告常常不披露同比幅度（幅度为空），不能拿 None 去格式化
+    magnitude = (f"（{candidate.metric} ≥ {candidate.change_lower:.0f}%）"
+                 if candidate.change_lower is not None else f"（{candidate.metric}，未披露同比幅度）")
     evidence = Evidence(
         id="E1",
-        claim=f"{candidate.name}在{candidate.notice_date}披露的{candidate.forecast_type}"
-              f"（{candidate.metric} ≥ {candidate.change_lower:.0f}%）",
+        claim=f"{candidate.name}在{candidate.notice_date}披露的{candidate.forecast_type}{magnitude}",
         kind="披露",
         publisher="巨潮资讯 / 公司公告" if candidate.pdf_url else "东方财富数据中心（转载）",
         title=candidate.pdf_title or f"{candidate.forecast_type}：{candidate.metric}",
@@ -107,7 +113,9 @@ def scaffold(candidate: Candidate, source: str = "发现层") -> Card:
             kind="第三方数据", publisher="申万二级行业成分股 + 东方财富业绩预告",
             title=f"行业共振判定：{candidate.resonance}",
             published=candidate.notice_date.isoformat() if candidate.notice_date else "",
-            url="", observed=today,
+            # 出处写数据来源页：标了「已核实」却没有链接会被质量门拦下，
+            # 新建的卡片因此进不了清单
+            url=FORECAST_SOURCE_URL, observed=today,
             alternative="方向一致不等于因果：可能同受行业景气、补贴或订单影响",
             next_check="行业景气与公司单独因素要分开验证，别把行业给的当成公司挣的",
             status="已核实" if candidate.resonance_peers >= 3 else "待核实",

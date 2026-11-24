@@ -1,4 +1,7 @@
-akshare>=1.16,<2
+# akshare 固定在本地测过的版本：云端装到了更新的 1.20，futures_spot_price_daily 的
+# 参数名变了，盯价数据在云端静默失败了一个多星期才发现。升级 akshare 后先本地
+# 跑一遍测试和 python -m research.cli deep-dive，再改这里。
+akshare==1.18.88
 pandas>=2.0,<3
 pypdf>=4.0
 requests>=2.31,<3

@@ -71,32 +71,73 @@ def classify(title: str, market: str = "A") -> str | None:
             return category
     return None
 
-def scan_risks(code: str, name: str, since_days: int = 240,
-               market: str = "A") -> list[RiskEvent]:
-    """按公司名取全部公告，再筛出风险类标题。
+# 股东、董监高的增减持与公司回购：按标题分到一侧。排除词优先——
+# 「终止减持」「承诺不减持」都不是减持；「回购注销限制性股票」是股权激励的
+# 收尾，不是回购。风险关键词表里本来没有「增持/减持」，所以之前从风险扫描
+# 结果里是提取不到增减持的，必须单独分类。
+HOLDER_RULES: tuple[tuple[str, tuple[str, ...], tuple[str, ...]], ...] = (
+    ("回购", ("回购", "回購"), ("终止", "不回购", "限制性股票", "股权激励", "可转债")),
+    ("增持", ("增持",), ("不增持", "终止", "放弃", "取消", "未增持", "延期")),
+    ("减持", ("减持", "減持"), ("不减持", "不减持", "终止", "取消", "放弃", "未减持", "延期")),
+)
+
+
+def classify_holder(title: str) -> dict | None:
+    """标题属于增持/减持/回购的哪一侧，以及处于计划、进展还是完成阶段。"""
+    for side, words, excluded in HOLDER_RULES:
+        if not any(word in title for word in words) or any(word in title for word in excluded):
+            continue
+        # 「增持计划实施完成」既含「计划」又含「完成」：先判完成，再判计划
+        if any(word in title for word in ("完成", "完毕", "结束", "結果", "结果")):
+            stage = "完成"
+        elif "计划" in title or "計劃" in title:
+            stage = "计划"
+        elif "进展" in title or "進展" in title:
+            stage = "进展"
+        else:
+            stage = ""
+        return {"side": side, "stage": stage}
+    return None
+
+
+def scan_announcements(code: str, name: str, since_days: int = 240,
+                       market: str = "A") -> dict:
+    """按公司名取全部公告，一次抓取同时做两件事：风险分类、增减持分类。
 
     A 股走巨潮；港股走东方财富公告流（HKEXnews 的检索接口实测取不到数据，
     已弃用）。港股的公告标题是繁体，用词也不同，见 HK_RISK_WORDS。
+
+    返回 {"risks": [RiskEvent], "holders": [{side, stage, title, date, url}]}。
     """
     today = date.today()
     start = today - timedelta(days=since_days)
-    events: list[RiskEvent] = []
     if market == "A":
-        items = fetch_announcements(name, start, today, max_pages=30)
-        for item in items:
-            if item.code != code:
-                continue
-            category = classify(item.title, market)
-            if category:
-                events.append(RiskEvent(code, name, item.title, item.published, item.url, category))
+        items = [(item.title, item.published, item.url)
+                 for item in fetch_announcements(name, start, today, max_pages=30)
+                 if item.code == code]
     else:
         from .hk import fetch_events
 
-        for item in fetch_events(start, today, categories=()):
-            if item.code != code:
-                continue
-            category = classify(item.title, market)
-            if category:
-                events.append(RiskEvent(code, name, item.title, item.published,
-                                        item.detail_url, category))
-    return sorted(events, key=lambda e: e.published, reverse=True)
+        items = [(item.title, item.published, item.detail_url)
+                 for item in fetch_events(start, today, categories=())
+                 if item.code == code]
+    risks: list[RiskEvent] = []
+    holders: list[dict] = []
+    for title, published, url in items:
+        category = classify(title, market)
+        if category:
+            risks.append(RiskEvent(code, name, title, published, url, category))
+        hit = classify_holder(title)
+        if hit:
+            holders.append({"side": hit["side"], "stage": hit["stage"],
+                            "title": title[:80], "date": published.isoformat(),
+                            "url": url or ""})
+    risks.sort(key=lambda event: event.published, reverse=True)
+    holders.sort(key=lambda item: item["date"], reverse=True)
+    return {"risks": risks, "holders": holders}
+
+
+def scan_risks(code: str, name: str, since_days: int = 240,
+               market: str = "A") -> list[RiskEvent]:
+    """只要风险类公告时用这个；需要增减持时用 scan_announcements（同一次抓取）。"""
+    return scan_announcements(code, name, since_days, market)["risks"]

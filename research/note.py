@@ -17,7 +17,10 @@ from datetime import date
 from pathlib import Path
 
 from .card import Card, blocking, validate
-from .shortlist import ShortlistEntry, build_shortlist
+from .evolution import WEIGHT_EVIDENCE, current_weights
+from .llm import debate_stamp
+from .shortlist import (ShortlistEntry, build_shortlist, is_down, market_regimes,
+                        stance_group)
 
 NOTE_DIR = Path(__file__).resolve().parent.parent / "cards" / "notes"
 
@@ -145,11 +148,22 @@ _CSS = """
       margin-bottom: 14px; padding: 14px 16px; }
   #xhs-root[data-view="desk"] .desk-shortlist h4 { margin: 0 0 4px; font-size: 14px;
       color: #e05252; letter-spacing: 1px; font-weight: 700; }
-  #xhs-root[data-view="desk"] .sl-row { display: flex; gap: 10px; align-items: flex-start;
+  /* 大盘下行时清单降级为观察名单：去掉红色强调，避免被读成买入推荐 */
+  #xhs-root[data-view="desk"] .desk-shortlist.watch { border-color: rgba(163,149,154,.45); }
+  #xhs-root[data-view="desk"] .desk-shortlist.watch h4 { color: #c9c0c4; }
+  #xhs-root[data-view="desk"] .desk-shortlist.watch .sl-rank { color: #8f8a8d; }
+  #xhs-root[data-view="desk"] .desk-shortlist.watch .sl-row { border-top-color: rgba(163,149,154,.25); }
+  #xhs-root .warn-box { background: #fff4e5; border-radius: 10px; padding: 11px 12px; margin-top: 14px; }
+  #xhs-root .warn-box h3 { color: #a86400; margin-bottom: 6px; }
+  #xhs-root .sl-row { display: flex; gap: 10px; align-items: flex-start;
       padding: 10px 0; border-top: 1px dashed rgba(224,82,82,.25); }
   #xhs-root[data-view="desk"] .sl-row:first-of-type { border-top: 0; margin-top: 6px; }
   #xhs-root[data-view="desk"] .sl-rank { font-size: 20px; font-weight: 800; color: #e05252;
       min-width: 28px; text-align: center; flex: none; line-height: 1.2; }
+  /* 没有名次时行首显示 AI 对辩的表态：▲ 正面（红）▼ 负面（绿）· 没表态（灰） */
+  #xhs-root[data-view="desk"] .sl-rank.stance-pos { color: #ff6b6b; }
+  #xhs-root[data-view="desk"] .sl-rank.stance-neg { color: #3fd6a4; }
+  #xhs-root[data-view="desk"] .sl-rank.stance-neu { color: #8f8a8d; }
   #xhs-root[data-view="desk"] .sl-info { flex: 0 0 260px; }
   #xhs-root[data-view="desk"] .sl-info b { color: #f7f2f4; font-size: 15px; }
   #xhs-root[data-view="desk"] .sl-info .muted { font-size: 11px; }
@@ -443,6 +457,12 @@ def note_fragment(card: Card) -> str:
     blocks = blocking(findings)
 
     parts: list[str] = []
+    if ((card.market_context or {}).get("market_regime") or {}).get("state") == "下行":
+        parts.append(
+            '<section class="warn-box"><h3>⚠ 大盘下行中，本页不构成建仓依据</h3>'
+            '<p class="fact">下面「多空对辩」里的「可进持仓」只是模型对公司事实的判断，'
+            '没有考虑市场状态。系统检验过的规则是：下跌市里这类票跌得比大盘更多，'
+            '仓位打五折，此时不出建仓结论。</p></section>')
     parts.append(
         f'<div class="author"><div class="avatar" aria-hidden="true">研</div><div>'
         f'<div class="who">{_esc(card.name)}（{_esc(card.market)} {_esc(card.code)}）</div>'
@@ -526,11 +546,15 @@ def note_fragment(card: Card) -> str:
     commodity_block = _commodity_rows(card)
     if commodity_block:
         parts.append(commodity_block)
+    trading = _trading_inputs_block(card)
+    if trading:
+        parts.append(trading)
 
     risks = scans.get("risks") or []
     governance = scans.get("governance") or []
     business = scans.get("business") or {}
-    if risks or governance or business:
+    holders = scans.get("holders") or []
+    if risks or governance or business or holders:
         lines = []
         for item in risks[:5]:
             lines.append(f'<li><span class="m">⚠️</span><span>[{_esc(item.get("category", ""))}] '
@@ -544,6 +568,17 @@ def note_fragment(card: Card) -> str:
             changed = {k: v for k, v in (diff.get("theme_delta") or {}).items() if v}
             lines.append(f'<li><span class="m">·</span><span>经营回顾 {_esc(diff.get("prior_period", ""))}'
                          f' → {_esc(diff.get("period", ""))}：{_esc(changed or "无明显变化")}</span></li>')
+        if holders:
+            sides = {side: sum(1 for h in holders if h.get("side") == side)
+                     for side in ("增持", "减持", "回购")}
+            sells_more = sides["减持"] > sides["增持"]
+            lines.append(
+                f'<li><span class="m">{"⚠️" if sells_more else "·"}</span>'
+                f'<span>股东增减持（近 {scans.get("days", "—")} 天的公告）：减持类 {sides["减持"]} 条、'
+                f'增持类 {sides["增持"]} 条、回购类 {sides["回购"]} 条</span></li>')
+            for item in holders[:3]:
+                lines.append(f'<li><span class="m">·</span><span>{_esc(item.get("date", ""))} '
+                             f'{_esc(item.get("title", ""))}</span></li>')
         if lines:
             parts.append(f'<section><h3>🚩 红旗与留痕</h3><ul class="flags">{"".join(lines)}</ul>'
                          f'<p class="derived">扫描截至 {_esc(scans.get("as_of", "—"))}；'
@@ -562,8 +597,11 @@ def note_fragment(card: Card) -> str:
     if debate.get("verdict"):
         rows = "".join(f'<li><span class="m">?</span><span>{_esc(c)}</span></li>'
                         for c in (debate.get("checks") or [])[:4])
+        # 对辩读的是卡片当时的数，结论会过期：把对辩日期写在标题上
+        stamp = debate_stamp(debate)
+        dated = f" · {stamp} 的对辩" if stamp else ""
         parts.append(
-            f'<section class="debate-box"><h3>⚖ 多空对辩（模型，只用卡片事实）</h3>'
+            f'<section class="debate-box"><h3>⚖ 多空对辩（模型，只用卡片事实{dated}）</h3>'
             f'<p class="debate-verdict">{_esc(debate["verdict"])}</p>'
             f'<div class="debate-side"><b>多方</b><p>{_esc(debate.get("bull", ""))}</p></div>'
             f'<div class="debate-side bear"><b>空方</b><p>{_esc(debate.get("bear", ""))}</p></div>'
@@ -582,7 +620,7 @@ def note_fragment(card: Card) -> str:
 
     regime = _regime_line(card)
     if regime:
-        parts.append(f'<p class="discipline">仓位纪律：小仓多注（20 只 × 5%）；{_regime_line(card)}</p>')
+        parts.append(f'<p class="discipline">仓位纪律：{_position_rule()}；{_regime_line(card)}</p>')
     parts.append('<div class="actions" aria-hidden="true"><span>❤️ 点赞</span>'
                  '<span>⭐ 收藏</span><span>💬 评论</span></div>'
                  '<p class="legal">研究工具输出，非投资建议 · 数据：巨潮/同花顺/东财 · '
@@ -684,7 +722,8 @@ def _action_block(card: Card) -> str:
     quit_lines = list(card.invalidation[:3])
     stop = (card.market_context or {}).get("stop_reference")
     if stop:
-        quit_lines.append(f"收盘跌破 2ATR 参考线 {stop}（参考失效，不是保证成交）")
+        quit_lines.append(f"单日收盘跌破 {stop}（2ATR 异动线：它每天跟着收盘价重算、"
+                          "会随股价下移，所以只能发现单日大跌，发现不了慢慢阴跌）")
     if not watch and not act and not quit_lines:
         return ""
     rows = ""
@@ -701,41 +740,219 @@ def _action_block(card: Card) -> str:
             '<p class="derived">条件出现是行动信号，点位由你与券商确定；本区不预测涨跌</p></section>')
 
 
-def _hold_candidates(summaries: list[dict]) -> list[dict]:
-    """最接近「持仓研究」资格的候选：资格是硬的，排序信号是软的、可解释的。
+def _trading_inputs_block(card: Card) -> str:
+    """估值分位、RSI、相对大盘、成交量趋势、流动性：只列卡片里有的。"""
+    inputs = card.inputs or {}
+    execution = card.execution or {}
+    valuation = inputs.get("valuation") or {}
+    volume = inputs.get("volume") or {}
+    strength = execution.get("strength") or {}
+    rsi = execution.get("rsi")
+    level = (execution.get("liquidity") or {}).get("level")
+    rows: list[str] = []
+    pb_pct, pe_pct = valuation.get("pb_percentile"), valuation.get("pe_percentile")
+    if pb_pct is not None and valuation.get("pb") is not None:
+        tag = "，偏低" if pb_pct <= 30 else ("，偏高" if pb_pct >= 70 else "")
+        rows.append(f"市净率 {valuation['pb']:.2f}，在近 3 年的 {pb_pct:.0f}% 分位{tag}")
+    if pe_pct is not None and valuation.get("pe") is not None:
+        tag = "，偏低" if pe_pct <= 30 else ("，偏高" if pe_pct >= 70 else "")
+        rows.append(f"市盈率 {valuation['pe']:.1f} 倍，在近 3 年的 {pe_pct:.0f}% 分位{tag}")
+    elif valuation.get("status") == "有数据" and pe_pct is None:
+        rows.append("市盈率：公司亏损或微利，分位没有意义")
+    if rsi is not None:
+        tag = "，超买" if rsi > 70 else ("，超卖" if rsi < 30 else "")
+        rows.append(f"RSI（14 日）{rsi:.0f}{tag}")
+    if strength.get("rs") is not None:
+        rows.append(f"近 60 日相对大盘 {strength['rs']:+.1f} 个点")
+    if volume.get("trend"):
+        rows.append(f"成交量{volume['trend']}（近 20 日均量是近 60 日的 "
+                    f"{volume.get('vol_ratio_20_60', '—')} 倍）")
+    if level and level != "未评估":
+        rows.append(f"流动性：{level}")
+    if not rows:
+        return ""
+    lines = "".join(f'<li><span class="m">·</span><span>{_esc(row)}</span></li>' for row in rows)
+    return (f'<section><h3>📐 估值与交易面</h3><ul class="flags">{lines}</ul>'
+            '<p class="derived">分位低只说明比自己过去便宜，不等于值得买；'
+            '这些在排序里各值多少分，以汇总页的权重表为准</p></section>')
 
-    资格（缺一不排入）：状态为观察/持仓研究、结论等级=证据充分、无阻塞。
-    排序信号：①共振非「行业共振」（公司自己的事才值得持有个股，行业 beta
-    不如买 ETF）②盯价 30 日方向顺风 ③无高危治理红旗 ④有机构覆盖。
-    每只附 reasons 与 gap——gap 是还差什么，状态推进的最终裁决永远是人。
+
+def _position_rule() -> str:
+    """仓位纪律一行：读 account.json 的只数与单只上限（云端没有这个文件就说没有）。"""
+    import json
+
+    try:
+        data = json.loads((Path(__file__).resolve().parent.parent / "account.json")
+                          .read_text(encoding="utf-8"))
+        return (f"最多 {int(data['max_positions'])} 只 × 单只 {float(data['max_position_pct']):.0%}")
+    except (OSError, ValueError, KeyError, TypeError):
+        return "只数与单只上限见账户配置"
+
+
+def _hold_candidates(cards: list[Card], regimes: dict[str, dict],
+                     limit: int = 2) -> list[ShortlistEntry]:
+    """最接近「持仓研究」的候选：清单里排最前的两只，且所在市场不处于下行。
+
+    大盘下行时不出持仓候选——仓库的十三期检验显示这类票在下跌市里跌得更多。
     """
-    out = []
-    for item in summaries:
-        card: Card = item["card"]
-        if card.status not in ("观察", "持仓研究"):
-            continue
-        if card.derived_level() != "证据充分" or item["blocks"]:
-            continue
-        reasons = []
-        verdict = (item["resonance"] or {}).get("verdict", "")
-        if verdict and verdict != "行业共振":
-            reasons.append(f"共振「{verdict}」：变化更可能是公司自己的事")
-        items = ((card.commodities or {}).get("items")) or {}
-        tailwind = [s.get("name", "") for s in items.values()
-                    if (s.get("chg_30d") or 0) > 0]
-        if tailwind:
-            reasons.append("盯价 30 日顺风：" + "、".join(tailwind))
-        if not item["high_flags"]:
-            reasons.append("无高危治理红旗")
-        if item["expectations"].get("coverage"):
-            reasons.append(f"机构覆盖 {item['expectations']['coverage']} 家")
-        checks = card.account_checks or []
-        gap = ("账户准入检查未写（最坏情境/流动性/相关性），状态推进由你裁决"
-               if not checks else "账户检查已写，状态推进由你裁决")
-        out.append({"card": card, "reasons": reasons, "gap": gap,
-                    "score": len(reasons) + (1 if verdict == "公司特有" else 0)})
-    out.sort(key=lambda row: (-row["score"], row["card"].code))
-    return out[:2]
+    ranked = build_shortlist(cards, limit=len(cards))
+    return [entry for entry in ranked if not is_down(entry.card, regimes)][:limit]
+
+
+def _weights_foot() -> str:
+    """权重表的一行说明：哪些因子计分、依据是什么，哪些不计分。"""
+    weights, generation = current_weights()
+    scoring = [f"{name} {weight:+g}" for name, weight in weights.items() if weight]
+    idle = [name for name, weight in weights.items() if not weight]
+    text = ("计分的因子（权重）：" + "、".join(scoring)) if scoring else "目前没有因子在计分"
+    if idle:
+        text += "。不计分、只作信息：" + "、".join(idle)
+    return text + f"。权重依据见页面底部的表（第 {generation} 代）"
+
+
+def _desk_view(summaries: list[dict], regime_parts: list[str], ranked_count: int,
+               active_count: int) -> str:
+    """研究台视图：状态条 + 清单 + 持仓候选 + 全卡表。
+
+    清单里的票所在市场处于下行时，整块降级为「观察名单」：仓库的十三期检验
+    显示这类票在下跌市里是放大器，此时不出推荐、不出持仓候选。
+    """
+    cards = [item["card"] for item in summaries]
+    regimes = market_regimes(cards)
+    shortlist = build_shortlist(cards)
+    down_flags = [is_down(entry.card, regimes) for entry in shortlist]
+    all_down = bool(shortlist) and all(down_flags)
+    down_names = sorted({_regime_name(entry.card.market, regimes)
+                         for entry, low in zip(shortlist, down_flags) if low})
+    # 有没有任何因子在计分：全为 0 时清单没有先后之分，不能叫「推荐」
+    weights, _generation = current_weights()
+    ranked_by_score = any(weights.values())
+    stances = [stance_group(entry.card) for entry in shortlist]
+    any_stance, grouped = any(stances), any(s > 0 for s in stances)
+    stance_note = ("行首是 AI 对辩的表态（▲ 正面 ▼ 负面 · 没表态），正面的排在前面、"
+                   "组内按代码顺序；这个先后同样没有经过历史检验，"
+                   "只是让你先看到模型明确看好的那几张。" if any_stance else "")
+
+    sl_rows = []
+    for index, entry in enumerate(shortlist, 1):
+        card = entry.card
+        context = card.market_context or {}
+        quote = []
+        if context.get("price"):
+            quote.append(f"现价 {context['price']}")
+        if context.get("market_cap"):
+            quote.append(f"市值 {context['market_cap'] / 1e8:.0f}亿")
+        tag = ""
+        if not all_down and down_flags[index - 1]:
+            tag = '<span class="badge down">大盘下行，仅观察</span>'
+        if ranked_by_score:
+            lead = f'<div class="sl-rank">{index}</div>'
+        else:
+            # 没有名次：行首显示 AI 对辩的表态。写 1、2、3 会被读成先后顺序
+            mark, tone = {1: ("▲", "pos"), 0: ("·", "neu"), -1: ("▼", "neg")}[stances[index - 1]]
+            lead = f'<div class="sl-rank stance-{tone}">{mark}</div>'
+        sl_rows.append(
+            f'<div class="sl-row">{lead}'
+            f'<div class="sl-info"><b>{_esc(card.name)}</b>{tag}'
+            f'<span class="muted mono"> {_esc(card.market)} {_esc(card.code)}'
+            f' · {_esc(entry.factor_line())}</span>'
+            + (f'<span class="mono"> · {" ｜ ".join(quote)}</span>' if quote else "")
+            + f'</div>'
+            f'<div class="sl-why">{_esc(entry.plain)}</div></div>')
+    if not shortlist:
+        shortlist_html = ""
+    elif all_down:
+        shortlist_html = (
+            '<div class="desk-shortlist watch"><h4>👀 观察名单 · 大盘下行，本轮不出推荐</h4>'
+            + "".join(sl_rows)
+            + '<div class="desk-foot" style="text-align:left;padding-top:8px">'
+            + _esc("、".join(down_names)) + " 处于下行。系统的十三期检验显示这类票在下跌市里"
+            "跌得比大盘更多，所以这份清单只用来观察和准备，不是买入建议；"
+            "市场状态转出下行后自动恢复为推荐。卡片里 AI 的「可进持仓」只看了公司事实，没有考虑大盘。"
+            + stance_note
+            + "<br>" + _esc(_weights_foot()) + "</div></div>")
+    elif not ranked_by_score:
+        title = ("📋 过了质量门的卡片 · ▲ AI 对辩倾向正面的在前" if grouped
+                 else "📋 过了质量门的卡片（按代码顺序）")
+        shortlist_html = (
+            f'<div class="desk-shortlist watch"><h4>{title}</h4>'
+            + "".join(sl_rows)
+            + '<div class="desk-foot" style="text-align:left;padding-top:8px">'
+            "目前没有任何排序因子通过历史检验（依据见页面底部的权重表），"
+            "所以这份清单没有名次，也不出持仓候选：每只都要逐张看卡片。"
+            + stance_note
+            + "进出规则不变：证据充分、零阻塞才在清单里，降级或排除自动掉出。"
+            "<br>" + _esc(_weights_foot()) + "</div></div>")
+    else:
+        shortlist_html = (
+            '<div class="desk-shortlist"><h4>🎯 今日推荐 · 过了质量门的卡片里排最前的几只</h4>'
+            + "".join(sl_rows)
+            + '<div class="desk-foot" style="text-align:left;padding-top:8px">'
+            "进出规则：证据充分、零阻塞才进清单，降级或排除自动掉出。"
+            "得分 = 权重 × 信号；分数相同的按 AI 对辩的表态分组、再按代码顺序，名次不代表优先级。"
+            "<br>" + _esc(_weights_foot()) + "</div></div>")
+
+    candidates = _hold_candidates(cards, regimes) if ranked_by_score else []
+    if candidates:
+        rows = []
+        for entry in candidates:
+            card = entry.card
+            context = card.market_context or {}
+            checks = card.account_checks or []
+            gap = ("账户准入检查还没写（最坏情境/流动性/相关性）" if not checks
+                   else "账户准入检查已写")
+            quote = f"现价 {context['price']}" if context.get("price") else ""
+            rows.append(
+                f'<div class="promo-row"><div class="promo-name"><b>{_esc(card.name)}</b><br>'
+                f'<span class="muted mono">{_esc(card.market)} {_esc(card.code)}</span>'
+                + (f'<br><span class="mono">{_esc(quote)}</span>' if quote else "")
+                + f'</div><div class="promo-why">{_esc(entry.plain)}'
+                f'<br><span class="gap">还差：{_esc(gap)}；状态推进由你裁决</span></div></div>')
+        promo = ('<div class="desk-promo"><h4>持仓候选 · 清单里排最前的两只（所在市场不在下行）</h4>'
+                 + "".join(rows)
+                 + '<div class="desk-foot" style="text-align:left;padding-top:8px">'
+                 "这是研究推进顺序，不是买入指令</div></div>")
+    elif any(is_down(card, regimes) for card in cards if card.status in ("观察", "持仓研究")):
+        promo = ('<div class="desk-promo"><h4>持仓候选</h4>'
+                 '<p class="promo-none">大盘下行：暂停给出持仓候选。市场状态转出下行后恢复。</p></div>')
+    elif not ranked_by_score:
+        promo = ('<div class="desk-promo"><h4>持仓候选</h4>'
+                 '<p class="promo-none">还没有排序因子通过历史检验，所以不给「排最前的持仓候选」。'
+                 '清单里的每张卡都要逐张看完再决定。</p></div>')
+    else:
+        promo = ('<div class="desk-promo"><h4>持仓候选</h4>'
+                 '<p class="promo-none">当前没有同时满足「证据充分 + 零阻塞」的观察卡。</p></div>')
+
+    status_line = " ｜ ".join(regime_parts)
+    return (
+        '<div class="desk-shell">'
+        '<div class="desk-topline"><div class="desk-brand">小资金研究台'
+        "<small>A / H · RESEARCH TERMINAL</small></div>"
+        f'<div class="desk-status">{_esc(status_line)}<br>'
+        f"<b>{ranked_count}</b> 张在册 · 活跃 <b>{active_count}</b> · "
+        "非投资建议</div></div>"
+        f"{shortlist_html}{promo}{_desk_table(summaries)}"
+        + _weights_table()
+        + '<div class="desk-foot">研究工具输出，非投资建议 · 数据：巨潮 / 同花顺 / 东财 / akshare'
+        f" · {_esc(date.today().isoformat())}</div>"
+        "</div>")
+
+
+def _regime_name(market: str, regimes: dict[str, dict]) -> str:
+    return (regimes.get(market) or {}).get("index") or ("恒生指数" if market == "HK" else "沪深300")
+
+
+def _weights_table() -> str:
+    """排序权重的依据表：每个因子为什么计分或不计分。"""
+    weights, generation = current_weights()
+    rows = "".join(
+        f'<tr><td>{_esc(name)}</td><td class="mono">{weight:+g}</td>'
+        f'<td>{_esc(WEIGHT_EVIDENCE.get(name, ""))}</td></tr>'
+        for name, weight in weights.items())
+    return ('<div class="desk-title">排序权重的依据（第 ' + _esc(str(generation)) + ' 代）</div>'
+            '<div class="desk-card"><div class="desk-wrap"><table class="desk">'
+            '<thead><tr><th>因子</th><th>权重</th><th>依据</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></div>')
 
 
 def _due_html(card: Card) -> str:
@@ -746,77 +963,6 @@ def _due_html(card: Card) -> str:
     if "已过期" in due:
         return f'<span class="pos">{_esc(due)}</span>'
     return _esc(due)
-
-
-def _desk_view(summaries: list[dict], regime_parts: list[str], ranked_count: int,
-               active_count: int) -> str:
-    """研究台绯红终端视图：状态条 + 持仓候选 + 全卡表。"""
-    shortlist = build_shortlist([item["card"] for item in summaries])
-    sl_rows = []
-    for i, entry in enumerate(shortlist, 1):
-        card = entry.card
-        context = card.market_context or {}
-        quote = []
-        if context.get("price"):
-            quote.append(f"现价 {context['price']}")
-        if context.get("market_cap"):
-            quote.append(f"市值 {context['market_cap'] / 1e8:.0f}亿")
-        sl_rows.append(
-            f'<div class="sl-row"><div class="sl-rank">{i}</div>'
-            f'<div class="sl-info"><b>{_esc(card.name)}</b>'
-            f'<span class="muted mono"> {_esc(card.market)} {_esc(card.code)}'
-            f' · {_esc(entry.factor_line())}</span>'
-            + (f'<span class="mono"> · {" ｜ ".join(quote)}</span>' if quote else "")
-            + f'</div>'
-            f'<div class="sl-why">{_esc(entry.plain)}</div></div>')
-    shortlist_html = (
-        '<div class="desk-shortlist"><h4>🎯 今日推荐 · 最合适的几只（自动进出，硬门槛=证据充分+零阻塞）</h4>'
-        + ("".join(sl_rows) if sl_rows else
-           '<p class="promo-none">当前没有同时过门槛的卡——这是纪律不是缺口</p>')
-        + '<div class="desk-foot" style="text-align:left;padding-top:8px">'
-        '排序信号：公司特有＞行业共振 ｜ 跑赢大盘＞跑输 ｜ 催化剂近的优先 ｜ '
-        'AI 可进持仓加分 ｜ 行业价格顺风加分；降级或排除自动掉出</div></div>'
-    ) if shortlist else ""
-
-    candidates = _hold_candidates(summaries)
-    if candidates:
-        rows = []
-        for c in candidates:
-            card = c["card"]
-            context = card.market_context or {}
-            quote = []
-            if context.get("price"):
-                quote.append(f"现价 {_esc(context['price'])}")
-            if context.get("market_cap"):
-                quote.append(f"市值 {context['market_cap'] / 1e8:.0f} 亿")
-            rows.append(
-                f'<div class="promo-row"><div class="promo-name"><b>{_esc(card.name)}</b><br>'
-                f'<span class="muted mono">{_esc(card.market)} {_esc(card.code)}</span>'
-                + (f'<br><span class="mono">{" ｜ ".join(quote)}</span>' if quote else "")
-                + '</div>'
-                f'<div class="promo-why">{_esc("；".join(c["reasons"]) or "证据齐但信号少")}'
-                f'<br><span class="gap">还差：{_esc(c["gap"])}</span></div></div>')
-        promo = ('<div class="desk-promo"><h4>持仓候选 · 最接近资格（资格=证据充分+零阻塞）</h4>'
-                 + "".join(rows)
-                 + '<div class="desk-foot" style="text-align:left;padding-top:8px">'
-                 "排序信号：共振非行业 beta ＞ 盯价顺风 ＞ 无高危红旗 ＞ 有机构覆盖；"
-                 "这是研究推进顺序，不是买入指令——最终裁决是你</div></div>")
-    else:
-        promo = ('<div class="desk-promo"><h4>持仓候选</h4>'
-                 '<p class="promo-none">当前没有同时满足「证据充分 + 零阻塞」的观察卡——'
-                 '这是纪律不是缺口：判断没写完就不该有持仓候选。</p></div>')
-    status_line = " ｜ ".join(regime_parts)
-    return (
-        '<div class="desk-shell">'
-        '<div class="desk-topline"><div class="desk-brand">小资金研究台'
-        "<small>A / H · RESEARCH TERMINAL</small></div>"
-        f'<div class="desk-status">{_esc(status_line)}<br>'
-        f"<b>{ranked_count}</b> 张在册 · 活跃 <b>{active_count}</b> · "
-        "非投资建议</div></div>"
-        f"{shortlist_html}{promo}{_desk_table(summaries)}"
-        '<div class="desk-foot">研究工具输出，非投资建议 · 数据：巨潮 / 同花顺 / 东财 / akshare'
-        f" · {_esc(date.today().isoformat())}</div>"
-        "</div>")
 
 
 def _desk_table(summaries: list[dict]) -> str:

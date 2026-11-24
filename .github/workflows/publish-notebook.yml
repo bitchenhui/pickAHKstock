@@ -1,11 +1,17 @@
 name: 发布研究汇总页
 
-# 定时刷新全部卡片（deep-dive 数据面 + 扫描留痕）→ 生成小红书样式汇总页
-# → 发布到 GitHub Pages。外部接口对海外 IP 可能限流：各面独立成败，
-# 失败的卡片沿用仓库里上一次的数据，页面不会空。
+# 工作日刷新：发现新候选 → 补全每张卡的数据面 → AI 补判断与多空对辩 →
+# 记录今日清单 → 生成页面 → 发布到 GitHub Pages → 最后做数据新鲜度检查。
+#
+# 几条经过线上事故换来的约束：
+# - GitHub 的定时触发会晚点（实测北京时间 13:30–15:15 才开跑），不是准点 08:00。
+#   需要盘中提醒的哨兵在用户本机用 launchd 跑，不靠这里的 schedule。
+# - 外部接口对海外 IP 可能限流或超时：各面独立成败，deep-dive 每一面成功就落盘。
+# - 最后一步 health 发现过期或缺失就返回 1，让这次运行显示为失败。
+#   以前数据面失败只淹没在日志里，页面照常发布。
 on:
   schedule:
-    - cron: "0 0 * * 1-5"     # 北京时间 08:00，工作日（A 股交易日）
+    - cron: "0 0 * * 1-5"
   workflow_dispatch:           # 手动触发：Actions 页面 → Run workflow
 
 permissions:
@@ -20,10 +26,17 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 75
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      PYTHONPYCACHEPREFIX: /tmp/pycache
+      PICKAHK_STAKE_CNY: ${{ vars.PICKAHK_STAKE_CNY }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+      LLM_MODEL: ${{ secrets.LLM_MODEL }}
+      LLM_PROTOCOL: ${{ secrets.LLM_PROTOCOL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,21 +48,25 @@ jobs:
       - name: 安装依赖
         run: pip install -r requirements.txt
 
-      - name: 数据接口缓存
-        uses: actions/cache@v4
+      # 只取不存：缓存的保存放在后面的显式步骤里。actions/cache 默认要整个任务
+      # 成功才保存，而最后一步 health 一失败（比如某个数据源当天挂了），当天抓到的
+      # 120 天港股公告缓存就全丢，第二天又得从头抓、更容易超时。
+      - name: 数据接口缓存（取出）
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/pickahkstock
           key: pickahk-cache-${{ github.run_id }}
           restore-keys: pickahk-cache-
 
-      - name: 测试（178 项，先于发布暴露运行时不兼容）
-        env:
-          PYTHONPYCACHEPREFIX: /tmp/pycache
+      - name: 测试
         run: python -m unittest discover -s tests
 
-      - name: 刷新全部卡片（数据面 + 扫描留痕）
-        env:
-          PYTHONPYCACHEPREFIX: /tmp/pycache
+      - name: 发现新候选并立项（先建卡，本次运行就会补数据）
+        run: |
+          timeout 1500 python -m research.cli discover-new --a-limit 2 --hk-limit 1 || \
+            echo "!! 发现新候选超时或失败，不影响已有卡片的刷新"
+
+      - name: 刷新全部卡片（每一面成功即落盘）
         run: |
           for f in cards/A_*.json cards/HK_*.json; do
             [ -e "$f" ] || continue
@@ -57,82 +74,52 @@ jobs:
             market=${base%%_*}
             code=${base#*_}
             echo "== $market $code"
-            # 海外 IP 访问国内接口慢：单卡 6 分钟上限，卡住就放弃这张，
-            # 卡片沿用仓库里的上一次数据（deep-dive 各面独立成败）
-            timeout 360 python -m research.cli deep-dive "$market" "$code" || echo "!! $market $code 超时/失败，沿用仓库数据"
+            # 海外 IP 访问国内接口慢。港股第一次要按天补齐 120 天的公告缓存
+            # （之后每天只多抓当天），给的时间长一些。
+            limit=360; [ "$market" = "HK" ] && limit=1200
+            timeout "$limit" python -m research.cli deep-dive "$market" "$code" || \
+              echo "!! $market $code 有数据面没取到，见上面的 ✗ 行；这些面仍是上一次的数据"
           done
 
-      - name: 发现层新候选自动立项（不靠手动）
-        env:
-          PYTHONPYCACHEPREFIX: /tmp/pycache
+      - name: AI 补判断
         run: |
-          # A 股新候选：从最新报告期的 odds 筛选中，取结构条件通过且没有已有卡的
-          python -m research.cli odds --period 2026-09-30 --limit 10 2>/dev/null | \
-            grep -oE "[0-9]{6}" | head -10 | while read code; do
-              [ -f "cards/A_${code}.json" ] && continue
-              echo "== 新候选立项 A $code"
-              timeout 300 python -m research.cli new --codes "$code" 2>/dev/null || true
-            done
-          # 港股新候选：最近 60 天的盈警/盈喜
-          python -m research.cli hk-discover --source alerts --days 60 --limit 5 2>/dev/null | \
-            grep -oE "^. ([0-9]{5}) " | sed 's/^. //' | while read code; do
-              [ -f "cards/HK_${code}.json" ] && continue
-              echo "== 港股新候选立项 HK $code"
-              timeout 300 python -m research.cli new --market HK --codes "$code" 2>/dev/null || true
-            done
+          timeout 900 python -m research.cli auto-judge || echo "!! auto-judge 超时或失败"
 
-      - name: AI 自动判断 + 多空对辩（判断未写完的卡片自动补全）
-        env:
-          PYTHONPYCACHEPREFIX: /tmp/pycache
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL }}
-          LLM_PROTOCOL: ${{ secrets.LLM_PROTOCOL }}
+      # 缺对辩的补上，超过 3 天的重跑（卡片数据天天变，旧结论会过期）。
+      # 「有没有对辩」必须由代码读 debate.verdict 来判断，不能在卡片文件里 grep
+      # "verdict"：行业共振那一段也有一个同名的 verdict 字段，grep 会把它当成对辩，
+      # 于是每张卡都被当成「已有对辩」而跳过（2026-11-24 之前一直如此）。
+      - name: 多空对辩（缺的补、过期的重跑）
         run: |
-          # 自动补全判断 → 过质量门 → 进推荐清单
-          timeout 600 python -m research.cli auto-judge 2>/dev/null || echo "auto-judge 超时，不挡发布"
-          # 只对没有 debate 的卡跑多空对辩（已有的不重复跑，省时间）
-          for f in cards/A_*.json cards/HK_*.json; do
-            [ -e "$f" ] || continue
-            base=$(basename "$f" .json)
-            market=${base%%_*}
-            code=${base#*_}
-            grep -q '"verdict": "..*"' "$f" && continue
-            echo "== 对辩 $market $code"
-            timeout 180 python -m research.cli analyze "$market" "$code" >/dev/null 2>&1 || true
-          done
+          timeout 1500 python -m research.cli debate --budget-minutes 20 || \
+            echo "!! 有卡片的对辩没跑成，见上面的 ✗ 行"
 
-      - name: AI 进化循环（记录预测 + 到期归因 + 权重调整）
-        env:
-          PYTHONPYCACHEPREFIX: /tmp/pycache
+      - name: 记录今日清单并做到期归因
         run: |
-          timeout 300 python -m research.cli evolve 2>/dev/null || echo "evolve 超时，不挡发布"
+          timeout 600 python -m research.cli evolve || echo "!! evolve 超时或失败"
 
       - name: 生成单卡笔记与汇总页
-        env:
-          PYTHONPYCACHEPREFIX: /tmp/pycache
         run: |
           for f in cards/A_*.json cards/HK_*.json; do
             [ -e "$f" ] || continue
             base=$(basename "$f" .json)
             market=${base%%_*}
             code=${base#*_}
-            python -m research.cli note "$market" "$code" || true
+            python -m research.cli note "$market" "$code" || echo "!! 笔记生成失败 $market $code"
           done
           python -m research.cli notebook
 
-      - name: 提交刷新后的卡片（best-effort：撞车不挡发布）
+      - name: 提交刷新后的卡片
         run: |
           git config user.name "research-bot"
           git config user.email "actions@github.com"
-          git add cards/
+          git add cards/ evolution_state.json
           if git diff --cached --quiet; then
             echo "卡片无变化，跳过提交"
             exit 0
           fi
-          git commit -m "CI 数据刷新：deep-dive 全卡（自动，判断字段不受影响）"
-          # 别人在运行期间推了提交时 rebase 重放；仍失败就放弃提交但不挡发布
-          # （Pages 用的是本次工作区生成的 notes，不依赖这份提交）
+          git commit -m "CI 每日刷新：数据面、AI 判断与对辩、今日清单（自动）"
+          # 本地在运行期间推了提交时 rebase 重放；仍失败就放弃提交但不挡发布
           git pull --rebase origin master && git push || \
             echo "!! 提交刷新数据失败（推送撞车），页面照常发布，数据下次再留"
 
@@ -142,3 +129,12 @@ jobs:
 
       - id: deploy
         uses: actions/deploy-pages@v4
+
+      - name: 数据接口缓存（存回，放在 health 之前）
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/pickahkstock
+          key: pickahk-cache-${{ github.run_id }}
+
+      - name: 数据新鲜度检查（有问题就让这次运行显示为失败）
+        run: python -m research.cli health

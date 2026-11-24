@@ -41,13 +41,19 @@ def _fetch_daily(start: str, end: str, symbols: list[str]) -> list[dict]:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        frame = ak.futures_spot_price_daily(start, end, vars_list=symbols)
+        call = ak.futures_spot_price_daily
+        try:
+            frame = call(start, end, vars_list=symbols)
+        except TypeError:
+            # akshare 新版改了这个参数名（云端装到 1.20 时报 unexpected keyword）。
+            # 退回「取全部品种再按代码筛」，不让整个盯价面挂掉。
+            frame = call(start, end)
     rows = []
     for record in frame.to_dict("records"):
         day = str(record.get("date") or "")
         price = record.get("spot_price")
         symbol = str(record.get("symbol") or "")
-        if day and price is not None:
+        if day and price is not None and symbol in set(symbols):
             rows.append({"day": f"{day[:4]}-{day[4:6]}-{day[6:8]}", "symbol": symbol,
                          "price": float(price)})
     rows.sort(key=lambda row: row["day"])

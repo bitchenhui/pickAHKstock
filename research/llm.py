@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
+from datetime import date
 
 import requests
 
@@ -43,14 +45,85 @@ class Debate:
     verdict: str = ""       # 合成结论
     checks: list[str] = None  # 合成方列出的待核实项
     source: str = ""        # 模型与协议，便于留痕
+    as_of: str = ""         # 对辩那天的日期：卡片数据每天在变，结论会过期
 
     def to_dict(self) -> dict:
         return {"bull": self.bull, "bear": self.bear, "verdict": self.verdict,
-                "checks": self.checks or [], "source": self.source}
+                "checks": self.checks or [], "source": self.source,
+                "as_of": self.as_of}
 
 
 def configured() -> bool:
     return bool(os.environ.get("LLM_API_KEY"))
+
+
+# 对辩结论超过这么多天就重跑。卡片里的相对强度、盯价、失效线每天都会变，
+# 而对辩是读这些数得出的结论；三天是「够新」和「模型调用次数」之间的折中。
+DEBATE_MAX_AGE_DAYS = 3
+
+
+def debate_state(card: Card, max_age_days: int = DEBATE_MAX_AGE_DAYS,
+                 today: str = "") -> str:
+    """这张卡的对辩处于哪种状态：fresh（在有效期内）/ stale（过期）/ missing（没有）。
+
+    判「有没有对辩」必须读 ``debate.verdict``。不能在卡片文件里搜 "verdict"——
+    行业共振那一段也有一个同名的 verdict 字段（值是「行业共振」「单点不可辨」），
+    搜索会把它当成对辩结论。线上的对辩步骤就这样被整段跳过过：16 张卡里
+    11 张没有对辩，流水线却以为都有。
+    """
+    debate = card.debate or {}
+    if not (debate.get("verdict") or "").strip():
+        return "missing"
+    # 旧版本写的对辩没有日期，无从判断新旧，当作过期重跑一次
+    as_of = debate.get("as_of") or ""
+    if not as_of:
+        return "stale"
+    try:
+        age = (date.fromisoformat(today or date.today().isoformat())
+               - date.fromisoformat(as_of)).days
+    except (TypeError, ValueError):
+        return "stale"
+    return "fresh" if age <= max_age_days else "stale"
+
+
+def cards_needing_debate(cards, max_age_days: int = DEBATE_MAX_AGE_DAYS,
+                         today: str = "") -> list:
+    """需要跑对辩的卡片：没降级、且对辩缺失或过期。
+
+    降级的卡片已经出局，不为它们花模型调用。顺序是缺失的先跑，其余最旧的先跑，
+    这样时间预算不够时先补上的是缺口最大的。
+    """
+    picked = []
+    for card in cards:
+        state = debate_state(card, max_age_days, today)
+        if state == "fresh" or card.status in ("降级", "淘汰"):
+            continue
+        picked.append((0 if state == "missing" else 1,
+                       (card.debate or {}).get("as_of") or "", card))
+    picked.sort(key=lambda item: (item[0], item[1]))
+    return [item[2] for item in picked]
+
+
+def ai_stance(verdict_text: str) -> int:
+    """从对辩结论里读出对「进不进持仓」的表态：1 正面、-1 负面、0 没表态。
+
+    只认这一种表态，别的一句话不猜。负面优先：一句话里两种说法都有时
+    （「暂不可进持仓，验证后可进」），按当下结论算负面。
+    实测模型写的否定说法有「不进持仓」「暂不进入持仓研究」「暂不可进持仓」，
+    只匹配「不进持仓」会把后两种漏成中性。
+    """
+    text = verdict_text or ""
+    if re.search(r"不(可|能|宜|建议|应)?(以)?(能)?进(入)?持仓", text):
+        return -1
+    if re.search(r"(可|可以|值得|适合|同意)进(入)?持仓", text):
+        return 1
+    return 0
+
+
+def debate_stamp(debate) -> str:
+    """对辩日期的短写（「11-24」），用于页面和清单；没有或格式不对就返回空串。"""
+    as_of = str((debate or {}).get("as_of") or "")
+    return as_of[5:] if re.fullmatch(r"\d{4}-\d{2}-\d{2}", as_of) else ""
 
 
 def _card_facts(card: Card) -> str:
@@ -224,27 +297,41 @@ def _call(system: str, user: str) -> str:
 
 
 def debate(card: Card) -> Debate:
-    """跑一轮多空对辩。任一环节失败即抛错（调用方决定回落）。"""
+    """跑一轮多空对辩。任一环节失败、或模型返回空内容，即抛错（调用方决定回落）。
+
+    推理型模型有时把输出额度都花在推理上，正文返回空字符串（_call 重试三次仍空时
+    返回 ""）。空内容不能当成功：实测出现过「命令显示成功、结论却是空的」，还把
+    卡片上原来完整的对辩覆盖掉了。
+    """
     if not configured():
         raise LLMError("未配置 LLM_API_KEY")
     facts = _card_facts(card)
-    bull = _call("你是有经验的买方分析师，只用给定事实。", BULL_PROMPT.format(facts=facts))
-    bear = _call("你是有经验的卖方分析师，只用给定事实。", BEAR_PROMPT.format(facts=facts))
+    bull = _call("你是有经验的买方分析师，只用给定事实。", BULL_PROMPT.format(facts=facts)).strip()
+    bear = _call("你是有经验的卖方分析师，只用给定事实。", BEAR_PROMPT.format(facts=facts)).strip()
+    if not bull or not bear:
+        raise LLMError("多方或空方的论证是空的（模型没有返回内容）")
     raw = _call("你是最终决策者，只用给定事实。",
-                 SYNTH_PROMPT.format(facts=facts, bull=bull, bear=bear))
+                SYNTH_PROMPT.format(facts=facts, bull=bull, bear=bear)).strip()
     verdict: dict = {}
     try:
         start, end = raw.find("{"), raw.rfind("}")
         verdict = json.loads(raw[start:end + 1]) if start >= 0 and end > start else {}
+        if not isinstance(verdict, dict):
+            verdict = {"conclusion": raw[:300]}
     except ValueError:
         verdict = {"conclusion": raw[:300]}
+    conclusion = str(verdict.get("conclusion") or "").strip()
+    if not conclusion:
+        raise LLMError("合成结论是空的（模型没有返回结论）")
+    checks = [str(item).strip() for item in verdict.get("checks") or []
+              if str(item).strip()]
     return Debate(
-        bull=bull, bear=bear,
-        verdict=verdict.get("conclusion", ""),
-        checks=list(verdict.get("checks", [])) + (
-            [verdict["abandon_if"]] if verdict.get("abandon_if") else []) + (
-            [verdict["caveat"]] if verdict.get("caveat") else []),
-        source=f"{os.environ.get('LLM_MODEL', DEFAULT_MODEL)}/{os.environ.get('LLM_PROTOCOL', 'anthropic')}")
+        bull=bull, bear=bear, verdict=conclusion,
+        checks=checks + (
+            [str(verdict["abandon_if"]).strip()] if verdict.get("abandon_if") else []) + (
+            [str(verdict["caveat"]).strip()] if verdict.get("caveat") else []),
+        source=f"{os.environ.get('LLM_MODEL', DEFAULT_MODEL)}/{os.environ.get('LLM_PROTOCOL', 'anthropic')}",
+        as_of=date.today().isoformat())
 
 
 JUDGE_PROMPT = """基于下面的事实清单，为这只股票写出研究卡片的全部判断字段。
@@ -333,6 +420,20 @@ def auto_judge(card: Card) -> dict:
     return result
 
 
+def _normalize_path(text) -> str:
+    """模型的回答可能是整句话（「已盈利：Q1–Q3 净利润分别为…」）。
+
+    卡片的 path 字段只接受「已盈利 / 未盈利」两个词——质量门按这两个词判断
+    财务路径有没有写完，写进整句话的卡片永远只能停在「部分证据」。
+    """
+    text = str(text or "")
+    if "未盈利" in text:
+        return "未盈利"
+    if "已盈利" in text:
+        return "已盈利"
+    return "未分类"
+
+
 def fill_judgment(card: Card) -> bool:
     """自动写入判断字段（只在卡片判断不完整时写，不覆盖已写的）。
 
@@ -378,7 +479,7 @@ def fill_judgment(card: Card) -> bool:
     if not card.invalidation:
         card.invalidation = judgment.get("invalidation", [])
     if card.financials.path == "未分类":
-        card.financials.path = judgment.get("path", "未分类")
+        card.financials.path = _normalize_path(judgment.get("path", ""))
     if not card.financials.recurring_judgment:
         card.financials.recurring_judgment = judgment.get("recurring_judgment", "")
     if not card.financials.cyclical_judgment:

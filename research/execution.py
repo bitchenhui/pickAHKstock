@@ -101,25 +101,38 @@ def relative_strength(code: str, market: str, window: int = 60) -> dict | None:
 
 
 def _stake_from_account() -> float | None:
-    """单笔参考金额：account.json 的 capital × 单只上限。缺文件就不猜。"""
+    """单笔参考金额：account.json 的 capital × 单只上限。
+
+    云端没有 account.json（里面有真实持仓，不进仓库），所以留一个环境变量
+    PICKAHK_STAKE_CNY 作为同一口径的入口——不给就还是不猜。
+    """
     import json
+    import os
 
     try:
         data = json.loads(ACCOUNT_FILE.read_text(encoding="utf-8"))
         capital = float(data.get("capital_cny") or 0)
         pct = float(data.get("max_position_pct") or 0)
-        return capital * pct if capital and pct else None
+        if capital and pct:
+            return capital * pct
     except (OSError, ValueError):
+        pass
+    try:
+        return float(os.environ.get("PICKAHK_STAKE_CNY") or 0) or None
+    except ValueError:
         return None
 
 
 def fill_execution(card) -> dict:
-    """把执行层检查写进卡片 execution 字段（deep-dive 调用）。"""
+    """把执行层检查写进卡片 execution 字段（deep-dive 调用）。
+
+    流动性门槛、相对强度、RSI 三项各自独立取数，一项取不到不影响其他项。
+    """
     stake = _stake_from_account()
     out: dict = {"as_of": date.today().isoformat(), "stake": stake}
     if card.market == "A":
-        liquidity = liquidity_gate((avg_turnover_a(card.code) or {}).get("avg_turnover")
-                                   if avg_turnover_a(card.code) else None, stake)
+        turnover = avg_turnover_a(card.code)
+        liquidity = liquidity_gate(turnover.get("avg_turnover") if turnover else None, stake)
     else:
         # 港股无 THS 日线：用快照当日成交额做单日口径，标注清楚
         from .quotes import fetch_snapshots
@@ -129,9 +142,15 @@ def fill_execution(card) -> dict:
         liquidity = liquidity_gate(turnover, stake)
         if turnover:
             liquidity["note"] = "单日成交额口径（港股无日线额缓存）：" + liquidity["note"]
-    strength = relative_strength(card.code, card.market)
     out["liquidity"] = liquidity
-    out["strength"] = strength or {}
+    try:
+        out["strength"] = relative_strength(card.code, card.market) or {}
+    except Exception as exc:
+        out["strength"] = {"error": f"{type(exc).__name__}: {exc}"[:120]}
+    try:
+        out["rsi"] = rsi_current(card.code, card.market)
+    except Exception:
+        out["rsi"] = None
     card.execution = out
     return out
 

@@ -11,10 +11,11 @@
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 import json
 import sys
-from datetime import date
+from datetime import date, timedelta
 
 from .card import CARD_DIR, Card, blocking, validate
 from .discover import Candidate, discover
@@ -53,29 +54,45 @@ def cmd_discover(args: argparse.Namespace) -> int:
 
 
 def cmd_new(args: argparse.Namespace) -> int:
-    wanted = {c.strip() for c in args.codes.split(",") if c.strip()}
+    wanted = tuple(c.strip() for c in args.codes.split(",") if c.strip())
+
+    def exists(code: str) -> bool:
+        return (CARD_DIR / f"{args.market}_{code}.json").exists()
+
     if args.market == "HK":
         from .hk import discover as hk_discover
         from .workflow import scaffold_hk
 
-        candidates = hk_discover(since_days=args.since_days, limit=max(args.limit, len(wanted) * 3))
+        # 点名时把窗口内的候选全部取出来再筛：原先只在前 N 名里找，
+        # 排不进前 N 的代码永远建不出卡
+        limit = max(args.limit, len(wanted) * 50) if wanted else args.limit
+        candidates = hk_discover(since_days=args.since_days, limit=limit)
         picked = [c for c in candidates if c.code in wanted] if wanted else candidates[:args.limit]
         if not picked:
             print("没有匹配的港股候选。先跑 hk-discover 看有哪些。")
             return 1
         for candidate in picked:
+            if exists(candidate.code):
+                print(f"{candidate.code} {candidate.name} 已有卡片，不覆盖")
+                continue
             card = scaffold_hk(candidate)
             path = card.save()
             print(f"{candidate.code} {candidate.name}（{candidate.direction}）→ {path}")
         return 0
-    # 指定代码时要多取一些候选，否则按幅度排序的目标可能落在取样窗口之外。
-    pool = max(args.limit, len(wanted) * 5, 20)
-    candidates, _stats = discover(args.period, args.since_days, pool)
-    picked = [c for c in candidates if c.code in wanted] if wanted else candidates[:args.limit]
+
+    candidates, _stats = discover(args.period, args.since_days, args.limit,
+                                  only_codes=wanted)
+    picked = candidates if wanted else candidates[:args.limit]
     if not picked:
         print("没有匹配的候选。")
         return 1
+    missing = [code for code in wanted if code not in {c.code for c in picked}]
+    if missing:
+        print(f"未建出：{'、'.join(missing)}（不在本报告期业绩预告的可研究候选里）")
     for candidate in picked:
+        if exists(candidate.code):
+            print(f"{candidate.code} {candidate.name} 已有卡片，不覆盖")
+            continue
         card = scaffold(candidate)
         path = card.save()
         print(f"{candidate.code} {candidate.name} → {path}")
@@ -574,41 +591,55 @@ def cmd_recommend(args: argparse.Namespace) -> int:
     return 0
 
 
+def _odds_screen(period: str, cap_min: float, cap_max: float, runup_max: float,
+                 target_pe: float) -> dict:
+    """跑一遍 odds 的结构条件筛选，返回各层数量与通过集（cmd_odds 与 discover-new 共用）。"""
+    from datetime import date as _date
+    from datetime import timedelta as _timedelta
+
+    from .backtest import (forecasts_by_report_period, load_prices,
+                           prefetch_prices, primary_rows)
+    from .odds import evaluate, inflection_type, load_snapshots, prefilter_cap
+
+    report_date = _date.fromisoformat(period)
+    rows = primary_rows(forecasts_by_report_period(report_date))
+    typed = [row for row in rows if inflection_type(row) != "其他"]
+    if not typed:
+        return {"rows": rows, "typed": [], "hits": []}
+    codes = sorted({str(row.get("SECURITY_CODE") or "").strip() for row in typed
+                    if str(row.get("SECURITY_CODE") or "").strip()})
+    notices = sorted({str(row.get("NOTICE_DATE") or "")[:10] for row in typed
+                      if str(row.get("NOTICE_DATE") or "")[:10]})
+    snapshots = load_snapshots([("A", code) for code in codes])
+    prefiltered = prefilter_cap(snapshots, codes, cap_min, cap_max)
+    start = _date.fromisoformat(notices[0]) - _timedelta(days=400)
+    end = _date.fromisoformat(notices[-1]) + _timedelta(days=20)
+    if prefiltered:
+        prefetch_prices(prefiltered, start, end)
+    prices_map = {code: load_prices(code, start, end) for code in prefiltered}
+    hits = [hit for hit in evaluate(typed, snapshots, prices_map, cap_min=cap_min,
+                                    cap_max=cap_max, runup_max=runup_max,
+                                    target_pe=target_pe) if hit.passes]
+    return {"rows": rows, "typed": typed, "snapshots": snapshots,
+            "prefiltered": prefiltered, "hits": hits}
+
+
 def cmd_odds(args: argparse.Namespace) -> int:
     """高赔率候选清单：结构条件筛选 + 「10 倍需要什么为真」的拆解。
 
     结构条件 ≠ 上涨概率：这是把「1 年内 5-10 倍在结构上需要什么前提」摆到
     人面前，历史基础率见 docs/odds-v1.md。
     """
-    from datetime import date as _date
-    from datetime import timedelta as _timedelta
-
-    from .backtest import (forecasts_by_report_period, load_prices,
-                           prefetch_prices, primary_rows)
     from .excluded import is_excluded
-    from .odds import (DEFAULT_TARGET_PE, evaluate, inflection_type,
-                       load_snapshots, prefilter_cap, screen)
+    from .odds import DEFAULT_TARGET_PE
 
-    report_date = _date(*map(int, args.period.split("-")))
-    rows = primary_rows(forecasts_by_report_period(report_date))
-    typed = [row for row in rows if inflection_type(row) != "其他"]
+    data = _odds_screen(args.period, args.cap_min * 1e8, args.cap_max * 1e8,
+                        args.runup_max, args.target_pe)
+    rows, typed, hits = data["rows"], data["typed"], data["hits"]
     if not typed:
         print(f"{args.period} 报告期没有扭亏/减亏/预增类预告行。")
         return 0
-    codes = sorted({str(row.get("SECURITY_CODE") or "").strip() for row in typed
-                    if str(row.get("SECURITY_CODE") or "").strip()})
-    notices = sorted({str(row.get("NOTICE_DATE") or "")[:10] for row in typed
-                      if str(row.get("NOTICE_DATE") or "")[:10]})
-    snapshots = load_snapshots([("A", code) for code in codes])
-    prefiltered = prefilter_cap(snapshots, codes, args.cap_min * 1e8, args.cap_max * 1e8)
-    start = _date.fromisoformat(notices[0]) - _timedelta(days=400)
-    end = _date.fromisoformat(notices[-1]) + _timedelta(days=20)
-    if prefiltered:
-        prefetch_prices(prefiltered, start, end)
-    prices_map = {code: load_prices(code, start, end) for code in prefiltered}
-    hits = screen(typed, snapshots, prices_map,
-                  cap_min=args.cap_min * 1e8, cap_max=args.cap_max * 1e8,
-                  runup_max=args.runup_max, target_pe=args.target_pe)
+    snapshots, prefiltered = data["snapshots"], data["prefiltered"]
     visible = [hit for hit in hits if not is_excluded("A", hit.code)]
     skipped = len(hits) - len(visible)
 
@@ -653,9 +684,10 @@ def cmd_odds(args: argparse.Namespace) -> int:
 def cmd_deep_dive(args: argparse.Namespace) -> int:
     """一键灌卡：一张卡片补齐全部数据面，人只做判断题。
 
-    行情/财务/参考线/预期/资本轨迹/行业共振写进卡片；风险公告、治理
-    （或港股经营回顾）作为原始扫描打印出来——那是需要人过目的材料，
-    不是结论。判断字段（path/情景/反证等）工具不代填，check 会拦。
+    行情/财务/参考线/预期/资本轨迹/行业共振写进卡片；风险公告、增减持、
+    治理（港股为经营回顾对比）作为原始扫描打印出来并留痕进卡片。
+    每一面成功就立刻保存；哪一面失败会明确打出来——那张卡对应的这一块
+    还是上一次的数据。判断字段工具不代填，check 会拦。
     """
     from .deepdive import deep_dive, scan_outputs
 
@@ -663,10 +695,12 @@ def cmd_deep_dive(args: argparse.Namespace) -> int:
                        with_scan=not args.no_scan, days=args.days)
     card = result.card
     marks = {"ok": "✓", "fail": "✗", "skip": "·", "scan": "▸"}
-    print(f"{card.name}（{card.market} {card.code}）deep-dive 完成，卡片已保存：\n")
+    print(f"{card.name}（{card.market} {card.code}）deep-dive：")
     for step in result.steps:
-        note = f" — {step.note}" if step.note and step.status in ("fail", "skip") else ""
+        note = f" — {step.note}" if step.note else ""
         print(f"  {marks.get(step.status, ' ')} {step.face}{note}")
+    if result.failed:
+        print(f"\n{len(result.failed)} 个面失败：这些面在卡片里仍是上一次的数据。")
     if not args.no_scan:
         print("\n── 以下需要人工过目（原始扫描，不是结论）──\n")
         for title, lines in scan_outputs(card, days=args.days):
@@ -682,7 +716,7 @@ def cmd_deep_dive(args: argparse.Namespace) -> int:
     print("  情景（基准/乐观/失败）与反证、失效条件：写不出来就说明这一关没过")
     print(f"\n下一步：python -m research.cli show {card.market} {card.code}"
           f" ｜ check {card.market} {card.code}")
-    return 1 if any(s.status == "fail" for s in result.steps) else 0
+    return 1 if result.failed else 0
 
 
 def cmd_note(args: argparse.Namespace) -> int:
@@ -690,6 +724,14 @@ def cmd_note(args: argparse.Namespace) -> int:
     from .note import note_fragment, save_document
 
     card = Card.load(args.market, args.code)
+    # 人话版结论每次重算：它读的是卡片上会变的东西（催化剂过没过期、大盘状态、
+    # 新扫到的增减持），只在 analyze 时算一次会停在旧结论上
+    from .plain import plain_conclusion
+
+    fresh = plain_conclusion(card)
+    if fresh != (card.plain or {}):
+        card.plain = fresh
+        card.save()
     fragment = note_fragment(card)
     from pathlib import Path as _Path
 
@@ -727,17 +769,24 @@ def cmd_notebook(args: argparse.Namespace) -> int:
 def cmd_sentinel(args: argparse.Namespace) -> int:
     """哨兵：对照行动条件检查全部卡片，命中触发器则推通知。
 
-    检查的是低频数据（快照/日线/盯价），但可以每小时跑一次。
+    检查的是低频数据（快照/日线/盯价）。盘中由本机 launchd 每 30 分钟跑一次
+    （scripts/install_sentinel.sh）；休市或还没开盘、没有新行情时自动跳过。
     未配置任何通知渠道时只打印不发——先把触发器摆到眼前。
     """
-    from .sentinel import check_cards, dedupe, notify_alerts
+    from .sentinel import LIST_FINGERPRINT, check_cards, dedupe, notify_alerts
 
     cards = _load_all_cards()
     if not cards:
         print("还没有卡片。")
         return 0
     alerts, checked = check_cards(cards)
-    fresh, silent = dedupe(alerts)
+    if not checked:
+        print("今天还没有新行情（休市或还没开盘），本轮不检查。")
+        return 0
+    # 清单变化自带对比状态，不走触发器的去重
+    list_alerts = [a for a in alerts if a.fingerprint == LIST_FINGERPRINT]
+    fresh, silent = dedupe([a for a in alerts if a.fingerprint != LIST_FINGERPRINT])
+    fresh = list_alerts + fresh
     print(f"哨兵检查 {checked} 张卡片：命中 {len(alerts)} 条"
           f"（新触发 {len(fresh)}，持续状态静默 {len(silent)}）\n")
     for alert in fresh:
@@ -745,7 +794,7 @@ def cmd_sentinel(args: argparse.Namespace) -> int:
     for alert in silent:
         print(f"  · 已提醒过，静默：{alert.line()}")
     if not alerts:
-        print("  （无触发：参考线、相对强度、催化剂、盯价都安静）")
+        print("  （无触发：异动线、相对强度、催化剂、盯价、清单都安静）")
         return 0
     results = notify_alerts(fresh) if fresh else []
     if results:
@@ -755,7 +804,7 @@ def cmd_sentinel(args: argparse.Namespace) -> int:
     elif not fresh:
         print("\n全部为持续状态，未推送（状态变化时才会再响）。")
     else:
-        print("\n未配置通知渠道（环境变量/Secrets），只打印未推送。")
+        print("\n未配置通知渠道（环境变量），只打印未推送。")
     return 0
 
 
@@ -810,6 +859,60 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+def _debate_one(card: Card) -> tuple:
+    """给一张卡跑多空对辩并写回卡片。返回（是否成功，结论或失败原因）。"""
+    from .llm import analyze
+
+    result = analyze(card)
+    card.plain = result["plain"]
+    debate = result.get("debate") or {}
+    # 结论为空的也算失败：不能用一次空结果覆盖卡片上原有的对辩
+    if not str(debate.get("verdict") or "").strip():
+        return False, f"对辩未完成：{result.get('debate_error') or '合成结论为空'}"
+    card.debate = result["debate"]
+    card.updated = date.today().isoformat()
+    card.save()
+    return True, card.debate.get("verdict", "")
+
+
+def cmd_debate(args: argparse.Namespace) -> int:
+    """给缺对辩、或对辩过期的卡片重跑多空对辩。
+
+    卡片数据每天刷新，对辩结论读的是这些数，所以按日期重跑，不只是补缺。
+    时间预算用完就停，剩下的下次再跑（先跑缺失的，再跑最旧的）。
+    有卡片没跑成时返回 1，让流水线这一步显眼地失败，但不挡住后面的步骤。
+    """
+    import time
+
+    from .llm import cards_needing_debate, configured
+
+    if not configured():
+        print("未配置 LLM_API_KEY，跳过多空对辩。")
+        return 0
+    todo = cards_needing_debate(_load_all_cards(), args.max_age_days)
+    if not todo:
+        print(f"在册卡片的对辩都在 {args.max_age_days} 天内，无需重跑。")
+        return 0
+    print(f"需要跑对辩的 {len(todo)} 张卡片（对辩缺失，或超过 {args.max_age_days} 天）：")
+    for card in todo:
+        print(f"  {card.market} {card.code} {card.name}")
+    print(flush=True)
+    started = time.monotonic()
+    failed = 0
+    for card in todo:
+        if time.monotonic() - started > args.budget_minutes * 60:
+            print(f"!! 时间预算（{args.budget_minutes:g} 分钟）用完，剩下的留到下次再跑")
+            break
+        print(f"== {card.name}（{card.market} {card.code}）", flush=True)
+        try:
+            ok, line = _debate_one(card)
+        except Exception as exc:                # 单张失败不拖垮其余
+            ok, line = False, f"{type(exc).__name__}: {exc}"
+        print(f"  {'✓' if ok else '✗'} {line}", flush=True)
+        failed += 0 if ok else 1
+    return 1 if failed else 0
+
+
 def cmd_auto_judge(args: argparse.Namespace) -> int:
     """AI 自动补全判断：对判断未写完的卡片调 LLM 生成 view/情景/反证/失效条件。
 
@@ -846,63 +949,219 @@ def cmd_auto_judge(args: argparse.Namespace) -> int:
 
 
 def cmd_evolve(args: argparse.Namespace) -> int:
-    """AI 迭代进化：记录今日预测 → 归因历史因子 → 调整权重。"""
+    """AI 迭代进化：记录今日清单 → 到期的对照实际收益 → 归因因子 → 调整权重。"""
+    from .evolution import WEIGHT_EVIDENCE, Evolution, Prediction, current_weights
     from .shortlist import build_shortlist
-    from .evolution import Evolution, Prediction
 
     evo = Evolution()
-    cards = _load_all_cards()
-    shortlist = build_shortlist(cards)
-
-    # 1) 记录今日预测
+    shortlist = build_shortlist(_load_all_cards())
+    today = date.today().isoformat()
     if shortlist:
-        today = date.today().isoformat()
-        preds = []
-        for i, entry in enumerate(shortlist, 1):
+        predictions = []
+        for rank, entry in enumerate(shortlist, 1):
             card = entry.card
-            ctx = card.market_context or {}
-            preds.append(Prediction(
+            predictions.append(Prediction(
                 day=today, code=card.code, name=card.name, market=card.market,
-                rank=i, total_score=entry.score,
-                factors={name: score for name, score, _ in entry.factors},
-                price_at_call=float(ctx.get("price") or 0),
+                rank=rank, total_score=entry.score,
+                factors={factor.name: factor.signal for factor in entry.factors},
+                price_at_call=float((card.market_context or {}).get("price") or 0),
                 status=card.status))
-        evo.log_predictions(preds)
-        print(f"今日预测已记录：{len(preds)} 只（写入 cards/_journal/）")
+        evo.log_predictions(predictions)
+        print(f"今日清单已记录：{len(predictions)} 只 → cards/_journal/{today}.json")
+        for prediction in predictions:
+            print(f"  #{prediction.rank} {prediction.name} {prediction.total_score:+g}")
     else:
-        print("今日无推荐，不记录。")
+        print("今日清单为空，不记录。")
 
-    # 2) 归因（如果有到期的预测）
     journal = evo.load_journal()
-    print(f"\n预测日志：{len(journal)} 条")
-    if len(journal) < 10:
-        print("样本不足，需积累更多预测（至少 10 条且满 60 交易日）。")
-        print(f"当前权重（第 {evo.generation} 代）：{evo.weights}")
-        return 0
-
     outcomes = evo.compute_outcomes(journal)
-    print(f"到期结果：{len(outcomes)} 条\n")
-    attribution = evo.attribute(outcomes)
-    if "error" in attribution:
-        print(attribution["error"])
-        return 0
-    for name, result in attribution.items():
-        if result.get("status") == "样本少":
-            print(f"  {name}: 样本少（高分组 {result['high_n']}，低分组 {result['low_n']}）")
+    print(f"\n预测日志 {len(journal)} 条，其中已持有满 60 个交易日的 {len(outcomes)} 条")
+    if outcomes:
+        attribution = evo.attribute(outcomes)
+        if "error" in attribution:
+            print(attribution["error"])
         else:
-            print(f"  {name}: {result['status']}（高分组均值 {result['high_avg']}% vs "
-                  f"低分组 {result['low_avg']}%，差 {result['diff']}pct）"
-                  f" → 建议{result['recommendation']}")
+            print("\n因子归因（组间差为后续 60 日相对指数的超额收益，百分点）：")
+            for name, result in attribution.items():
+                if result.get("status") == "样本少":
+                    print(f"  {name}: 样本少（正 {result['n_pos']}／负 {result['n_neg']}／中性 {result['n_neu']}）")
+                else:
+                    print(f"  {name}: {result['status']}（{result['compare']} {result['diff']:+.2f}）")
+            adjusted = evo.adjust_weights(attribution)
+            if adjusted.get("adjusted"):
+                print(f"\n权重已调整到第 {adjusted['generation']} 代：")
+                for name, change in adjusted["changes"].items():
+                    print(f"  {name}: {change['from']} → {change['to']}（{change['why']}）")
+            else:
+                print("\n本轮没有需要调整的权重。")
+    weights, generation = current_weights()
+    print(f"\n当前权重（第 {generation} 代）：")
+    for name, weight in weights.items():
+        print(f"  {name:4s} {weight:+.1f}  {WEIGHT_EVIDENCE.get(name, '')}")
+    return 0
 
-    # 3) 调整权重
-    result = evo.adjust_weights(attribution)
-    if result.get("adjusted"):
-        print(f"\n权重已调整（第 {result['generation']} 代）：")
-        for name, change in result["changes"].items():
-            print(f"  {name}: {change['from']} → {change['to']}（{change['reason']}）")
-    else:
-        print(f"\n本轮无需调整（或 {result.get('error', '所有因子都在正常范围')}）")
-    print(f"\n当前权重：{evo.weights}")
+
+def _as_of_day(text) -> date | None:
+    """行情时间戳 → 日期。A 股是 20261123161430，港股是 2026/11/11 16:08:14。"""
+    match = re.match(r"(\d{4})[/-]?(\d{2})[/-]?(\d{2})", str(text or ""))
+    if not match:
+        return None
+    try:
+        return date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    except ValueError:
+        return None
+
+
+def cmd_health(args: argparse.Namespace) -> int:
+    """数据新鲜度检查：每张卡的行情日期、各项输入有没有取到、有没有阻塞。
+
+    给云端流水线在最后一步用：发现过期或缺失就返回 1，让这次运行显示为失败——
+    以前数据面失败只会淹没在日志里，页面照常发布，看起来一切正常。
+    清单里的卡还要求 AI 对辩在有效期内：排序因子都没通过检验，对辩是清单里
+    唯一区分彼此的依据，它静默停跑了十天没人知道（见 DebateTests）。
+    """
+    from .llm import configured, debate_stamp, debate_state
+    from .shortlist import passes_gate
+
+    cards = _load_all_cards()
+    if not cards:
+        print("还没有卡片。")
+        return 0
+    # 没配模型密钥的环境本来就不跑对辩，不检查
+    check_debate = configured()
+    today = date.today()
+    cutoff = today - timedelta(days=args.stale_days)
+    problems: list[str] = []
+    print(f"{'卡片':<16}{'行情日':<12}{'状态':<6}{'RSI':>5}{'量能':>6}{'估值':>6}{'增减持':>7}"
+          f"{'扫描日':<12}{'对辩':<8}{'清单'}")
+    for card in sorted(cards, key=lambda c: (c.market, c.code)):
+        context = card.market_context or {}
+        execution = card.execution or {}
+        inputs = card.inputs or {}
+        scans = card.scans or {}
+        quote_day = _as_of_day(context.get("as_of"))
+        quote = quote_day.isoformat() if quote_day else "无"
+        if quote_day is None or quote_day < cutoff:
+            problems.append(f"{card.market} {card.code} {card.name}：行情停在 {quote}")
+        rsi = execution.get("rsi")
+        volume = (inputs.get("volume") or {}).get("trend") or ""
+        valuation = (inputs.get("valuation") or {}).get("status") or ""
+        holders = inputs.get("holders")
+        scanned = scans.get("as_of") or ""
+        if card.market == "A":
+            if rsi is None:
+                problems.append(f"{card.market} {card.code} {card.name}：RSI 没取到")
+            if not volume:
+                problems.append(f"{card.market} {card.code} {card.name}：成交量趋势没取到")
+            if valuation != "有数据":
+                problems.append(f"{card.market} {card.code} {card.name}：估值分位{valuation or '缺失'}")
+            if holders is None:
+                problems.append(f"{card.market} {card.code} {card.name}：股东增减持没取到")
+            if not scanned or date.fromisoformat(scanned) < cutoff:
+                problems.append(f"{card.market} {card.code} {card.name}：公告扫描停在 {scanned or '从未'}")
+        in_list = passes_gate(card)
+        debate_cell = "—"
+        if in_list and check_debate:
+            state = debate_state(card)
+            stamp = debate_stamp(card.debate)
+            debate_cell = {"missing": "无", "stale": f"旧{stamp or '?'}"}.get(state, stamp)
+            if state != "fresh":
+                what = "没有 AI 对辩" if state == "missing" else "AI 对辩已过期"
+                problems.append(f"{card.market} {card.code} {card.name}：{what}")
+        print(f"{card.market} {card.code}   {quote:<12}{card.status:<6}"
+              f"{(f'{rsi:.0f}' if rsi is not None else '—'):>5}{(volume[:4] or '—'):>6}"
+              f"{(valuation[:4] or '—'):>6}{('有' if holders is not None else '—'):>7}"
+              f"{scanned:<12}{debate_cell:<8}{'在' if in_list else '不在'}")
+    if problems:
+        print(f"\n发现 {len(problems)} 处问题：")
+        for line in problems:
+            print(f"  · {line}")
+        return 1
+    print(f"\n{len(cards)} 张卡片全部正常（行情与扫描都在 {cutoff.isoformat()} 之后）。")
+    return 0
+
+
+# 降级/淘汰的卡片攒到这个数就提醒人工清理。不自动删：降级的记录要留着回答
+# 「当时说不行的那几只，后来是不是真的不行」。
+PARKED_WARN = 20
+# 在册卡片（没降级、没淘汰）的上限。账户最多同时持 5 只（每只 20%），每个位置留
+# 2–3 个候选就够看；没有通过检验的排序，卡越多越分散注意力。
+MAX_ACTIVE_CARDS = 12
+
+
+def cmd_discover_new(args: argparse.Namespace) -> int:
+    """发现新候选并立项：每天最多几张、总数不超过在册上限，已有卡片或已被排除的跳过。
+
+    这一步以前是在云端用 grep 从命令输出里抠代码再去建卡：排不进发现层前几名
+    的代码永远建不出卡，8 只候选天天重试、每天白跑四十多分钟。
+    """
+    from .excluded import is_excluded
+    from .hk import blockers_of
+    from .hk import discover as hk_discover
+    from .odds import DEFAULT_CAP_MAX, DEFAULT_CAP_MIN, DEFAULT_RUNUP_MAX, DEFAULT_TARGET_PE
+    from .workflow import scaffold, scaffold_hk
+
+    created: list[str] = []
+    # 上限只数「在册」的卡（没降级、没淘汰）。降级的卡已经不在清单里，不该占着
+    # 名额——按全部卡片数的话，卡片一满清单就只会缩、永远进不了新票。
+    every = _load_all_cards()
+    active = [card for card in every if card.status not in ("降级", "淘汰")]
+    parked = len(every) - len(active)
+    if parked >= PARKED_WARN:
+        print(f"!! 降级/淘汰的卡片已有 {parked} 张：它们仍每天刷新、占流水线时间。"
+              f"建议人工清理：把卡片移到 cards/_archive/（快照和预测日志里仍有记录）")
+    if len(active) >= args.max_cards:
+        print(f"在册卡片 {len(active)} 张，已不少于上限 {args.max_cards}，今天不自动立项。")
+        return 0
+    room = args.max_cards - len(active)
+    try:
+        data = _odds_screen(args.period, DEFAULT_CAP_MIN, DEFAULT_CAP_MAX,
+                            DEFAULT_RUNUP_MAX, DEFAULT_TARGET_PE)
+        order = {"扭亏": 0, "减亏": 1, "预增": 2}
+        ranked = sorted(data["hits"], key=lambda h: (order.get(h.inflection, 9), -(h.cap_at or 0)))
+        fresh = [hit.code for hit in ranked
+                 if not (CARD_DIR / f"A_{hit.code}.json").exists()
+                 and not is_excluded("A", hit.code)]
+        wanted = tuple(fresh[:min(args.a_limit, room)])
+        print(f"A 股：结构条件通过 {len(ranked)} 只，其中还没建卡的 {len(fresh)} 只，"
+              f"本次最多立项 {len(wanted)} 只")
+        if wanted:
+            candidates, _stats = discover(args.period, 90, 3, only_codes=wanted)
+            for candidate in candidates:
+                card = scaffold(candidate)
+                card.save()
+                created.append(f"A {candidate.code} {candidate.name}")
+            missing = [code for code in wanted if code not in {c.code for c in candidates}]
+            if missing:
+                print(f"A 股：{'、'.join(missing)} 不在可研究候选里（股价、成交额或市值不达标），未建卡")
+    except Exception as exc:
+        print(f"!! A 股发现新候选失败：{type(exc).__name__}: {exc}")
+    room -= len(created)
+    hk_cards = sum(1 for card in active if card.market == "HK")
+    try:
+        if room <= 0:
+            print(f"港股：在册卡片已到上限 {args.max_cards}，今天不自动立项")
+        elif hk_cards >= args.hk_max:
+            print(f"港股：在册港股卡片已有 {hk_cards} 张，达到上限 {args.hk_max}，今天不自动立项")
+        else:
+            candidates = hk_discover(since_days=60, limit=200)
+            # 只立「可投资性检查没有问题」的：股价过低、成交额过小、市值过大的都不自动立
+            investable = [c for c in candidates if not blockers_of(c)]
+            fresh = [c for c in investable
+                     if not (CARD_DIR / f"HK_{c.code}.json").exists() and not is_excluded("HK", c.code)]
+            allowed = min(args.hk_limit, room)
+            print(f"港股：近 60 天盈警/盈喜候选 {len(candidates)} 只，其中可投资性没问题的 "
+                  f"{len(investable)} 只、还没建卡的 {len(fresh)} 只，本次最多立项 {allowed} 只")
+            for candidate in fresh[:allowed]:
+                card = scaffold_hk(candidate)
+                card.save()
+                created.append(f"HK {candidate.code} {candidate.name}")
+    except Exception as exc:
+        print(f"!! 港股发现新候选失败：{type(exc).__name__}: {exc}")
+    for line in created:
+        print(f"新立项 {line}（下一步会自动补数据与判断）")
+    if not created:
+        print("没有需要新立项的候选。")
     return 0
 
 
@@ -911,7 +1170,6 @@ def cmd_backtest_report(args: argparse.Namespace) -> int:
     import runpy
 
     script = Path(__file__).resolve().parent.parent / "scripts" / "backtest_report.py"
-    argv = ["backtest_report.py"] + (["--append"] if args.append else [])
     runpy.run_path(str(script), run_name="__main__")
     return 0
 
@@ -1126,6 +1384,11 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # 所有命令都从这里进：先让网络请求优先走 IPv4（到数据源的 IPv6 线路时好时坏，
+    # 每个请求会把超时耗在 IPv6 上，见 research/netpref.py）
+    from .netpref import prefer_ipv4
+
+    prefer_ipv4()
     parser = argparse.ArgumentParser(prog="research.cli")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -1206,14 +1469,36 @@ def main(argv: list[str] | None = None) -> int:
     p_an.add_argument("code")
     p_an.set_defaults(func=cmd_analyze)
 
-    p_evo = sub.add_parser("evolve", help="AI 迭代进化：记录预测 → 归因因子 → 调整权重")
+    p_evo = sub.add_parser("evolve", help="AI 迭代进化：记录清单 → 到期归因 → 调整权重")
     p_evo.set_defaults(func=cmd_evolve)
+
+    p_dn = sub.add_parser("discover-new", help="发现新候选并立项（每个市场每天最多几张）")
+    p_dn.add_argument("--period", default="2026-09-30", help="A 股业绩预告的报告期")
+    p_dn.add_argument("--a-limit", type=int, default=1, help="A 股每天最多新立几张卡")
+    p_dn.add_argument("--hk-limit", type=int, default=1, help="港股每天最多新立几张卡")
+    p_dn.add_argument("--max-cards", type=int, default=MAX_ACTIVE_CARDS,
+                      help="在册卡片（没降级、没淘汰）到了这个数就不再自动立项（默认 12）")
+    p_dn.add_argument("--hk-max", type=int, default=6, help="在册港股卡片数的上限")
+    p_dn.set_defaults(func=cmd_discover_new)
+
+    p_health = sub.add_parser("health", help="数据新鲜度检查：过期或缺失返回 1")
+    p_health.add_argument("--stale-days", type=int, default=4,
+                          help="行情/扫描日期早于今天这么多天就算过期")
+    p_health.set_defaults(func=cmd_health)
 
     p_sent = sub.add_parser("sentinel", help="哨兵：触发器命中检查 + 多渠道通知")
     p_sent.set_defaults(func=cmd_sentinel)
 
     p_j = sub.add_parser("auto-judge", help="AI 自动补全未写完的判断字段（不覆盖已写的）")
     p_j.set_defaults(func=cmd_auto_judge)
+
+    p_db = sub.add_parser("debate", help="多空对辩：缺的补上，超过几天的重跑")
+    from .llm import DEBATE_MAX_AGE_DAYS
+    p_db.add_argument("--max-age-days", type=int, default=DEBATE_MAX_AGE_DAYS,
+                      help="对辩超过这么多天就算过期（默认 3）")
+    p_db.add_argument("--budget-minutes", type=float, default=20,
+                      help="总时长预算，用完就停、剩下的下次再跑（默认 20）")
+    p_db.set_defaults(func=cmd_debate)
 
     p_odds = sub.add_parser("odds", help="高赔率候选：结构条件筛选 + 10x 需要什么为真")
     p_odds.add_argument("--period", default="2026-09-30", help="业绩预告的报告期")

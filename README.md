@@ -56,16 +56,64 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 
 ## 两条主线：推荐个股与分析个股
 
-- **推荐个股**——`recommend` 命令给出推荐清单：触发事件与方向、巨潮原文链接、
-  预告绝对额与变化幅度、**买不买得进**（一手金额占本金比例）、分析师覆盖与预期，
-  以及每条的「下一步该做什么」。排序沿用 §51 八期检验固化的规则。
+- **推荐个股**——汇总页顶部那份清单是「过了质量门的卡片」，**没有名次**：只按
+  AI 对辩的表态分组摆放（正面在前，组内按代码顺序；分组不计分，同样没有经过
+  历史检验。没有哪个排序因子通过了检验，原因见下面「当前状态」）。每张卡带
+  触发事件与方向、
+  巨潮原文链接、预告绝对额与变化幅度、**买不买得进**（一手金额占本金比例）、
+  分析师覆盖与预期，以及「下一步该做什么」。大盘下行时整份清单降级为观察名单。
 - **分析个股**——`deep-dive` 命令一键灌卡：行情快照、财务序列（A 股 THS／港股东财）、
   ATR 参考线与市场状态、分析师预期、资本轨迹与同业对照、行业共振（**港股共振
   从此也进工具链**，不再手工算）一次写进卡片；风险公告与治理（港股为经营回顾对比）
   作为原始扫描打印供人过目并**留痕进卡片**（`scans` 字段，note 渲染层从这里读）。
-  各面独立成败，一个接口挂了不拖垮其余。**判断字段
-  （path/情景/反证）工具不代填**——`cards/` 里每只标的一张研究卡片：证据链、情景、
-  反证、「我可能错在哪」、结构化判断，结论等级由证据推导。
+  各面独立成败，一个接口挂了不拖垮其余。判断字段（盈利路径/情景/反证/失效条件）
+  可以手写，也可以由 `auto-judge` 调模型补全——**只补没写完的，已写的不覆盖**，
+  日志里记明是 AI 判断，人可以改、可以否决。`cards/` 里每只标的一张研究卡片：
+  证据链、情景、反证、「我可能错在哪」、结构化判断，结论等级由证据推导。
+
+## 当前状态（2026-11-24 核查后）
+
+**清单没有名次，大盘下行时只作观察名单。** 汇总页顶部那份清单里的票是
+「过了质量门」的卡片（证据充分、零阻塞、进出得去），**没有名次**：只按 AI 对辩的
+表态分组摆放（▲ 正面在前，▼ 负面在后，组内按代码顺序），分组不计分，同样没有
+经过历史检验，只是为了先看到模型明确看好的那几张。原因见
+[docs/factor-validation.md](docs/factor-validation.md)：用 13 个报告期、3101 条样本
+检验，能检验的三个排序因子（相对强度、RSI、估值分位）六个检验项的置信区间
+**全部跨 0**，没有一项通过事先登记的规则；其余因子（AI 对辩、催化剂、盯价、
+股东增减持、成交量）没法用历史数据检验。所以权重全部是 0
+（`research/evolution.py` 里每个因子都写了依据，页面底部有同一张表）。
+沪深300 或恒生指数处于下行时，清单标题改为「观察名单」，不出持仓候选，
+单卡页也会提示「AI 的『可进持仓』没有考虑大盘」。
+
+**每天自动跑的流程**（`.github/workflows/publish-notebook.yml`）：发现新候选并
+立项（`discover-new`，每天最多 A 股 2 张、港股 1 张；在册卡片到 12 张、港股到 6 张
+就停。上限只数没降级的卡，降级的不占名额）→ 刷新每张卡的数据面（`deep-dive`，
+每一面成功就落盘）→ AI 补判断（`auto-judge`）→ 多空对辩（`debate`：缺的补上，
+超过 3 天的重跑）→ 记录今日清单（`evolve`）→ 生成页面并发布 → **`health` 数据
+健康检查**，发现行情过期、RSI/成交量/估值/增减持缺失、或清单里的卡没有对辩、
+对辩已过期，就让这次运行显示为失败。
+注意 GitHub 的定时触发会晚点（实测北京时间 13:30–15:15 才开跑），不是准点。
+
+**盘中提醒在本机跑**（`scripts/install_sentinel.sh`）：GitHub 的定时任务会把
+排队中的多次触发合并成一次，实测每个工作日只在收盘后跑，做不到盘中提醒。
+本机用 launchd 在交易时段每 30 分钟跑一次哨兵，命中触发器才推送。macOS 不允许
+定时任务读取「文稿」里的文件，所以它在主目录下的运行副本
+（`~/pickahkstock-runtime`）里跑，每次运行前快进到云端最新提交。
+
+几条经过线上事故换来的约束，改代码前先看：
+
+- **取不全要报错，不能悄悄截断**。出过两次：业绩预告池只拿到 7%（见下文），
+  港股公告要 120 天只拿到最近约 28 天（每页 100 条、上限 400 页，而港股一天
+  一千多条公告）。现在港股公告按天抓，并用接口返回的总数核对有没有取全。
+- **云端和本机的依赖版本要一致**。云端装到 akshare 1.20 时盯价接口静默失败了一个
+  多星期；`requirements.txt` 里 akshare 固定在本机测过的版本。
+- **扫描失败要保留上一次的结果**。用空结果覆盖会被读成「没有风险」。
+- **每一面成功就落盘**。只在最后存一次的话，进程被超时杀掉时已经取到的部分会
+  一起丢掉。
+- **判断结构化数据要读字段，不要在文件里搜文本**。流水线曾在卡片文件里 grep
+  `"verdict"` 来判断有没有 AI 对辩，撞上了行业共振那一段的同名字段：16 张卡里
+  11 张没有对辩，流水线却以为都有，对辩这一步静默跳过了十天。现在由代码读
+  `debate.verdict`，对辩带日期、过期重跑，`health` 把它列为检查项。
 
 ## 高赔率漏斗（`odds`）：面向「1 年内 5-10 倍」的结构条件筛选
 
@@ -128,6 +176,9 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli deep-dive A 002132                    # 一键灌卡：全部数据面 + 风险/治理扫描
 .venv/bin/python -m research.cli note A 002132                   # 单卡 → 小红书笔记样式 HTML（cards/notes/）
 .venv/bin/python -m research.cli notebook                         # 全部卡片 → 一页信息流汇总（cards/notes/index.html）
+.venv/bin/python -m research.cli discover-new --a-limit 2 --hk-limit 1     # 每日补卡：高赔率漏斗 + 港股盈警/盈喜里还没建卡的（卡片总数有上限）
+.venv/bin/python -m research.cli auto-judge                                 # AI 自动补全没写完的判断字段（不覆盖已写的）
+.venv/bin/python -m research.cli debate                                     # 多空对辩：缺的补上，超过 3 天的重跑（有时间预算）
 .venv/bin/python -m research.cli new --market HK --codes 09696,03323        # 生成卡片草稿（港股）
 .venv/bin/python -m research.cli financials A 002132                        # 取财务序列（只取数，不下判断）
 .venv/bin/python -m research.cli financials HK 09696                        # 港股财务（东方财富，单只查询较慢）
@@ -147,6 +198,9 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli industry A 603991 --period 2026-09-30            # 单只票的行业共振写进卡片
 .venv/bin/python -m research.cli card-snapshot                       # 给卡片打快照（卡片检验集起点）
 .venv/bin/python -m research.cli card-score                          # 回看：卡片状态 vs 后续 20/60 日
+.venv/bin/python -m research.cli evolve                                     # 进化闭环：记录本轮信号 → 到期回看 60 日 → 按证据调权重
+.venv/bin/python scripts/factor_validation.py                              # 排序因子的历史检验（规则先写死），产出 docs/factor-validation.md
+.venv/bin/python -m research.cli health                                     # 数据健康检查：过期、缺数、或清单里的卡没有对辩时返回 1（云端流水线最后一步）
 .venv/bin/python -m research.cli board                              # 研究看板：谁该被研究（按优先级）
 .venv/bin/python -m research.cli board --new                       # 附上发现层的新候选（待立项）
 .venv/bin/python -m research.cli backtest --period 2026-06-30 --sensitivity   # §51 事件研究
@@ -154,6 +208,8 @@ PYTHONPYCACHEPREFIX=/tmp/pickahk-pycache .venv/bin/python -m unittest discover -
 .venv/bin/python -m research.cli list                                       # 所有卡片状态、等级与质量门
 .venv/bin/python -m research.cli account show                               # 账户权益、现金、持仓与回撤状态
 .venv/bin/python -m research.cli account plan                               # 账户级动作（不是股票名单）
+scripts/run_sentinel.sh                                                     # 盘中哨兵跑一次：异动线 / 回踩 60 日线 / 放量 / 催化剂到期 → Bark 推送
+scripts/install_sentinel.sh                                                 # 把哨兵装成本机定时任务（macOS launchd，交易时段每 30 分钟一次）
 ```
 
 工具只负责把数据取来并摆到人面前：路径归类、经常性判断、周期性判断这些必须由人写，写不出来就说明这一关没过。账户层也一样——资金、持仓、费率与峰值权益由使用者填，工具不替你猜；缺 `account.json` 就拒绝给仓位建议。

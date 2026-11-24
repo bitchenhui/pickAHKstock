@@ -1,5 +1,7 @@
 import unittest
+import unittest.mock
 
+from research import evolution
 from research.card import Card, CounterCase, Evidence, FinancialTrack, Scenario
 from research.note import _num, notebook_fragment, note_fragment, quarterly
 
@@ -54,6 +56,13 @@ class QuarterlyTests(unittest.TestCase):
 
 
 class RenderTests(unittest.TestCase):
+    def test_debate_heading_shows_when_the_debate_was_made(self):
+        card = card_with_metrics()
+        card.debate = {"verdict": "维持观察", "bull": "多", "bear": "空", "as_of": "2026-11-24"}
+        self.assertIn("多空对辩（模型，只用卡片事实 · 11-24 的对辩）", note_fragment(card))
+        card.debate["as_of"] = "2026-11-24<script>"
+        self.assertNotIn("<script>", note_fragment(card))
+
     def test_note_fragment_renders_card_faces(self):
         fragment = note_fragment(card_with_metrics())
         for marker in ("测试股", "600001", "行业共振", "电池", "-11.13 亿",
@@ -95,18 +104,88 @@ class RenderTests(unittest.TestCase):
         self.assertIn("在册 2 张", fragment)
         self.assertLess(fragment.index("600001"), fragment.index("600002"))  # 观察在前
         self.assertIn("红旗", fragment)
-        self.assertIn("持仓候选", fragment)          # 深色终端视图的资格区块
-        self.assertIn("最终裁决", fragment)          # 排序信号必须声明非买入指令
+        self.assertIn("排序权重的依据", fragment)      # 每个因子为什么计分要摆出来
 
-    def test_hold_candidates_require_full_evidence(self):
-        from research.note import _card_summary, _hold_candidates
+    def test_down_market_turns_list_into_watchlist(self):
+        # _full_card 的市场状态是「下行」：清单降级为观察名单，不出持仓候选
+        fragment = notebook_fragment([self._full_card()])
+        self.assertIn("观察名单", fragment)
+        self.assertIn("大盘下行，本轮不出推荐", fragment)
+        self.assertIn("大盘下行：暂停给出持仓候选", fragment)
+        self.assertNotIn("今日推荐", fragment)
+        # 单卡页也要提示：AI 的「可进持仓」没有考虑大盘
+        page = note_fragment(self._full_card())
+        self.assertIn("大盘下行中，本页不构成建仓依据", page)
 
-        weak = card_with_metrics()                    # 证据不足 → 不入候选
-        out = _hold_candidates([_card_summary(self._full_card()),
-                                _card_summary(weak)])
-        self.assertEqual(len(out), 1)
-        self.assertEqual(out[0]["card"].code, "600001")
-        self.assertIn("裁决", out[0]["gap"])
+    def test_normal_market_keeps_recommendation_and_candidates(self):
+        card = self._full_card()
+        card.market_context = {"market_regime": {"state": "上行", "day": "2026-11-24"}}
+        # 有计分因子时才叫「推荐」；这里临时给一个非零权重来测这个分支
+        weights = {name: 0.0 for name in evolution.DEFAULT_WEIGHTS}
+        weights["估值"] = 1.0
+        with unittest.mock.patch("research.note.current_weights", return_value=(weights, 0)):
+            fragment = notebook_fragment([card])
+        self.assertIn("今日推荐", fragment)
+        self.assertIn("持仓候选", fragment)
+        self.assertNotIn("观察名单 · 大盘下行", fragment)
+        self.assertNotIn("大盘下行中", note_fragment(card))
+
+    def test_without_scored_factors_list_is_not_called_recommendation(self):
+        # 默认权重全为 0（都没有通过检验）：清单没有先后之分，不能叫推荐
+        card = self._full_card()
+        card.market_context = {"market_regime": {"state": "上行", "day": "2026-11-24"}}
+        fragment = notebook_fragment([card])
+        self.assertIn("过了质量门的卡片（按代码顺序）", fragment)
+        self.assertIn("没有任何排序因子通过历史检验", fragment)
+        self.assertIn("还没有排序因子通过历史检验", fragment)
+        self.assertNotIn("今日推荐", fragment)
+        self.assertIn("13 期检验未通过", fragment)          # 权重依据表
+        self.assertIn("各因子均未计分", fragment)
+
+    def test_unranked_list_shows_ai_stance_instead_of_a_rank(self):
+        # 没有名次时行首不能写 1、2、3（会被读成先后）；改显示 AI 对辩的表态，正面的在前
+        negative = self._full_card()
+        negative.code, negative.name = "600001", "负面股"
+        negative.debate = {"verdict": "暂不进入持仓研究", "as_of": "2026-11-24"}
+        positive = self._full_card()
+        positive.code, positive.name = "600002", "正面股"
+        positive.debate = {"verdict": "可进持仓研究", "as_of": "2026-11-24"}
+        for card in (negative, positive):
+            card.market_context = {"market_regime": {"state": "上行", "day": "2026-11-24"}}
+        fragment = notebook_fragment([negative, positive])
+        self.assertIn("AI 对辩倾向正面的在前", fragment)
+        self.assertLess(fragment.index("正面股"), fragment.index("负面股"))
+        self.assertIn('<div class="sl-rank stance-pos">▲</div>', fragment)
+        self.assertIn('<div class="sl-rank stance-neg">▼</div>', fragment)
+        self.assertNotIn('<div class="sl-rank">1</div>', fragment)
+        self.assertIn("这个先后同样没有经过历史检验", fragment)
+        self.assertNotIn("今日推荐", fragment)
+
+    def test_hold_candidates_skip_down_market_and_incomplete_cards(self):
+        from research.note import _hold_candidates
+
+        full = self._full_card()
+        self.assertEqual([e.card.code for e in _hold_candidates([full], {})], ["600001"])
+        down = {"A": {"state": "下行", "day": "2026-11-24"}}
+        self.assertEqual(_hold_candidates([full], down), [])        # 下行市不出持仓候选
+        weak = card_with_metrics()                                  # 证据不足 → 不入候选
+        self.assertEqual([e.card.code for e in _hold_candidates([weak], {})], [])
+
+    def test_card_page_shows_trading_inputs_and_holders(self):
+        card = card_with_metrics()
+        card.inputs = {"valuation": {"pb": 1.2, "pb_percentile": 8.0, "pe": 51.0,
+                                     "pe_percentile": 12.0, "status": "有数据"},
+                       "volume": {"trend": "显著放量", "vol_ratio_20_60": 1.8},
+                       "holders": {}}
+        card.execution = {"rsi": 57.0, "strength": {"rs": -3.2}, "liquidity": {"level": "无忧"}}
+        card.scans = dict(card.scans, holders=[{"side": "减持", "date": "2026-10-01",
+                                                "title": "关于股东减持计划的公告"}])
+        page = note_fragment(card)
+        self.assertIn("市净率 1.20，在近 3 年的 8% 分位，偏低", page)   # 标签写的是 PB 不是 PE
+        self.assertIn("RSI（14 日）57", page)
+        self.assertIn("近 60 日相对大盘 -3.2 个点", page)
+        self.assertIn("成交量显著放量", page)
+        self.assertIn("减持类 1 条、增持类 0 条", page)
 
 
 if __name__ == "__main__":

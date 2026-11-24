@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from pathlib import Path
 
 import requests
@@ -145,6 +145,89 @@ class HkCandidate:
                 "lot_size": self.lot_size, "as_of": self.as_of, "notes": self.notes}
 
 
+ANN_TYPE = "H"                 # 只取港股股票。原先带的 H_Fund 会混进大量内地互认基金
+                               # 的公告（实测占七成以上），与个股无关却把翻页额度耗光
+DAY_CACHE_TTL = timedelta(hours=3)   # 当天的公告还在增加，缓存只管这么久
+
+
+def _slim(item: dict) -> dict:
+    """只留 _to_event 用得到的字段：原始一条约 950 字节，精简后不到 200。"""
+    codes = [{"stock_code": (code or {}).get("stock_code"),
+              "short_name": (code or {}).get("short_name")}
+             for code in (item.get("codes") or [])[:1]]
+    return {"art_code": item.get("art_code"),
+            "notice_date": item.get("notice_date"),
+            "title": item.get("title"),
+            "codes": codes,
+            "columns": [{"column_name": (column or {}).get("column_name")}
+                        for column in (item.get("columns") or [])]}
+
+
+def _fetch_events_raw(start: date, end: date, max_pages: int = 400) -> list[dict]:
+    """抓 [start, end] 的港股公告原始行，不带缓存。
+
+    取不全就抛错。这个接口每页最多 100 条，而港股一天有一千多条公告——
+    以前一次要 120 天、上限 400 页，实际只拿得到最近约 28 天，却没有任何提示：
+    「120 天的共振窗口」「240 天的风险扫描」其实都只有四个星期的数据。
+    现在按天调用（一天十几页），并用接口返回的总数核对有没有取全。
+    """
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    raw: list[dict] = []
+    exclusive_end = end + timedelta(days=1)
+    total = None
+    for page in range(1, max_pages + 1):
+        params = {"page_size": "100", "page_index": str(page),
+                  "ann_type": ANN_TYPE, "client_source": "web",
+                  "begin_time": start.strftime("%Y-%m-%d"),
+                  "end_time": exclusive_end.strftime("%Y-%m-%d")}
+        try:
+            response = session.get(ANN_URL, params=params, timeout=60)
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError) as exc:
+            raise HkError(f"港股公告获取失败：{exc}") from exc
+        data = payload.get("data") or {}
+        items = data.get("list") or []
+        if total is None:
+            try:
+                total = int(data.get("total_hits"))
+            except (TypeError, ValueError):
+                total = None
+        if not items:
+            break
+        raw.extend(_slim(item) for item in items)
+        if total is not None and len(raw) >= total:
+            break                      # 这个区间的公告已经全部拿到
+        oldest = min(str(item.get("notice_date") or "")[:10] for item in items)
+        if oldest and oldest < start.strftime("%Y-%m-%d"):
+            break
+        time.sleep(0.3)                # 串行加间隔：并发会被服务端限流
+    if total is not None and len(raw) < total:
+        raise HkError(f"港股公告没取全：{start} 至 {end} 应有 {total} 条，"
+                      f"只拿到 {len(raw)} 条（上限 {max_pages} 页）")
+    return raw
+
+
+def _fetch_day(day: date) -> list[dict]:
+    """某一天的港股公告。过去的日子抓一次就永久复用；当天缓存几个小时。"""
+    cache_file = CACHE_DIR / f"ann_day_{day.isoformat()}.json"
+    if cache_file.exists():
+        try:
+            age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
+            if day < date.today() or age < DAY_CACHE_TTL:
+                return json.loads(cache_file.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            pass
+    data = _fetch_events_raw(day, day)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    return data
+
+
+_EVENTS_MEM: dict = {}
+
+
 def fetch_events(start: date, end: date, max_pages: int = 400,
                  categories: tuple[str, ...] = (CATEGORY_ALERT,)) -> list[HkEvent]:
     """抓取区间内的港股公告，只保留指定机器类别（默认盈利警告）。
@@ -155,47 +238,25 @@ def fetch_events(start: date, end: date, max_pages: int = 400,
     - 没有服务端类别过滤，只能按 columns[].column_name 在客户端筛
     - 返回按公告日期倒序，所以翻到早于 start 的记录就可以停
 
-    60 天窗口约 2.5 万条 ≈ 254 页；串行请求约 3–5 秒/页，务必串行加间隔，
-    并发会被服务端限流到 150 秒/次。
+    **按天缓存**：每天约一千条、十几页，过去的日子抓一次就不再抓，
+    当天每三小时最多重抓一次。原先按 (start, end) 整段缓存，窗口每天在变，
+    等于每天把整段重抓一遍——云端抓 60 天要十几分钟，港股卡片天天因此超时。
+    同一次运行里相同的窗口只抓一次（行业共振和风险扫描用的是同一个窗口）。
     """
-    session = requests.Session()
-    session.headers.update(HEADERS)
+    if end < start:
+        return []
+    key = (start.isoformat(), end.isoformat())
+    if key not in _EVENTS_MEM:
+        raw: list[dict] = []
+        day = start
+        while day <= min(end, date.today()):
+            raw.extend(_fetch_day(day))
+            day += timedelta(days=1)
+        _EVENTS_MEM[key] = raw
     events: list[HkEvent] = []
-    exclusive_end = end + timedelta(days=1)
-    cache_file = CACHE_DIR / f"ann_{start}_{end}.json"
-    cached = None
-    if cache_file.exists():
-        try:
-            cached = json.loads(cache_file.read_text(encoding="utf-8"))
-        except ValueError:
-            cached = None
-    raw: list[dict] = cached if cached is not None else []
-    if cached is None:
-        for page in range(1, max_pages + 1):
-            params = {"page_size": "100", "page_index": str(page),
-                      "ann_type": "H,H_Fund", "client_source": "web",
-                      "begin_time": start.strftime("%Y-%m-%d"),
-                      "end_time": exclusive_end.strftime("%Y-%m-%d")}
-            try:
-                response = session.get(ANN_URL, params=params, timeout=60)
-                response.raise_for_status()
-                payload = response.json()
-            except (requests.RequestException, ValueError) as exc:
-                raise HkError(f"港股公告获取失败：{exc}") from exc
-            data = payload.get("data") or {}
-            items = data.get("list") or []
-            if not items:
-                break
-            raw.extend(items)
-            oldest = min(str(item.get("notice_date") or "")[:10] for item in items)
-            if oldest and oldest < start.strftime("%Y-%m-%d"):
-                break
-            time.sleep(0.3)
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
-    for item in raw:
+    for item in _EVENTS_MEM[key]:
         event = _to_event(item)
-        if event is None or event.published < start:
+        if event is None or event.published < start or event.published > end:
             continue
         events.append(event)
     if categories:

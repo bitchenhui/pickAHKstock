@@ -29,6 +29,7 @@ class Snapshot:
     turnover_rate: float | None = None   # 换手率 %
     lot_size: int | None = None          # 每手股数（港股）
     shares: float | None = None          # 总股本（港股）
+    volume: float | None = None          # 当日累计成交量（A 股为手，港股为股）
 
 
 def _f(fields: list[str], index: int) -> str:
@@ -62,6 +63,7 @@ def _parse_a(code: str, payload: str) -> Snapshot | None:
         pb=_num(_f(fields, 46)),
         change_pct=_num(_f(fields, 32)),
         as_of=_f(fields, 30),
+        volume=_num(_f(fields, 36)),          # 成交量，手
     )
 
 
@@ -104,6 +106,7 @@ def _parse_hk(code: str, payload: str) -> Snapshot | None:
         turnover_rate=_num(_f(fields, 59)),
         lot_size=int(lot) if lot and lot > 0 else None,
         shares=shares,
+        volume=_num(_f(fields, 6)),           # 成交量，股
     )
 
 

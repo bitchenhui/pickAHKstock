@@ -1,8 +1,14 @@
 name: 哨兵
 
-# 高频地检查低频数据：盘中每小时对照一次行动条件（失效线/相对强度/
-# 催化剂/盯价极值），命中才推通知。数据仍是快照/日频——这不是高频
-# 行情系统，是触发器哨兵。
+# 手动跑一次哨兵检查（命中才推通知）。**这里不再有定时触发。**
+#
+# 原因：GitHub Actions 的 schedule 会把排队中的多次触发合并，实测
+# cron 写的「北京时间 09:30–15:30 每小时一次」，实际每个工作日只在
+# 16:20–17:40（收盘之后）跑一次，做不到盘中提醒。
+#
+# 盘中提醒现在在用户本机用 launchd 每 30 分钟跑一次：
+#   scripts/install_sentinel.sh        安装
+#   scripts/run_sentinel.sh            单次运行（launchd 调的就是它）
 #
 # 通知渠道在仓库 Settings → Secrets and variables → Actions 配置
 # （配哪个用哪个，可多个），名字与 research/sentinel.py 文档一致：
@@ -11,14 +17,12 @@ name: 哨兵
 #   SENTINEL_WECOM_WEBHOOK / SENTINEL_FEISHU_WEBHOOK /
 #   SENTINEL_SMTP_HOST/PORT/USER/PASS/TO
 on:
-  schedule:
-    - cron: "30 1-7 * * 1-5"    # 北京时间 09:30-15:30 每半日整段，每小时第 30 分
   workflow_dispatch:
 
 jobs:
   sentinel:
     runs-on: ubuntu-latest
-    timeout-minutes: 25    # 冷缓存取价慢，留足余量；数据缓存热了以后每轮几分钟
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 

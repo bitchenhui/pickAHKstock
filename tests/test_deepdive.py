@@ -104,12 +104,19 @@ class DeepDiveTests(unittest.TestCase):
         exec_manager = unittest.mock.patch.multiple(
             execution,
             avg_turnover_a=lambda code: {"avg_turnover": 5e7, "window": 20, "as_of": "2026-11-11"},
+            rsi_current=lambda code, market: 55.0,
             relative_strength=lambda code, market, window=60: {
                 "window": 60, "stock_return": 8.0, "index_return": -2.0,
                 "rs": 10.0, "as_of": "2026-11-11", "note": "跑赢大盘"},
             _stake_from_account=lambda: 1500.0)
         exec_manager.start()
         self.addCleanup(exec_manager.stop)
+        # 输入补全（估值、成交量）要联网：deep_dive 在函数体里现场 import，
+        # 所以替身要打在它所在的模块上
+        inputs_manager = unittest.mock.patch(
+            "research.inputs.fill_inputs", lambda card: {"as_of": "2026-11-24"})
+        inputs_manager.start()
+        self.addCleanup(inputs_manager.stop)
 
     def test_all_faces_filled_and_saved(self):
         self._patch_all()

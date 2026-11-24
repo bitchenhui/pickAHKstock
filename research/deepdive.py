@@ -6,8 +6,9 @@
 这个模块把「取数」合并成一步，人只做判断题——path、recurring_judgment、
 情景与反证仍然必须由人写（card.py 的质量门会拦）。
 
-每一面独立成败：一个接口挂了不影响其余面，失败原因进步骤报告；
-卡片最后统一 save 一次（部分成功也落盘）。
+每一面独立成败：一个接口挂了不影响其余面，失败原因进步骤报告。
+**每一面成功就立刻落盘**：云端跑港股时整张卡可能被超时杀掉，
+只在最后存一次会让已经取到的部分一起丢掉。
 
 诚实边界不变：工具只取数不判断；扫描段（风险公告/治理/经营回顾）
 是「需要人工过目」的原始输出，不是结论。
@@ -15,6 +16,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -172,7 +174,7 @@ def fill_industry(card: Card, period: str = "", threshold: float = 30.0,
 @dataclass
 class Step:
     face: str
-    status: str              # ok / fail / skip
+    status: str              # ok / fail / skip / scan
     note: str = ""
 
 
@@ -184,20 +186,31 @@ class DiveResult:
     def ok(self, face: str) -> bool:
         return any(s.face == face and s.status == "ok" for s in self.steps)
 
+    @property
+    def failed(self) -> list[Step]:
+        return [s for s in self.steps if s.status == "fail"]
+
 
 def deep_dive(market: str, code: str, period: str = "", with_scan: bool = True,
               days: int = 240) -> DiveResult:
-    """一张卡片跑完所有数据面。返回步骤报告；卡片已保存（含部分成功）。"""
+    """一张卡片跑完所有数据面。返回步骤报告；成功的面都已落盘（含部分成功）。"""
     card = Card.load(market, code)
     result = DiveResult(card=card)
 
+    def persist():
+        card.updated = date.today().isoformat()
+        card.save()
+
     def run(face: str, func, *args, **kwargs):
+        started = time.monotonic()
         try:
             value = func(*args, **kwargs)
         except Exception as exc:      # 每面独立成败，一个接口不拖垮其余
             result.steps.append(Step(face, "fail", f"{type(exc).__name__}: {exc}"))
             return None
-        result.steps.append(Step(face, "ok"))
+        elapsed = time.monotonic() - started
+        result.steps.append(Step(face, "ok", f"{elapsed:.0f}s" if elapsed >= 5 else ""))
+        persist()
         return value
 
     run("行情快照", fill_quote, card)
@@ -217,63 +230,98 @@ def deep_dive(market: str, code: str, period: str = "", with_scan: bool = True,
         result.steps.append(Step(
             "盯的价格", "skip", f"{card.code} 不在价格映射表（WATCHLIST），该盯什么价需要人定"))
     from .execution import fill_execution
+    from .inputs import fill_inputs, holder_changes
 
     run("执行层（流动性/相对强度/RSI）", fill_execution, card)
-    from .inputs import fill_inputs
-
-    run("输入补全（估值分位/股东增减持/量趋势/北向/需求）", fill_inputs, card)
+    run("输入补全（估值分位/股东增减持/量趋势/需求对照）", fill_inputs, card)
 
     if with_scan:
-        # 扫描结果结构化留痕进卡片：终端会滚走，卡片才是资产
+        # 扫描结果留痕进卡片；股东增减持来自这次扫描，所以扫描之后重算一次
         scans, scan_steps = collect_scans(card, days=days)
         card.scans = scans
         result.steps.extend(scan_steps)
+        if card.inputs:
+            card.inputs["holders"] = holder_changes(scans)
+        persist()
 
-    card.updated = date.today().isoformat()
-    card.save()
+    persist()
     return result
 
 
 def collect_scans(card: Card, days: int = 240) -> tuple[dict, list[Step]]:
-    """风险公告 + 治理（港股为经营回顾对比）扫描，返回可序列化 dict 与步骤报告。
+    """风险公告 + 股东增减持（同一次公告抓取）+ 治理（港股为经营回顾对比）。
 
-    每段独立成败：一段接口失败只记 note，不拖垮其余段。
+    每段独立成败。**某段今天失败时保留上次的扫描结果**并记下那段的日期，
+    不用空结果把旧数据冲掉——空结果会被读成「没有风险」。
     """
     from .governance import scan as governance_scan
     from .hk_business import diff_reviews, fetch_reviews
-    from .risk import scan_risks
+    from .risk import scan_announcements
 
-    scans: dict = {"as_of": date.today().isoformat(), "days": days}
+    today = date.today().isoformat()
+    if card.market != "A":
+        days = min(days, 120)     # 港股公告要逐页抓，窗口压到 120 天
+    old = card.scans or {}
+    scans = {key: value for key, value in old.items()
+             if key not in ("as_of", "days", "segment_as_of")}
+    scans["days"] = days
+    scanned: dict[str, str] = dict(old.get("segment_as_of") or {})
+    scans.setdefault("risks", [])
+    scans.setdefault("holders", [])
     steps: list[Step] = []
 
-    try:
-        events = scan_risks(card.code, card.name, since_days=days, market=card.market)
-        scans["risks"] = [event.to_dict() for event in events]
-        steps.append(Step("风险公告扫描", "scan" if events else "ok",
-                          f"{len(events)} 条" if events else f"近 {days} 天未发现风险类标题"))
-    except Exception as exc:
-        steps.append(Step("风险公告扫描", "fail", f"{type(exc).__name__}: {exc}"))
+    def carry_note(key: str) -> str:
+        if key in old and old.get(key):
+            return f"；沿用 {scanned.get(key, '上次')} 的结果"
+        return "；此前也没有扫描结果"
 
+    started = time.monotonic()
+    try:
+        found = scan_announcements(card.code, card.name, days, card.market)
+        scans["risks"] = [event.to_dict() for event in found["risks"]]
+        scans["holders"] = found["holders"]
+        scanned["risks"] = scanned["holders"] = today
+        steps.append(Step("风险公告与增减持扫描", "scan",
+                          f"风险类 {len(found['risks'])} 条、增持/减持/回购类 "
+                          f"{len(found['holders'])} 条（{time.monotonic() - started:.0f}s）"))
+    except Exception as exc:
+        steps.append(Step("风险公告与增减持扫描", "fail",
+                          f"{type(exc).__name__}: {exc}" + carry_note("risks")))
+
+    started = time.monotonic()
     if card.market == "A":
         try:
             items = governance_scan(card.code, card.name)
             scans["governance"] = [item.to_dict() for item in items]
-            steps.append(Step("治理与筹码扫描", "scan" if items else "ok",
-                              f"{len(items)} 条" if items else "未取到治理数据"))
+            scanned["governance"] = today
+            steps.append(Step("治理与筹码扫描", "scan",
+                              f"{len(items)} 条（{time.monotonic() - started:.0f}s）"
+                              if items else "未取到治理数据"))
         except Exception as exc:
-            steps.append(Step("治理与筹码扫描", "fail", f"{type(exc).__name__}: {exc}"))
+            steps.append(Step("治理与筹码扫描", "fail",
+                              f"{type(exc).__name__}: {exc}" + carry_note("governance")))
     else:
         steps.append(Step("治理与筹码扫描", "skip", "港股无巨潮治理数据接口"))
+        started = time.monotonic()
         try:
             reviews = fetch_reviews(card.code, card.market)
             diff = diff_reviews(reviews) if reviews else None
             scans["business"] = {
                 "latest": reviews[0].period if reviews else "",
                 "diff": diff.to_dict() if diff else None}
-            steps.append(Step("经营回顾对比", "scan" if diff else "ok",
-                              f"最近 {reviews[0].period}" if reviews else "没有取到经营回顾"))
+            scanned["business"] = today
+            steps.append(Step("经营回顾对比", "scan",
+                              (f"最近 {reviews[0].period}（{time.monotonic() - started:.0f}s）"
+                               if reviews else "没有取到经营回顾")))
         except Exception as exc:
-            steps.append(Step("经营回顾对比", "fail", f"{type(exc).__name__}: {exc}"))
+            steps.append(Step("经营回顾对比", "fail",
+                              f"{type(exc).__name__}: {exc}" + carry_note("business")))
+
+    if any(value == today for value in scanned.values()):
+        scans["as_of"] = today
+    elif "as_of" not in scans:
+        scans["as_of"] = ""
+    scans["segment_as_of"] = scanned
     return scans, steps
 
 
@@ -281,16 +329,28 @@ def scan_outputs(card: Card, days: int = 240) -> list[tuple[str, list[str]]]:
     """卡片里已留痕的扫描结果 → CLI 打印行。deep-dive 落卡，打印与卡片同一份。"""
     scans = card.scans or {}
     out: list[tuple[str, list[str]]] = []
+    scanned = scans.get("segment_as_of") or {}
+    days = scans.get("days", days)
+
+    def stamp(key: str) -> str:
+        return f"（{scanned.get(key, '未扫描')}）" if scanned.get(key) != date.today().isoformat() else ""
+
     risks = scans.get("risks") or []
     lines = [f"  [{r.get('category')}] {r.get('published')} {r.get('title')}"
              f"  {r.get('url')}" for r in risks] or [
-        f"  近 {scans.get('days', days)} 天未发现风险类公告标题（不等于没有风险：关键词扫描会漏）"]
-    out.append((f"风险公告（{len(risks)} 条）", lines))
+        f"  近 {days} 天未发现风险类公告标题（不等于没有风险：关键词扫描会漏）"]
+    out.append((f"风险公告（{len(risks)} 条）{stamp('risks')}", lines))
+
+    holders = scans.get("holders") or []
+    lines = [f"  [{h.get('side')}·{h.get('stage') or '公告'}] {h.get('date')} {h.get('title')}"
+             for h in holders] or ["  近期公告标题里没有增持/减持/回购"]
+    out.append((f"股东增减持与回购（{len(holders)} 条）{stamp('holders')}", lines))
+
     governance = scans.get("governance")
     if governance is not None:
         lines = [f"  [{g.get('severity')}] {g.get('category')}：{g.get('detail')}"
                  for g in governance] or ["  未取到治理数据（缺口不等于没有风险）"]
-        out.append((f"治理与筹码（{len(governance)} 条）", lines))
+        out.append((f"治理与筹码（{len(governance)} 条）{stamp('governance')}", lines))
     business = scans.get("business")
     if business is not None:
         lines = []
@@ -305,5 +365,5 @@ def scan_outputs(card: Card, days: int = 240) -> list[tuple[str, list[str]]]:
             lines = [f"  最近 {business['latest']}，没有去年同期可对比"]
         else:
             lines = ["  没有取到经营回顾"]
-        out.append(("经营回顾对比（港股）", lines))
+        out.append((f"经营回顾对比（港股）{stamp('business')}", lines))
     return out

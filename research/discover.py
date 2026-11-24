@@ -136,7 +136,8 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
                      announcements: list[Announcement],
                      min_amount: float = MIN_FORECAST_AMOUNT,
                      capital: float = 0.0,
-                     position_pct: float = 0.05) -> tuple[list[Candidate], dict]:
+                     position_pct: float = 0.05,
+                     include_codes: tuple[str, ...] = ()) -> tuple[list[Candidate], dict]:
     """把业绩预告变成候选。
 
     两处关键改动（都来自基线检验 docs/backtest-v1.md）：
@@ -145,14 +146,19 @@ def build_candidates(forecasts: list[Forecast], snapshots: dict[str, Snapshot],
        低基数暴增就是这样被系统性地选出来的
     2. **加绝对额门槛**：预告净利润下限过小的，多为低基数噪音，剔除但计数可见
 
+    include_codes 是被点名的代码：它们不受同比幅度门槛限制。扭亏类预告常常
+    不披露幅度，线上 odds 口径是收它们的，点名建卡时这里也要能建出来。
+
     返回 (候选, 统计)，统计里含被剔除的低基数数量，不静默丢弃。
     """
     grouped: dict[str, list[Forecast]] = {}
     small_amount = 0
+    explicit = set(include_codes)
     for forecast in forecasts:
         if forecast.forecast_type not in GOOD_FORECAST_TYPES:
             continue
-        if forecast.change_lower is None or forecast.change_lower < MIN_CHANGE_PCT:
+        if forecast.code not in explicit and (
+                forecast.change_lower is None or forecast.change_lower < MIN_CHANGE_PCT):
             continue
         if (min_amount and forecast.amount_lower is not None
                 and forecast.amount_lower < min_amount):
@@ -278,7 +284,13 @@ def attach_documents(candidates: list[Candidate], report_period: str) -> None:
 
 def discover(report_period: str, since_days: int = 90, limit: int = 15,
              min_amount: float = MIN_FORECAST_AMOUNT, capital: float = 0.0,
-             position_pct: float = 0.05) -> tuple[list[Candidate], dict]:
+             position_pct: float = 0.05,
+             only_codes: tuple[str, ...] = ()) -> tuple[list[Candidate], dict]:
+    """发现层的候选。给了 only_codes 就只返回被点名的代码（不受 limit 限制）。
+
+    点名建卡原先是在「前 N 名」里找，排不进前 N 的代码永远建不出来卡——
+    云端每天自动立项的那几只就一直失败。点名时在整个候选集里找。
+    """
     today = date.today()
     rows = fetch_forecast_rows(report_period)
     forecasts = rows_to_forecasts(rows, report_period)
@@ -296,10 +308,15 @@ def discover(report_period: str, since_days: int = 90, limit: int = 15,
     announcements = fetch_announcements("业绩", start, end,
                                         max_pages=30, title_must=FORECAST_TITLES)
     candidates, stats = build_candidates(forecasts, snapshots, announcements,
-                                         min_amount, capital, position_pct)
+                                         min_amount, capital, position_pct,
+                                         include_codes=only_codes)
     stats["unaffordable"] = sum(1 for c in candidates if c.unaffordable)
+    if only_codes:
+        wanted = set(only_codes)
+        candidates = [c for c in candidates if c.code in wanted]
     annotate_resonance(candidates, rows, report_period)
-    candidates = candidates[:limit]
+    if not only_codes:
+        candidates = candidates[:limit]
     attach_documents(candidates, report_period)
     return candidates, stats
 

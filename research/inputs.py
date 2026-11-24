@@ -1,225 +1,193 @@
 # -*- coding: utf-8 -*-
-"""输入参量补全：估值分位、股东增减持、成交量趋势、北向资金、下游需求。
+"""补全的输入：估值分位、股东增减持、成交量趋势、下游需求对照。
 
-五个缺口一次补齐，全部走免费数据源：
-① 估值历史分位：THS F10（PE/PB 在自身 5 年的分位）
-② 股东增减持：从已有风险扫描提取（标题含「增持」「减持」的结构化）
-③ 成交量趋势：已有日线数据计算 20/60 日量比
-④ 北向资金：akshare 沪深港通资金流向
-⑤ 下游需求：行业→需求指标映射表（手动维护，覆盖当前 WATCHLIST 行业）
+每一项都写明数据从哪来、取不到时会怎样：
+① 估值分位：东财的逐日估值历史（PE(TTM)、市净率），算当前值在**近 3 年**
+   交易日里的分位。PE 取不到（亏损）时只有 PB。只覆盖 A 股。
+② 股东增减持：risk.scan_announcements 在同一次公告抓取里分出来的
+   增持/减持/回购标题（风险关键词表里没有这两个词，所以必须单独分类）。
+③ 成交量趋势：同花顺分年日线里的成交量（backtest 的日线缓存不存成交量，
+   不能用那个），算近 20 日均量 ÷ 近 60 日均量。
+④ 下游需求：只是一张「行业 → 该看哪个需求指标」的对照表，**没有接数据**，
+   页面上只显示指标名和出处。
+
+北向资金不在这里：港交所从 2024-08 起不再逐日披露北向持股与净买入
+（akshare 的个股北向持股数据停在 2024-08-16，资金流向接口返回 0），
+没有真实数据可接，所以撤掉了，不保留空壳。
 """
 
 from __future__ import annotations
 
 import json
-import re
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
-import requests
+VAL_CACHE = Path.home() / ".cache" / "pickahkstock" / "valuation"
+VALUATION_LOOKBACK = 750      # 约三年的交易日
 
-CACHE_DIR = Path.home() / ".cache" / "pickahkstock" / "inputs"
 
 # ================================================ ① 估值历史分位
 
 
-def valuation_percentile(code: str) -> dict:
-    """PE/PB 在自身历史中的分位（THS F10 免费接口）。
-
-    分位 <30% = 历史偏低（便宜），>70% = 历史偏高（贵）。
-    """
-    import akshare as ak
-
+def valuation_history(code: str) -> list[dict]:
+    """逐日 PE(TTM)/PB 历史，按日期升序。每只股票每天最多取一次，其余读缓存。"""
+    path = VAL_CACHE / f"{code}.json"
+    today = date.today().isoformat()
+    cached: list[dict] = []
+    if path.exists():
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            cached = payload.get("rows", []) if isinstance(payload, dict) else payload
+            fetched = payload.get("fetched", "") if isinstance(payload, dict) else ""
+        except (ValueError, OSError):
+            cached, fetched = [], ""
+        if cached and fetched == today:
+            return cached
     try:
+        import warnings
+
+        warnings.simplefilter("ignore")
+        import akshare as ak
+
         frame = ak.stock_value_em(symbol=code)
-        if frame is None or frame.empty:
-            return {}
-        records = frame.to_dict("records")
-        if not records:
-            return {}
-        latest = records[-1]
-        # 历史 PE/PB 序列
-        pe_list = [r.get("市盈率-动态") for r in records if r.get("市盈率-动态")]
-        pb_list = [r.get("市净率") for r in records if r.get("市净率")]
-        pe_now = latest.get("市盈率-动态")
-        pb_now = latest.get("市净率")
-
-        def percentile(values, current):
-            if not values or current is None or current <= 0:
-                return None
-            below = sum(1 for v in values if v is not None and v < current)
-            return round(below / len(values) * 100, 1)
-
-        return {
-            "pe": pe_now, "pb": pb_now,
-            "pe_percentile": percentile(pe_list, pe_now),
-            "pb_percentile": percentile(pb_list, pb_now),
-            "history_len": len(records),
-            "as_of": str(latest.get("交易日期", ""))[:10] or date.today().isoformat(),
-            "source": "东财估值数据",
-        }
+        rows = []
+        for day, pe, pb in zip(frame["数据日期"], frame["PE(TTM)"], frame["市净率"]):
+            try:
+                rows.append({"d": str(day)[:10], "pe": float(pe), "pb": float(pb)})
+            except (TypeError, ValueError):
+                continue
     except Exception:
-        return {}
+        return cached          # 今天没取到就用缓存里的历史，分位照算，日期照实写
+    if not rows:
+        return cached
+    VAL_CACHE.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"fetched": today, "rows": rows}), encoding="utf-8")
+    return rows
+
+
+def _percentile(rows: list[dict], key: str) -> float | None:
+    values = [row[key] for row in rows[-VALUATION_LOOKBACK:] if row.get(key) is not None]
+    if len(values) < 60:
+        return None
+    current = values[-1]
+    if current <= 0:
+        return None            # PE 为负（亏损）时没有分位的意义
+    return round(100.0 * sum(1 for value in values if value < current) / len(values), 1)
+
+
+def valuation_percentile(code: str, market: str = "A") -> dict:
+    """当前 PE(TTM)/PB 各自在近 3 年里的分位（0 = 三年来最低，100 = 最高）。
+
+    分位低只说明「比自己过去便宜」，不等于值得买；它是一个排序信号，
+    值多少分由 research/evolution.py 里的权重决定。
+    """
+    if market != "A":
+        return {"status": "无数据", "note": "估值历史接口只覆盖 A 股"}
+    rows = sorted(valuation_history(code), key=lambda row: row["d"])
+    if not rows:
+        return {"status": "无数据", "note": "估值历史未取到"}
+    pe_pct = _percentile(rows, "pe")
+    pb_pct = _percentile(rows, "pb")
+    return {"pe": rows[-1].get("pe"), "pb": rows[-1].get("pb"),
+            "pe_percentile": pe_pct, "pb_percentile": pb_pct,
+            "window_days": min(len(rows), VALUATION_LOOKBACK),
+            "as_of": rows[-1]["d"], "status": "有数据" if (pe_pct or pb_pct) else "样本不足",
+            "source": "东方财富逐日估值（PE(TTM)、市净率）"}
 
 
 # ================================================ ② 股东增减持
 
 
 def holder_changes(scans: dict) -> dict:
-    """从已有的风险扫描留痕中提取股东/高管增减持。
+    """把公告扫描分出的增持/减持/回购条目汇总成一个方向信号。
 
-    输入是 card.scans（deep-dive 已写入），从风险公告标题中提取
-    「增持」「减持」「回购」相关的条目。
+    输入是 card.scans（deep-dive 写入）。近 240 天里减持类公告多于增持类
+    记 -1，反之 +1，相等或都没有记 0。条数是公告条数，不是股数或金额
+    ——一条「减持计划」和它的每一条进展公告都各算一条。
     """
-    risks = scans.get("risks") or []
-    buys, sells, buybacks = [], [], []
-    for r in risks:
-        title = str(r.get("title") or "")
-        published = str(r.get("published") or "")
-        if not title:
-            continue
-        # 增持
-        if "增持" in title and not("不增持" in title or "终止增持" in title):
-            if any(k in title for k in ("股东", "董事", "高管", "实际控制人")):
-                buys.append({"title": title[:60], "date": published})
-        # 减持
-        elif "减持" in title and "不减" not in title:
-            if any(k in title for k in ("股东", "董事", "高管", "实际控制人")):
-                sells.append({"title": title[:60], "date": published})
-        # 回购
-        elif "回购" in title and "终止" not in title and "完成" not in title:
-            buybacks.append({"title": title[:60], "date": published})
-
-    net_signal = 0
-    if len(buys) > len(sells):
-        net_signal = 1      # 净增持
-    elif len(sells) > len(buys):
-        net_signal = -1     # 净减持
-    return {"recent_buys": buys[:5], "recent_sells": sells[:5],
+    items = scans.get("holders") or []
+    buys = [i for i in items if i.get("side") == "增持"]
+    sells = [i for i in items if i.get("side") == "减持"]
+    buybacks = [i for i in items if i.get("side") == "回购"]
+    return {"buy_count": len(buys), "sell_count": len(sells),
+            "buyback_count": len(buybacks),
+            "net_signal": (len(buys) > len(sells)) - (len(sells) > len(buys)),
+            "recent_buys": buys[:5], "recent_sells": sells[:5],
             "recent_buybacks": buybacks[:3],
-            "buy_count": len(buys), "sell_count": len(sells),
-            "net_signal": net_signal,
-            "note": "正=净增持（信心信号），负=净减持（红旗）"}
+            "note": "按公告标题分类，条数不是股数；每条都要回原文核对"}
 
 
 # ================================================ ③ 成交量趋势
 
 
 def volume_trend(code: str, market: str = "A") -> dict:
-    """20/60 日成交量趋势：兴趣在升还是在降。
+    """近 20 日平均成交量 ÷ 近 60 日平均成交量：关注在升温还是在消退。
 
-    用已有日线数据计算（backtest.load_prices 含 volume），
-    不需要新数据源。
+    用同花顺分年日线的成交量（backtest 的日线缓存不存成交量）。
+    港股没有这个日线源，返回空。
     """
-    from .backtest import load_prices
+    if market != "A":
+        return {}
+    from .ths import fetch_daily_history
 
     try:
         today = date.today()
-        bars = load_prices(code, today - timedelta(days=150), today)
-        if len(bars) < 61:
-            return {}
-        vols = [b.get("volume") or 0 for b in bars if b.get("volume")]
-        if len(vols) < 60:
-            return {}
-        avg_20 = sum(vols[-20:]) / 20
-        avg_60 = sum(vols[-60:]) / 60
-        if avg_60 <= 0:
-            return {}
-        ratio = avg_20 / avg_60
-        # 20日均量 / 60日均量：>1.5 = 显著放量，<0.7 = 显著缩量
-        if ratio >= 1.5:
-            label = "显著放量"
-        elif ratio >= 1.1:
-            label = "温和放量"
-        elif ratio <= 0.7:
-            label = "显著缩量"
-        elif ratio <= 0.9:
-            label = "温和缩量"
-        else:
-            label = "持平"
-        return {"vol_ratio_20_60": round(ratio, 2), "trend": label,
-                "note": "20日均量÷60日均量，>1.5放量/<0.7缩量",
-                "as_of": bars[-1]["day"]}
+        bars = [bar for bar in fetch_daily_history(code, [today.year - 1, today.year])
+                if bar.get("volume")]
     except Exception:
         return {}
-
-
-# ================================================ ④ 北向资金
-
-
-def northbound_flow(industry: str = "") -> dict:
-    """北向资金近 5 日净流入（全市场或按行业聚合）。
-
-    akshare 免费接口，按行业取需要额外映射，先给全市场口径。
-    """
-    import akshare as ak
-
-    try:
-        frame = ak.stock_hsgt_fund_flow_summary_em()
-        if frame is None or frame.empty:
-            return {}
-        records = frame.to_dict("records")
-        if not records:
-            return {}
-        latest = records[-1]
-        return {
-            "net_buy_yi": latest.get("北向资金净买额-亿元") or latest.get("净买额"),
-            "date": str(latest.get("日期") or latest.get("持有日期") or "")[:10],
-            "source": "东财沪深港通",
-            "note": "北向净流入为正=外资在买，负=在卖",
-        }
-    except Exception:
+    if len(bars) < 60:
         return {}
+    volumes = [float(bar["volume"]) for bar in bars]
+    ratio = (sum(volumes[-20:]) / 20) / (sum(volumes[-60:]) / 60)
+    if ratio >= 1.5:
+        trend = "显著放量"
+    elif ratio >= 1.1:
+        trend = "温和放量"
+    elif ratio <= 0.7:
+        trend = "显著缩量"
+    elif ratio <= 0.9:
+        trend = "温和缩量"
+    else:
+        trend = "持平"
+    return {"vol_ratio_20_60": round(ratio, 2), "trend": trend, "as_of": bars[-1]["day"],
+            "note": "近 20 日均量 ÷ 近 60 日均量；≥1.5 显著放量，≤0.7 显著缩量"}
 
 
-# ================================================ ⑤ 下游需求验证
+# ================================================ ④ 下游需求对照（没有接数据）
 
-# 行业 → 需求指标映射（手动维护，覆盖当前 WATCHLIST 行业）
 DEMAND_MAP = {
-    "电池": {"indicator": "动力电池装机量", "source": "中国汽车动力电池产业创新联盟（月度）",
-             "direction": "up_good", "note": "月度装机量同比正增长=需求在上行"},
-    "水泥": {"indicator": "全国水泥产量", "source": "国家统计局（月度）",
-             "direction": "up_good", "note": "水泥产量同比正增长=基建需求在上行"},
-    "半导体": {"indicator": "全球半导体销售额", "source": "SIA（月度）",
-               "direction": "up_good", "note": "全球销售额同比正增长=行业景气在上行"},
-    "工业金属": {"indicator": "PMI（制造业）", "source": "国家统计局（月度）",
-                 "direction": "above50_good", "note": "PMI>50=制造业扩张，金属需求有支撑"},
-    "医疗服务": {"indicator": "诊疗人次（卫健委季报）", "source": "国家卫健委",
-                 "direction": "up_good", "note": "诊疗人次增长=需求在上行"},
-    "化学原料": {"indicator": "化工产品价格指数", "source": "中国化工产品价格指数（CCPI）",
-                 "direction": "up_good", "note": "CCPI 上行=化工品价格有支撑"},
+    "电池": {"indicator": "动力电池装机量", "source": "中国汽车动力电池产业创新联盟（月度）"},
+    "水泥": {"indicator": "全国水泥产量", "source": "国家统计局（月度）"},
+    "半导体": {"indicator": "全球半导体销售额", "source": "SIA（月度）"},
+    "工业金属": {"indicator": "制造业 PMI", "source": "国家统计局（月度）"},
+    "医疗服务": {"indicator": "诊疗人次", "source": "国家卫健委"},
+    "化学原料": {"indicator": "中国化工产品价格指数（CCPI）", "source": "中国化工信息中心"},
 }
 
 
 def demand_check(industry: str) -> dict:
-    """行业的下游需求指标（映射表查询，目前只给指标名和来源，
-    实际数据需要接行业专属接口——这是诚实边界）。
-    """
-    if not industry:
-        return {}
-    entry = DEMAND_MAP.get(industry)
-    if not entry:
-        return {"industry": industry, "status": "未映射",
-                "note": "该行业暂无下游需求映射，需手动补充"}
-    return {"industry": industry, **entry, "status": "已映射（需手动核对最新数据）"}
+    """这个行业该看哪个下游需求指标。只给指标名和出处，没有接数据。"""
+    if not industry or industry not in DEMAND_MAP:
+        return {"industry": industry or "", "status": "未映射"}
+    return {"industry": industry, **DEMAND_MAP[industry], "status": "仅有指标名，未接数据"}
 
 
 # ================================================ 统一入口
 
 
 def fill_inputs(card) -> dict:
-    """把 5 个补全项写入卡片 inputs 字段。"""
+    """把补全的输入写进卡片 inputs 字段。任何一项取不到都不影响其他项。"""
     out: dict = {"as_of": date.today().isoformat()}
     try:
-        out["valuation"] = valuation_percentile(card.code)
-    except Exception:
-        out["valuation"] = {}
+        out["valuation"] = valuation_percentile(card.code, card.market)
+    except Exception as exc:
+        out["valuation"] = {"status": "取数失败", "note": f"{type(exc).__name__}: {exc}"[:120]}
     out["holders"] = holder_changes(card.scans or {})
     try:
         out["volume"] = volume_trend(card.code, card.market)
-    except Exception:
-        out["volume"] = {}
-    industry = (card.industry_context or {}).get("industry", "")
-    out["demand"] = demand_check(industry)
+    except Exception as exc:
+        out["volume"] = {"status": "取数失败", "note": f"{type(exc).__name__}: {exc}"[:120]}
+    out["demand"] = demand_check((card.industry_context or {}).get("industry", ""))
     card.inputs = out
     return out
