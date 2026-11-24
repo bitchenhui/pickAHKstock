@@ -3,7 +3,8 @@
 这里的每一条都对应一次「本地看起来是好的、云端实际没生效」：
 RSI 取数没接上、新卡缺出处链接、AI 把整句话写进路径字段、港股公告窗口每天重抓、
 akshare 升级后盯价接口报错、扫描失败把旧结果冲掉、数据面失败被超时一起丢掉、
-点名建卡找不到代码、健康检查不报错、对辩步骤把行业共振的字段当成了对辩结论。
+点名建卡找不到代码、健康检查不报错、对辩步骤把行业共振的字段当成了对辩结论、
+港股公告按天缓存每个文件装了两天。
 """
 
 import argparse
@@ -151,7 +152,8 @@ class HkCacheTests(unittest.TestCase):
         requested: list = []
         with unittest.mock.patch.object(hk, "_fetch_day", self._fetch_day_orig), \
              unittest.mock.patch.object(hk, "_fetch_events_raw",
-                                        lambda start, end, max_pages=400: requested.append(start.isoformat())
+                                        lambda start, end, max_pages=400, **kwargs:
+                                        requested.append(start.isoformat())
                                         or [{"notice_date": start.isoformat()}]):
             hk.fetch_events(yesterday, yesterday, categories=())
             hk._EVENTS_MEM.clear()                               # 相当于换了一个进程
@@ -164,6 +166,100 @@ class HkCacheTests(unittest.TestCase):
         with unittest.mock.patch.object(hk, "_fetch_day", lambda day: [
                 {"notice_date": (day + timedelta(days=5)).isoformat()}]):
             self.assertEqual(hk.fetch_events(yesterday, yesterday, categories=()), [])
+
+    def test_an_announcement_shared_by_two_cache_files_appears_once(self):
+        # 旧的按天缓存每个文件装了两天，同一条公告在相邻两个文件里各有一份
+        yesterday = date.today() - timedelta(days=1)
+        with unittest.mock.patch.object(hk, "_fetch_day", lambda day: [
+                {"art_code": f"OWN-{day.isoformat()}", "notice_date": day.isoformat()},
+                {"art_code": "AN1", "notice_date": yesterday.isoformat()}]):
+            events = hk.fetch_events(yesterday - timedelta(days=1), yesterday, categories=())
+        self.assertEqual(len(events), 3)                         # 各自当天的两条，AN1 只算一条
+
+    def test_a_day_file_keeps_only_that_day(self):
+        # 接口的起止日期两端都含：查 [day, day] 回来的行里混着次日的，不能存进去
+        day = date(2026, 11, 19)                                 # 周四；过去的某一天，缓存长期有效
+        page = [dict(self.row("2026-11-19"), art_code="A1"), dict(self.row("2026-11-20"), art_code="A2")]
+        seen: dict = {}
+        session = self.session_for([page], total=2, seen=seen)
+        with unittest.mock.patch.object(hk, "_fetch_day", self._fetch_day_orig), \
+             unittest.mock.patch.object(hk.requests, "Session", lambda: session):
+            rows = hk._fetch_day(day)
+        self.assertEqual(seen["begin_time"], "2026-11-19")
+        self.assertEqual(seen["end_time"], "2026-11-19")         # 只查这一天
+        self.assertEqual([row["art_code"] for row in rows], ["A1"])
+        cached = json.loads((hk.CACHE_DIR / "ann_day_v2_2026-11-19.json").read_text(encoding="utf-8"))
+        self.assertEqual([row["art_code"] for row in cached], ["A1"])
+
+    def test_a_weekday_with_nothing_is_asked_again_with_a_padded_end(self):
+        # 工作日一条都没有，不能直接当成「没有公告」：可能是接口把 end_time 当成了不含当天
+        day = date(2026, 11, 18)                                 # 周三
+        asks: list = []
+        later = [dict(self.row("2026-11-18"), art_code="B1"), dict(self.row("2026-11-19"), art_code="B2")]
+
+        def get(url, params, timeout):
+            asks.append(params["end_time"])
+            page = [] if params["end_time"] == params["begin_time"] else later
+            return SimpleNamespace(raise_for_status=lambda: None,
+                                   json=lambda: {"data": {"total_hits": len(page), "list": page}})
+
+        with unittest.mock.patch.object(hk, "_fetch_day", self._fetch_day_orig), \
+             unittest.mock.patch.object(hk.requests, "Session", lambda: SimpleNamespace(headers={}, get=get)):
+            rows = hk._fetch_day(day)
+        self.assertEqual(asks, ["2026-11-18", "2026-11-19"])
+        self.assertEqual([row["art_code"] for row in rows], ["B1"])
+
+    def test_raw_fetch_requests_only_listed_shares_with_a_padded_end(self):
+        for pad, expected in ((True, "2026-11-21"), (False, "2026-11-20")):
+            seen = {}
+            session = self.session_for([[self.row()]], total=1, seen=seen)
+            with unittest.mock.patch.object(hk.requests, "Session", lambda: session):
+                hk._fetch_events_raw(date(2026, 11, 20), date(2026, 11, 20), pad_end=pad)
+            self.assertEqual(seen["ann_type"], "H")
+            self.assertEqual(seen["begin_time"], "2026-11-20")
+            self.assertEqual(seen["end_time"], expected)        # 默认多传一天；pad_end=False 时不补
+
+    def test_stock_fetch_sends_the_filter_and_keeps_only_this_stock_in_the_window(self):
+        seen = {}
+        session = self.session_for([[self.row()]], total=1, seen=seen)
+        with unittest.mock.patch.object(hk.requests, "Session", lambda: session):
+            hk._fetch_events_raw(date(2026, 11, 1), date(2026, 11, 20), stock="03323")
+        # 三个参数要一起给，少任何一个接口都还是返回全市场（实测）
+        self.assertEqual((seen["f_node"], seen["s_node"], seen["stock_list"]), ("0", "0", "03323"))
+        rows = [dict(self.row("2026-11-20"), art_code="S1"), dict(self.row("2026-11-20"), art_code="S1"),
+                dict(self.row("2026-11-21"), art_code="S2"),                  # end_time 多传的那一天
+                dict(self.row("2026-10-30"), art_code="S0"),                  # 窗口之前
+                dict(self.row("2026-11-05"), art_code="S3")]                  # 别的股票
+        rows[4]["codes"][0]["stock_code"] = "09696"
+
+        def to_event(item):
+            return SimpleNamespace(published=date.fromisoformat(item["notice_date"]),
+                                   code=item["codes"][0]["stock_code"])
+
+        with unittest.mock.patch.object(hk, "_fetch_events_raw",
+                                        lambda *a, **k: rows), \
+             unittest.mock.patch.object(hk, "_to_event", to_event):
+            events = hk.fetch_stock_events("03323", date(2026, 11, 1), date(2026, 11, 20))
+        self.assertEqual([e.published for e in events], [date(2026, 11, 20)])
+
+    def test_card_scan_uses_the_per_stock_fetch_not_the_whole_market(self):
+        # 单卡扫描以前翻全市场按天的公告流：冷缓存时 240 天一千多页，云端二十分钟跑不完一张卡
+        from research import risk
+
+        asked: list = []
+
+        def fake(code, start, end, max_pages=50):
+            asked.append(code)
+            return [SimpleNamespace(title="有關仲裁及訴訟的自願公告",
+                                    published=date.today() - timedelta(days=3),
+                                    detail_url="http://x")]
+
+        with unittest.mock.patch.object(hk, "fetch_stock_events", fake), \
+             unittest.mock.patch.object(hk, "fetch_events",
+                                        lambda *a, **k: self.fail("不该翻全市场的公告流")):
+            scan = risk.scan_announcements("03323", "中国建材", 240, "HK")
+        self.assertEqual(asked, ["03323"])
+        self.assertEqual(len(scan["risks"]), 1)
 
     def test_raw_fetch_stops_when_the_reported_total_is_reached(self):
         page = [self.row()] * 100
@@ -181,15 +277,6 @@ class HkCacheTests(unittest.TestCase):
             with self.assertRaises(hk.HkError) as caught:
                 hk._fetch_events_raw(date(2026, 11, 20), date(2026, 11, 20))
         self.assertIn("没取全", str(caught.exception))
-
-    def test_raw_fetch_requests_only_listed_shares_with_an_exclusive_end(self):
-        seen = {}
-        session = self.session_for([[self.row()]], total=1, seen=seen)
-        with unittest.mock.patch.object(hk.requests, "Session", lambda: session):
-            hk._fetch_events_raw(date(2026, 11, 20), date(2026, 11, 20))
-        self.assertEqual(seen["ann_type"], "H")
-        self.assertEqual(seen["begin_time"], "2026-11-20")
-        self.assertEqual(seen["end_time"], "2026-11-21")
 
 
 class CompatTests(unittest.TestCase):

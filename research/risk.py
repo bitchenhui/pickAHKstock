@@ -105,7 +105,7 @@ def scan_announcements(code: str, name: str, since_days: int = 240,
     """按公司名取全部公告，一次抓取同时做两件事：风险分类、增减持分类。
 
     A 股走巨潮；港股走东方财富公告流（HKEXnews 的检索接口实测取不到数据，
-    已弃用）。港股的公告标题是繁体，用词也不同，见 HK_RISK_WORDS。
+    已弃用）。港股的公告标题是繁体，用词也不同，见 HK_RISK_KEYWORDS。
 
     返回 {"risks": [RiskEvent], "holders": [{side, stage, title, date, url}]}。
     """
@@ -116,11 +116,10 @@ def scan_announcements(code: str, name: str, since_days: int = 240,
                  for item in fetch_announcements(name, start, today, max_pages=30)
                  if item.code == code]
     else:
-        from .hk import fetch_events
+        from .hk import fetch_stock_events
 
         items = [(item.title, item.published, item.detail_url)
-                 for item in fetch_events(start, today, categories=())
-                 if item.code == code]
+                 for item in fetch_stock_events(code, start, today)]
     risks: list[RiskEvent] = []
     holders: list[dict] = []
     for title, published, url in items:

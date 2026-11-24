@@ -163,8 +163,19 @@ def _slim(item: dict) -> dict:
                         for column in (item.get("columns") or [])]}
 
 
-def _fetch_events_raw(start: date, end: date, max_pages: int = 400) -> list[dict]:
-    """抓 [start, end] 的港股公告原始行，不带缓存。
+def _notice_day(item: dict) -> str:
+    return str(item.get("notice_date") or "")[:10]
+
+
+def _fetch_events_raw(start: date, end: date, max_pages: int = 400,
+                      stock: str = "", pad_end: bool = True) -> list[dict]:
+    """抓 [start, end] 的港股公告原始行，不带缓存。给了 stock 就只取这一只股票的。
+
+    接口的 begin_time / end_time **两端都含**（2026-11-24 实测：begin=end=11-19 回当天
+    414 条；begin=11-19、end=11-20 回两天共 962 条）。以前当成「end_time 不含当天」而
+    多传一天，结果每个按天缓存文件装了两天、每条公告出现两次。这里默认仍把 end_time
+    多传一天（pad_end）——不论接口把 end_time 当含还是不含，都取得到 [start, end]——
+    所以调用方要按公告日期再筛一遍；按天取数时传 pad_end=False，只查这一天。
 
     取不全就抛错。这个接口每页最多 100 条，而港股一天有一千多条公告——
     以前一次要 120 天、上限 400 页，实际只拿得到最近约 28 天，却没有任何提示：
@@ -180,7 +191,10 @@ def _fetch_events_raw(start: date, end: date, max_pages: int = 400) -> list[dict
         params = {"page_size": "100", "page_index": str(page),
                   "ann_type": ANN_TYPE, "client_source": "web",
                   "begin_time": start.strftime("%Y-%m-%d"),
-                  "end_time": exclusive_end.strftime("%Y-%m-%d")}
+                  "end_time": (exclusive_end if pad_end else end).strftime("%Y-%m-%d")}
+        if stock:
+            # 按股票过滤要三个参数一起给（实测少任何一个都还是返回全市场）
+            params.update({"f_node": "0", "s_node": "0", "stock_list": stock})
         try:
             response = session.get(ANN_URL, params=params, timeout=60)
             response.raise_for_status()
@@ -204,14 +218,42 @@ def _fetch_events_raw(start: date, end: date, max_pages: int = 400) -> list[dict
             break
         time.sleep(0.3)                # 串行加间隔：并发会被服务端限流
     if total is not None and len(raw) < total:
-        raise HkError(f"港股公告没取全：{start} 至 {end} 应有 {total} 条，"
+        raise HkError(f"港股公告没取全：{start} 至 {end}"
+                      f"{f'（{stock}）' if stock else ''} 应有 {total} 条，"
                       f"只拿到 {len(raw)} 条（上限 {max_pages} 页）")
     return raw
 
 
+def fetch_stock_events(code: str, start: date, end: date,
+                       max_pages: int = 50) -> list[HkEvent]:
+    """只取某一只港股自己的公告（全部类别），用接口的按股票过滤。
+
+    给单张卡的公告扫描用。原来走全市场按天的公告流再按代码筛：冷缓存时
+    240 天要翻一千多页，云端二十分钟都跑不完一张卡；按股票取只要一两次请求
+    （实测中国建材三周内全市场 9157 条公告里它自己的只有 2 条）。
+    取不全同样抛错。
+    """
+    raw = _fetch_events_raw(start, end, max_pages, stock=code)
+    events, seen = [], set()
+    for item in raw:
+        event = _to_event(item)
+        if event is None or event.code != code or not start <= event.published <= end:
+            continue                      # end_time 多传了一天，去掉次日及以后、以及窗口之前的
+        if item.get("art_code") in seen:
+            continue
+        seen.add(item.get("art_code"))
+        events.append(event)
+    return events
+
+
 def _fetch_day(day: date) -> list[dict]:
-    """某一天的港股公告。过去的日子抓一次就永久复用；当天缓存几个小时。"""
-    cache_file = CACHE_DIR / f"ann_day_{day.isoformat()}.json"
+    """公告日期为 day 的港股公告（只含这一天）。过去的日子抓一次就永久复用；当天缓存几个小时。
+
+    只查 [day, day]，再按公告日期筛一遍。以前查的是 [day, day+1]，而接口两端都含，
+    于是每个文件装了两天：每条公告在相邻两个文件里各有一份，全市场窗口里每条都出现
+    两次，请求数也翻倍。旧的 ann_day_*.json 文件是那种两天混合的，不再读。
+    """
+    cache_file = CACHE_DIR / f"ann_day_v2_{day.isoformat()}.json"
     if cache_file.exists():
         try:
             age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
@@ -219,7 +261,12 @@ def _fetch_day(day: date) -> list[dict]:
                 return json.loads(cache_file.read_text(encoding="utf-8"))
         except (ValueError, OSError):
             pass
-    data = _fetch_events_raw(day, day)
+    wanted = day.isoformat()
+    data = [item for item in _fetch_events_raw(day, day, pad_end=False) if _notice_day(item) == wanted]
+    if not data and day.weekday() < 5:
+        # 工作日一条都没有：可能是假期，也可能接口把 end_time 当成了不含当天。
+        # 用 [day, day+1] 再取一次、只留当天的，免得整天的公告悄悄丢掉
+        data = [item for item in _fetch_events_raw(day, day) if _notice_day(item) == wanted]
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     return data
@@ -234,14 +281,17 @@ def fetch_events(start: date, end: date, max_pages: int = 400,
 
     分页机制（实测，踩过坑）：
     - `page_size` 硬上限 100，传 200/500 都只回 100 条
-    - `end_time` 是**排他**的：end_time=最后一天 会漏掉当天的，要传 +1 天
+    - `begin_time` / `end_time` **两端都含**（2026-11-24 实测；以前文档写的「end_time
+      不含当天」是错的，照那个理解多传一天，会让每条公告出现两次，见 _fetch_day）
     - 没有服务端类别过滤，只能按 columns[].column_name 在客户端筛
+      （按股票过滤倒是可以：f_node=0、s_node=0、stock_list=代码，见 fetch_stock_events）
     - 返回按公告日期倒序，所以翻到早于 start 的记录就可以停
 
-    **按天缓存**：每天约一千条、十几页，过去的日子抓一次就不再抓，
+    **按天缓存**：每天几百到一千条、几页到十几页，过去的日子抓一次就不再抓，
     当天每三小时最多重抓一次。原先按 (start, end) 整段缓存，窗口每天在变，
-    等于每天把整段重抓一遍——云端抓 60 天要十几分钟，港股卡片天天因此超时。
-    同一次运行里相同的窗口只抓一次（行业共振和风险扫描用的是同一个窗口）。
+    等于每天把整段重抓一遍——云端抓 60 天要十几分钟。现在发现新候选才走这条
+    全市场的流；单张卡的公告扫描用 fetch_stock_events，不依赖这份缓存。
+    同一次运行里相同的窗口只抓一次。
     """
     if end < start:
         return []
@@ -254,10 +304,15 @@ def fetch_events(start: date, end: date, max_pages: int = 400,
             day += timedelta(days=1)
         _EVENTS_MEM[key] = raw
     events: list[HkEvent] = []
+    seen: set = set()
     for item in _EVENTS_MEM[key]:
         event = _to_event(item)
         if event is None or event.published < start or event.published > end:
             continue
+        key = item.get("art_code")
+        if key and key in seen:
+            continue                  # 防御：同一条公告不该因为缓存文件的重叠出现两次
+        seen.add(key)
         events.append(event)
     if categories:
         events = [e for e in events if e.category in categories]
