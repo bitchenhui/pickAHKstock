@@ -1,0 +1,20 @@
+research/cli.py
+  h_69a2bad0f475d9 1051-1057
+research/note.py
+  h_69a2bad0f475d9 163-167,861,973-982,1006
+tests/test_note.py
+  h_69a2bad0f475d9 1,4,166-178
+tests/test_production.py
+  h_69a2bad0f475d9 411,413,435-449
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "52aba1105339e4097f284a2f15d773adf71697a8",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
