@@ -1,0 +1,54 @@
+tests/test_note.py
+  h_69a2bad0f475d9 1,4,166-178
+research/cli.py
+  h_69a2bad0f475d9 1051-1057
+research/note.py
+  h_69a2bad0f475d9 163-167,861,973-982,1006
+tests/test_production.py
+  h_69a2bad0f475d9 411,413,435-449
+cards/notes/A_000603.html
+  h_69a2bad0f475d9 67-71,264
+cards/notes/A_000626.html
+  h_69a2bad0f475d9 67-71,264
+cards/notes/A_000823.html
+  h_69a2bad0f475d9 67-71,266
+cards/notes/A_002044.html
+  h_69a2bad0f475d9 67-71,266
+cards/notes/A_002132.html
+  h_69a2bad0f475d9 67-71,264
+cards/notes/A_002167.html
+  h_69a2bad0f475d9 67-71,266
+cards/notes/A_002838.html
+  h_69a2bad0f475d9 67-71,266
+cards/notes/A_002845.html
+  h_69a2bad0f475d9 67-71,264
+cards/notes/A_600409.html
+  h_69a2bad0f475d9 67-71,265
+cards/notes/A_600888.html
+  h_69a2bad0f475d9 67-71,264
+cards/notes/A_603026.html
+  h_69a2bad0f475d9 67-71,266
+cards/notes/A_603991.html
+  h_69a2bad0f475d9 67-71,264
+cards/notes/A_605196.html
+  h_69a2bad0f475d9 67-71,266
+cards/notes/A_605358.html
+  h_69a2bad0f475d9 67-71,264
+cards/notes/HK_03323.html
+  h_69a2bad0f475d9 67-71,266
+cards/notes/HK_09696.html
+  h_69a2bad0f475d9 67-71,266
+cards/notes/index.html
+  h_69a2bad0f475d9 67-71,264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9a8f213f4b7bc56bf4c45e96062e63a38cf3eafa",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
