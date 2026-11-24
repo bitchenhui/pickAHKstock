@@ -12,12 +12,15 @@ TODAY = date.today()
 TODAY_STAMP = TODAY.strftime("%Y%m%d%H%M%S")
 
 
-def card(code="600001", stop=9.0, rs_prev=5.0, catalyst_due=False, commodity=False) -> Card:
+def card(code="600001", stop=9.0, rs_prev=5.0, catalyst_due=False, commodity=False,
+         catalyst_date=None) -> Card:
     card = Card(market="A", code=code, name=f"股{code}", status="观察", view="判断")
     card.market_context = {"stop_reference": stop} if stop else {}
     card.execution = {"strength": {"rs": rs_prev}} if rs_prev is not None else {}
     if catalyst_due:
-        card.catalysts = [Catalyst(event="年报预告窗口", date="2026-01-31",
+        # 到期 3 天：在提醒窗口内
+        card.catalysts = [Catalyst(event="年报预告窗口",
+                                   date=catalyst_date or (TODAY - timedelta(days=3)).isoformat(),
                                    status="待验证")]
     if commodity:
         card.commodities = {"items": {"LC": {"symbol": "LC", "name": "碳酸锂"}}}
@@ -100,6 +103,25 @@ class CheckTests(unittest.TestCase):
         alerts, _ = self._run([card(catalyst_due=True)])
         self.assertEqual([a.kind for a in alerts], ["催化剂到期"])
 
+    def test_catalyst_alert_only_within_two_weeks_of_its_date(self):
+        # 装好哨兵第一次试跑时它要一次推 9 条「催化剂到期」，最老的 7 月就到期了：
+        # 几个月前就该办、一直没人办的事项是积压，不是新闻
+        days_ago = lambda n: (TODAY - timedelta(days=n)).isoformat()
+        ahead = (TODAY + timedelta(days=5)).isoformat()
+        for date_string, expected in ((days_ago(0), 1), (days_ago(14), 1),
+                                      (days_ago(15), 0), (days_ago(120), 0), (ahead, 0)):
+            with self.subTest(date=date_string):
+                alerts, _ = self._run([card(catalyst_due=True, catalyst_date=date_string)])
+                self.assertEqual([a.kind for a in alerts], ["催化剂到期"] * expected)
+
+    def test_alert_shared_by_two_cards_is_pushed_once(self):
+        # 盯价极值按商品算指纹：两只票盯同一个商品，不该各推一遍
+        alerts, _ = self._run([card("600001", commodity=True), card("600002", commodity=True)],
+                              prices={"600001": 10.5, "600002": 10.5},
+                              commodity_stats={"latest": 68000.0, "position_250d": 0.08})
+        self.assertEqual([a.kind for a in alerts], ["盯价极值"])
+        self.assertEqual(alerts[0].name, "股600001、股600002")
+
     def test_commodity_extreme_triggers(self):
         alerts, _ = self._run([card(commodity=True)],
                               commodity_stats={"latest": 68000.0, "position_250d": 0.08})
@@ -112,10 +134,12 @@ class CheckTests(unittest.TestCase):
         cards = [card(code, commodity=True) for code in ("600001", "600002", "600003")]
         alerts, _ = self._run(cards, commodity_stats={"latest": 68000.0, "position_250d": 0.08},
                               strength={"rs": -6.0})
-        kinds = sorted((a.code, a.kind) for a in alerts)
-        self.assertEqual(kinds, sorted(
-            (code, kind) for code in ("600001", "600002", "600003")
-            for kind in ("强度转向", "盯价极值")))
+        self.assertEqual(sorted((a.code, a.kind) for a in alerts if a.kind == "强度转向"),
+                         sorted((code, "强度转向") for code in ("600001", "600002", "600003")))
+        # 三张卡盯的是同一个商品：合成一条，名字里三张卡都在
+        shared = [a for a in alerts if a.kind == "盯价极值"]
+        self.assertEqual(len(shared), 1)
+        self.assertEqual(shared[0].name, "股600001、股600002、股600003")
 
     def test_no_new_quotes_means_no_check(self):
         # 休市或未开盘：快照日期不是今天，不检查也不推送

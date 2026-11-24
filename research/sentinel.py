@@ -32,6 +32,10 @@ from .quotes import fetch_snapshots
 # 相对强度翻转的确认幅度：|rs| 双侧都超过它才算真转向，避免 0 附近抖动
 RS_FLIP_MARGIN = 2.0
 POSITION_EXTREME = 0.10     # 盯价一年区间位置 ≤10% 或 ≥90% 视为接近极值
+# 催化剂到期后这么多天内才提醒。到期更久、一直没人核对的是积压事项，不是新闻：
+# 装好哨兵第一次试跑时，它要一次推 9 条「催化剂到期」，最老的一条 7 月就到期了——
+# 那种提醒只会让人把通知关掉。积压的催化剂仍在页面和卡片上显示为「已过期 N 天，还没核对」。
+CATALYST_GRACE_DAYS = 14
 
 # —— 盘中三层价格触发（用户 2026-11-12 认可）——
 NEAR_STOP_PCT = 3.0        # ① 现价距 2ATR 异动线不到 3% → 该准备了
@@ -230,12 +234,17 @@ def check_cards(cards: list[Card]) -> tuple[list[Alert], int]:
                     fingerprint=f"rs:{card.market}:{card.code}:{direction}"))
 
         for catalyst in card.catalysts:
-            if catalyst.date and catalyst.date[:10] <= today and catalyst.status == "待验证":
-                alerts.append(Alert(
-                    card.market, card.code, card.name, "催化剂到期",
-                    f"{catalyst.event}（{catalyst.date}）已到验证窗口",
-                    "按卡片失效条件核对兑现情况，该写结论了",
-                    fingerprint=f"cat:{card.market}:{card.code}:{catalyst.event[:24]}"))
+            due = _as_of_day(catalyst.date)
+            if catalyst.status != "待验证" or due is None:
+                continue
+            overdue = (date.today() - due).days
+            if not 0 <= overdue <= CATALYST_GRACE_DAYS:
+                continue                      # 还没到期，或早已过期成了积压事项
+            alerts.append(Alert(
+                card.market, card.code, card.name, "催化剂到期",
+                f"{catalyst.event}（{catalyst.date}）已到验证窗口",
+                "按卡片失效条件核对兑现情况，该写结论了",
+                fingerprint=f"cat:{card.market}:{card.code}:{catalyst.event[:24]}"))
 
         for item in ((card.commodities or {}).get("items") or {}).values():
             try:
@@ -260,7 +269,25 @@ def check_cards(cards: list[Card]) -> tuple[list[Alert], int]:
     list_alert = shortlist_alert(cards)
     if list_alert:
         alerts.append(list_alert)
-    return alerts, len(cards)
+    return _merge_shared(alerts), len(cards)
+
+
+def _merge_shared(alerts: list[Alert]) -> list[Alert]:
+    """被多张卡共用的同一条提醒合成一条：名字并列，其余取第一张卡的。
+
+    盯价极值是按商品算指纹的，两只票盯同一个商品（碳酸锂）会各出一条、推两遍。
+    """
+    merged: list[Alert] = []
+    firsts: dict[str, Alert] = {}
+    for alert in alerts:
+        first = firsts.get(alert.fingerprint) if alert.fingerprint else None
+        if first is None:
+            merged.append(alert)
+            if alert.fingerprint:
+                firsts[alert.fingerprint] = alert
+        elif alert.name not in first.name.split("、"):
+            first.name = f"{first.name}、{alert.name}"
+    return merged
 
 
 def intraday_triggers(card: Card, price: float | None, snapshot=None,
