@@ -1,0 +1,14 @@
+.github/workflows/publish-notebook.yml
+  h_69a2bad0f475d9 10-11,113-117,121-123,129-130,145-152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb2237111ac8eef4ffc0216bdd83985092069dd8",
+  "prompts": {},
+  "humans": {
+    "h_69a2bad0f475d9": {
+      "author": "duanchenhui.zoro <duanchenhui.zoro@jd.com>"
+    }
+  }
+}
