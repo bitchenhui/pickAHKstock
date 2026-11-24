@@ -7,7 +7,8 @@ name: 发布研究汇总页
 # - GitHub 的定时触发会晚点（实测北京时间 13:30–15:15 才开跑），不是准点 08:00。
 #   需要盘中提醒的哨兵在用户本机用 launchd 跑，不靠这里的 schedule。
 # - 外部接口对海外 IP 可能限流或超时：各面独立成败，deep-dive 每一面成功就落盘。
-# - 最后一步 health 发现过期或缺失就返回 1，让这次运行显示为失败。
+# - 提交卡片那一步排在发布前面，它失败不能挡住发布（continue-on-error）；
+#   最后一步发现卡片数据没提交回仓库、或 health 发现过期缺失，才让运行标红。
 #   以前数据面失败只淹没在日志里，页面照常发布。
 on:
   schedule:
@@ -109,19 +110,24 @@ jobs:
           done
           python -m research.cli notebook
 
-      - name: 提交刷新后的卡片
+      # 这一步排在发布前面，所以它失败不能把发布一起带掉：第一次带着新流程跑，
+      # git add 一个还不存在的 evolution_state.json 就报错退出，页面当天没更新。
+      # 现在这一步失败照常发布；最后一步发现还有没提交的卡片数据，再让运行标红。
+      - name: 提交刷新后的卡片（失败不挡发布）
+        continue-on-error: true
         run: |
           git config user.name "research-bot"
           git config user.email "actions@github.com"
-          git add cards/ evolution_state.json
+          git add cards/
+          # 权重状态文件只在调整过权重之后才有，没有就不加（git add 不存在的路径会报错）
+          if [ -f evolution_state.json ]; then git add evolution_state.json; fi
           if git diff --cached --quiet; then
             echo "卡片无变化，跳过提交"
             exit 0
           fi
           git commit -m "CI 每日刷新：数据面、AI 判断与对辩、今日清单（自动）"
-          # 本地在运行期间推了提交时 rebase 重放；仍失败就放弃提交但不挡发布
-          git pull --rebase origin master && git push || \
-            echo "!! 提交刷新数据失败（推送撞车），页面照常发布，数据下次再留"
+          # 本地在运行期间推了提交时 rebase 重放；仍失败就放弃，页面照常发布
+          git pull --rebase origin master && git push
 
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -136,5 +142,11 @@ jobs:
           path: ~/.cache/pickahkstock
           key: pickahk-cache-${{ github.run_id }}
 
-      - name: 数据新鲜度检查（有问题就让这次运行显示为失败）
-        run: python -m research.cli health
+      - name: 收尾检查（卡片数据没提交回仓库、或数据过期缺失，就让这次运行显示为失败）
+        run: |
+          if [ -n "$(git status --porcelain -- cards/ evolution_state.json)" ]; then
+            echo "!! 刷新后的卡片数据没有提交回仓库（见「提交刷新后的卡片」那一步的日志）"
+            git status --short -- cards/ evolution_state.json | head -20
+            exit 1
+          fi
+          python -m research.cli health
