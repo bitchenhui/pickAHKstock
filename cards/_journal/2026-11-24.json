@@ -35,7 +35,7 @@
       "AI": 2,
       "流动性": 1
     },
-    "price_at_call": 4.33,
+    "price_at_call": 4.26,
     "status": "观察"
   },
   {
@@ -74,7 +74,7 @@
       "盯价": 1,
       "流动性": 1
     },
-    "price_at_call": 2.535,
+    "price_at_call": 2.475,
     "status": "观察"
   },
   {
@@ -94,7 +94,7 @@
       "AI": 2,
       "流动性": 1
     },
-    "price_at_call": 7.74,
+    "price_at_call": 7.64,
     "status": "观察"
   },
   {
@@ -112,10 +112,10 @@
       "股东": -2,
       "催化": 1,
       "AI": 2,
-      "盯价": 1,
+      "盯价": 0,
       "流动性": 1
     },
-    "price_at_call": 27.25,
+    "price_at_call": 26.99,
     "status": "观察"
   },
   {
@@ -134,7 +134,7 @@
       "盯价": 0,
       "流动性": 1
     },
-    "price_at_call": 20.36,
+    "price_at_call": 20.44,
     "status": "观察"
   },
   {
@@ -153,7 +153,7 @@
       "AI": -2,
       "流动性": 1
     },
-    "price_at_call": 24.4,
+    "price_at_call": 22.7,
     "status": "观察"
   },
   {
@@ -172,7 +172,7 @@
       "AI": -2,
       "流动性": 1
     },
-    "price_at_call": 11.52,
+    "price_at_call": 11.2,
     "status": "观察"
   },
   {
@@ -192,7 +192,7 @@
       "AI": -2,
       "流动性": 1
     },
-    "price_at_call": 19.09,
+    "price_at_call": 20.04,
     "status": "观察"
   },
   {
@@ -211,7 +211,7 @@
       "AI": -2,
       "流动性": 1
     },
-    "price_at_call": 4.96,
+    "price_at_call": 4.82,
     "status": "观察"
   },
   {
@@ -232,7 +232,7 @@
       "盯价": 0,
       "流动性": 1
     },
-    "price_at_call": 40.25,
+    "price_at_call": 40.15,
     "status": "观察"
   },
   {
@@ -251,7 +251,7 @@
       "AI": -2,
       "流动性": 1
     },
-    "price_at_call": 22.29,
+    "price_at_call": 22.01,
     "status": "观察"
   }
 ]
