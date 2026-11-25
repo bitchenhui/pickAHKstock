@@ -108,25 +108,25 @@
     "经营活动现金流与归母净利润出现持续背离"
   ],
   "market_context": {
-    "price": 20.44,
-    "turnover": 81242488.18,
-    "market_cap": 35015870000.0,
+    "price": 19.22,
+    "turnover": 78412055.34,
+    "market_cap": 32925880000.0,
     "lot_size": 200,
     "turnover_rate": 0.0,
-    "as_of": "2026/11/24 16:08:15",
+    "as_of": "2026/11/25 15:54:54",
     "role": "市场确认与执行参考，不是业务证据",
     "market_regime": {
-      "day": "2026-11-24",
-      "close": 22219.65,
-      "ma60": 24179.23716666667,
-      "change_20d": -0.03566071735473486,
+      "day": "2026-11-25",
+      "close": 21954.73,
+      "ma60": 24119.03283333334,
+      "change_20d": -0.04936602694196068,
       "state": "下行",
-      "note": "恒生指数 22220，低于60 日均线 24179，20 日 -3.6%",
+      "note": "恒生指数 21955，低于60 日均线 24119，20 日 -4.9%",
       "index": "恒生指数",
       "caveat": "港股系数照搬 A 股 0.5×（A 股十三期检验的值），未在港股事件池单独验证"
     },
-    "pe": 68.99,
-    "pb": 0.61
+    "pe": 64.87,
+    "pb": 0.58
   },
   "financials": {
     "path": "已盈利",
@@ -350,7 +350,7 @@
     "working_capital_note": "尚未取得：应收与存货周转天数（接口有 ACCOUNTS_RECE_TDAYS / INVENTORY_TDAYS 但本次未取）、存货跌价准备规模、资本开支与在建工程。锂价上行期存货增值会美化利润，回落期则反向冲击——这是本卡最该补但还没补的一块。",
     "path_evidence": [],
     "notes": [
-      "财务序列已于 2026-11-24 取自 https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_HKF10_FN_MAININDICATOR&filter=(SECURITY_CODE=\"09696\")"
+      "财务序列已于 2026-11-25 取自 https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_HKF10_FN_MAININDICATOR&filter=(SECURITY_CODE=\"09696\")"
     ]
   },
   "catalysts": [
@@ -547,7 +547,7 @@
     "caveat": "港股行业口径与申万不同，只能在港股内部横向比较；披露公司数远少于 A 股，行业样本常常不够"
   },
   "commodities": {
-    "as_of": "2026-11-24",
+    "as_of": "2026-11-25",
     "source": "akshare futures_spot_price_daily（期货品种对应现货价）",
     "items": {
       "LC": {
@@ -618,27 +618,27 @@
     }
   },
   "execution": {
-    "as_of": "2026-11-24",
+    "as_of": "2026-11-25",
     "stake": 20000.0,
     "liquidity": {
-      "avg_turnover": 81242488.18,
+      "avg_turnover": 78435123.34,
       "stake": 20000.0,
-      "ratio": 4062.1,
+      "ratio": 3921.8,
       "level": "无忧",
-      "note": "单日成交额口径（港股无日线额缓存）：日均额为单笔的 4062 倍：小资金进出无冲击"
+      "note": "单日成交额口径（港股无日线额缓存）：日均额为单笔的 3922 倍：小资金进出无冲击"
     },
     "strength": {
       "window": 60,
-      "stock_return": -46.0,
-      "index_return": -13.1,
-      "rs": -32.9,
-      "as_of": "2026-11-24",
+      "stock_return": -48.9,
+      "index_return": -13.3,
+      "rs": -35.5,
+      "as_of": "2026-11-25",
       "note": "跑输大盘（60 日，前复权）"
     },
-    "rsi": 24.56647398843927
+    "rsi": 6.936416184971051
   },
   "inputs": {
-    "as_of": "2026-11-24",
+    "as_of": "2026-11-25",
     "valuation": {
       "status": "无数据",
       "note": "估值历史接口只覆盖 A 股"
@@ -681,12 +681,12 @@
       "公司实际收到的钱：—（这是最硬的一条，纸面利润可以修饰，收到的钱很难）",
       "同行数据太少，判断不了是不是行业行情",
       "它靠价格吃饭的产品：碳酸锂，最近 30 天 跌 18%",
-      "最近有 5 条风险公告要看（每条都要点开原文看，标题扫描会误报）"
+      "最近有 15 条风险公告要看（每条都要点开原文看，标题扫描会误报）"
     ],
     "watch": [
       "2026Q4 业绩公告与碳酸锂价格复核（2027-03-31）——到点要核对",
       "2026 年报（销量、单位成本、非经常性损益明细）（2027-03-31）——到点要核对",
-      "跟大盘比：弱 -32.9 个百分点（转弱时要重新看判断还成不成立）",
+      "跟大盘比：弱 -35.5 个百分点（转弱时要重新看判断还成不成立）",
       "大盘现在下行（这种行情里这类股票跌起来更凶，仓位要打折）"
     ],
     "decide": [
@@ -713,6 +713,86 @@
   },
   "scans": {
     "risks": [
+      {
+        "code": "09696",
+        "name": "天齐锂业",
+        "title": "海外监管公告 - 雅江县润丰矿业有限责任公司烧炭沟脉石英、锂辉石矿采矿权评估报告",
+        "published": "2026-11-24",
+        "url": "https://data.eastmoney.com/notices/detail/09696/AN202611241832002836.html",
+        "category": "监管问询"
+      },
+      {
+        "code": "09696",
+        "name": "天齐锂业",
+        "title": "海外监管公告 - 雅江县润丰矿业有限责任公司2025年度及截至2026年6月30日止六个月期间经审计的财务会计报告",
+        "published": "2026-11-24",
+        "url": "https://data.eastmoney.com/notices/detail/09696/AN202611241832003251.html",
+        "category": "监管问询"
+      },
+      {
+        "code": "09696",
+        "name": "天齐锂业",
+        "title": "海外监管公告 - 成都天齐兴宇企业管理有限公司2025年度及截至2026年6月30日止六个月期间经审计的财务会计报告",
+        "published": "2026-11-24",
+        "url": "https://data.eastmoney.com/notices/detail/09696/AN202611241832003180.html",
+        "category": "监管问询"
+      },
+      {
+        "code": "09696",
+        "name": "天齐锂业",
+        "title": "海外监管公告 - 投诉与举报制度",
+        "published": "2026-11-24",
+        "url": "https://data.eastmoney.com/notices/detail/09696/AN202611241832003119.html",
+        "category": "监管问询"
+      },
+      {
+        "code": "09696",
+        "name": "天齐锂业",
+        "title": "海外监管公告 - 关于调整商品期货套期保值业务额度的公告",
+        "published": "2026-11-24",
+        "url": "https://data.eastmoney.com/notices/detail/09696/AN202611241832003087.html",
+        "category": "监管问询"
+      },
+      {
+        "code": "09696",
+        "name": "天齐锂业",
+        "title": "海外监管公告 - 关于对全资子公司增资的公告",
+        "published": "2026-11-24",
+        "url": "https://data.eastmoney.com/notices/detail/09696/AN202611241832003082.html",
+        "category": "监管问询"
+      },
+      {
+        "code": "09696",
+        "name": "天齐锂业",
+        "title": "海外监管公告 - 天齐锂业股份有限公司拟收购雅江县润丰矿业有限责任公司股权所涉及的雅江县润丰矿业有限责任公司股东全部权益价值资产评估报告",
+        "published": "2026-11-24",
+        "url": "https://data.eastmoney.com/notices/detail/09696/AN202611241832002793.html",
+        "category": "监管问询"
+      },
+      {
+        "code": "09696",
+        "name": "天齐锂业",
+        "title": "海外监管公告 - 天齐锂业股份有限公司拟收购成都天齐兴宇企业管理有限公司股权所涉及的成都天齐兴宇企业管理有限公司股东全部权益价值资产评估报告",
+        "published": "2026-11-24",
+        "url": "https://data.eastmoney.com/notices/detail/09696/AN202611241832002726.html",
+        "category": "监管问询"
+      },
+      {
+        "code": "09696",
+        "name": "天齐锂业",
+        "title": "海外监管公告 - 四川省雅江县上都布锂辉石、硅石矿详查探矿权评估报告",
+        "published": "2026-11-24",
+        "url": "https://data.eastmoney.com/notices/detail/09696/AN202611241832002705.html",
+        "category": "监管问询"
+      },
+      {
+        "code": "09696",
+        "name": "天齐锂业",
+        "title": "海外监管公告 - 关于调整商品期货套期保值业务额度的可行性分析报告",
+        "published": "2026-11-24",
+        "url": "https://data.eastmoney.com/notices/detail/09696/AN202611241832002700.html",
+        "category": "监管问询"
+      },
       {
         "code": "09696",
         "name": "天齐锂业",
@@ -816,11 +896,11 @@
       }
     ],
     "days": 120,
-    "as_of": "2026-11-24",
+    "as_of": "2026-11-25",
     "segment_as_of": {
-      "risks": "2026-11-24",
-      "holders": "2026-11-24",
-      "business": "2026-11-24"
+      "risks": "2026-11-25",
+      "holders": "2026-11-25",
+      "business": "2026-11-25"
     }
   },
   "risks": [
@@ -920,6 +1000,6 @@
     }
   ],
   "created": "2026-10-29",
-  "updated": "2026-11-24",
+  "updated": "2026-11-25",
   "derived_level": "证据充分"
 }
